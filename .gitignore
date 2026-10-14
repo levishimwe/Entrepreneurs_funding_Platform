@@ -1,0 +1,9 @@
+node_modules
+server/.env
+server/certs/
+server/uploads/
+.env
+client/dist/
+server/uploads-test/
+server/.tesseract-cache/
+*.traineddata

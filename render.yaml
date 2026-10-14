@@ -1,0 +1,97 @@
+# Render Blueprint for the ALU Ventures API (Express). The React client is
+# deployed separately on Vercel and proxies /api/* here (client/vercel.json).
+# Values marked `sync: false` are secrets: Render asks for them when the
+# Blueprint is created; nothing secret is stored in this file.
+services:
+  - type: web
+    name: alu-ventures-api
+    runtime: node
+    plan: free
+    rootDir: server
+    # Installs dependencies and downloads the OCR language data at build time.
+    buildCommand: npm ci && npm run ocr:warm
+    # Applies pending migrations and seeds the admin/staff accounts from the
+    # environment before starting (both are safe to re-run on every boot).
+    startCommand: npm run release && npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      # Vercel's rewrite + Render's load balancer = 2 proxies in front of Express.
+      - key: TRUST_PROXY
+        value: "2"
+      - key: CLIENT_URL
+        sync: false # https://your-project.vercel.app (comma-separate extra origins)
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SESSION_HOURS
+        value: "12"
+      - key: ALUMNI_EMAIL_DOMAINS
+        value: alueducation.com,alustudent.com
+
+      # Aiven MySQL (TLS verified with Aiven's CA certificate)
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_NAME
+        value: defaultdb
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_CA_CERT
+        sync: false # paste Aiven's CA certificate (PEM), or its base64
+
+      # Private object storage (Cloudflare R2 or Hetzner Object Storage)
+      - key: STORAGE_DRIVER
+        value: s3
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        value: auto
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_FORCE_PATH_STYLE
+        value: "false"
+
+      # Email over HTTPS (Render's free tier blocks SMTP ports 25/465/587)
+      - key: EMAIL_DRIVER
+        value: brevo
+      - key: EMAIL_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false # "ALU Ventures" <verified-sender@example.org>
+
+      # OCR: one thread fits a 512 MB instance; idle threads exit after 60 s.
+      - key: OCR_POOL_SIZE
+        value: "1"
+      - key: OCR_IDLE_MS
+        value: "60000"
+
+      # Admin and staff accounts, created/updated on every boot by the seed.
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_NAME
+        sync: false
+      - key: STAFF1_EMAIL
+        sync: false
+      - key: STAFF1_PASSWORD
+        sync: false
+      - key: STAFF1_NAME
+        sync: false
+      - key: STAFF2_EMAIL
+        sync: false
+      - key: STAFF2_PASSWORD
+        sync: false
+      - key: STAFF2_NAME
+        sync: false
