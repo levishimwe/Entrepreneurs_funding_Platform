@@ -165,6 +165,11 @@ const loadFullUser = (where) =>
   });
 
 async function ensureEmailAvailable(address) {
+  // Reserved for the seeded admin/staff accounts. Same message as a taken
+  // address, so the response does not reveal which addresses are privileged.
+  if (env.privilegedEmails.includes(address.toLowerCase())) {
+    throw conflict('An account with this email already exists. Sign in or reset your password.');
+  }
   const existing = await User.findOne({ where: { email: address } });
   if (existing) {
     throw conflict(

@@ -46,7 +46,8 @@ const env = {
     // Tests run against a separate database on the same Aiven instance.
     name: isTest ? process.env.DB_NAME_TEST || 'alu_funding_test' : required('DB_NAME'),
     user: required('DB_USER'),
-    password: required('DB_PASSWORD'),
+    // DB_PASSWORD is the documented name; DB_PASS is accepted as an alias.
+    password: process.env.DB_PASSWORD || process.env.DB_PASS || required('DB_PASSWORD'),
     sslCaPath: path.resolve(SERVER_ROOT, process.env.DB_SSL_CA || './certs/ca.pem'),
     // Used when the CA file is absent (e.g. on Render): the PEM text itself,
     // or the PEM base64-encoded on one line.
@@ -55,6 +56,12 @@ const env = {
 
   jwtSecret: required('JWT_SECRET'),
   sessionHours: Number(process.env.SESSION_HOURS || 12),
+
+  // Addresses provisioned by the seed for admin and staff. Nobody can register
+  // with them, even before the seed has run.
+  privilegedEmails: ['ADMIN_EMAIL', 'STAFF1_EMAIL', 'STAFF2_EMAIL']
+    .map((k) => (process.env[k] || '').trim().toLowerCase())
+    .filter(Boolean),
 
   alumniDomains: list(process.env.ALUMNI_EMAIL_DOMAINS || 'alueducation.com').map((d) => d.toLowerCase()),
 

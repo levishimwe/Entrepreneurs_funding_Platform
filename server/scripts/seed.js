@@ -85,11 +85,28 @@ async function seed({ quiet = false } = {}) {
   log(`Sector keyword map: ${Object.keys(DEFAULT_SECTOR_KEYWORDS).length} sectors; settings ready.`);
 
   for (const account of accounts) {
-    const existing = await User.findOne({ where: { email: account.email } });
+    let existing = await User.findOne({ where: { email: account.email } });
+    // Never turn a graduate or investor account into a privileged one: whoever
+    // registered the address first would otherwise become admin or staff.
     if (existing && !['admin', 'staff'].includes(existing.role)) {
       throw new SeedConfigError(
-        `${account.prefix}_EMAIL (${account.email}) already belongs to a ${existing.role} account. Use a different address.`
+        `${account.prefix}_EMAIL (${account.email}) already belongs to a ${existing.role} account (user ${existing.id}). ` +
+          'Use a different address, or move that account to another address first.'
       );
+    }
+    if (!existing && account.role === 'admin') {
+      // ADMIN_EMAIL changed: move the current admin to the new address rather
+      // than creating a second admin, so its audit history stays with it.
+      const current = await User.findAll({
+        where: { role: 'admin', status: 'active', email: { [Op.notIn]: accounts.map((a) => a.email) } },
+      });
+      if (current.length === 1) {
+        const [admin] = current;
+        const previous = admin.email;
+        await admin.update({ email: account.email, tokenVersion: admin.tokenVersion + 1 });
+        existing = admin;
+        log(`Moved the admin account from ${previous} to ${account.email} (old sessions signed out)`);
+      }
     }
     if (!existing) {
       await User.create({
@@ -129,6 +146,11 @@ async function seed({ quiet = false } = {}) {
   for (const user of others) {
     await user.update({ status: 'suspended', tokenVersion: user.tokenVersion + 1 });
     log(`Suspended ${user.role} account ${user.email} (not configured in server/.env)`);
+  }
+
+  const activeAdmins = await User.findAll({ where: { role: 'admin', status: 'active' }, attributes: ['email'] });
+  if (activeAdmins.length !== 1 || activeAdmins[0].email !== accounts[0].email) {
+    throw new SeedConfigError(`Expected exactly one active admin (${accounts[0].email}); found ${activeAdmins.length}.`);
   }
 }
 
