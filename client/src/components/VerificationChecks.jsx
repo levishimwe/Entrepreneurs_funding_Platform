@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, MinusCircle, RefreshCw, XCircle } from 'lucide-react';
 import { api } from '../lib/api';
-import { StatusPill } from './ui';
 import DocumentViewer from './DocumentViewer';
+import { StatusText } from './admin';
 
 const METHOD = {
   'pdf-text+ocr': 'PDF text layer + OCR',
@@ -13,17 +12,17 @@ const METHOD = {
 
 export const adminFileUrl = (id) => `/api/admin/documents/${id}/file`;
 
-function CheckIcon({ check }) {
-  if (check.neutral) return <MinusCircle className="mt-0.5 h-4 w-4 shrink-0 text-muted" aria-label="Note" />;
-  if (check.passed) return <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" aria-label="Passed" />;
-  return <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-label="Needs attention" />;
+// Plain result text for one check.
+function result(check) {
+  if (check.neutral) return <span className="adm-muted">Note</span>;
+  return check.passed ? 'Passed' : <span className="adm-bad">Failed</span>;
 }
 
 const POLL_MS = 3000;
 
-// Administrator review panel: the uploaded document (served only through the
-// admin endpoint) beside its automated pre-check. The flag is a review aid;
-// the administrator decides.
+// Administrator review block: the uploaded document (served only through the
+// admin endpoint) above its automated checks. The flag is a review aid; the
+// administrator decides.
 export default function VerificationChecks({ document: initial, title }) {
   const [document, setDocument] = useState(initial);
   const [requesting, setRequesting] = useState(false);
@@ -69,42 +68,51 @@ export default function VerificationChecks({ document: initial, title }) {
   };
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[3fr_2fr]">
+    <div className="space-y-3">
       <DocumentViewer src={adminFileUrl(document.id)} mimeType={document.mimeType} name={document.originalName} />
-      <div className="h-fit rounded-md border border-line">
-        <div className="flex flex-wrap items-center gap-2 border-b border-line bg-subtle px-3 py-2">
-          <span className="text-sm font-medium">{title}</span>
-          <StatusPill status={pending || rerunning ? 'processing' : document.flag} />
-        </div>
-        {pending ? (
-          <p className="p-3 text-sm text-muted">The automated check is still running. This panel updates when it finishes.</p>
-        ) : (
-          <div className="space-y-2 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Automated checks</p>
-            <ul className="space-y-1.5">
-              {document.checks.map((c) => (
-                <li key={c.id} className="flex gap-2 text-sm">
-                  <CheckIcon check={c} />
-                  <span className="min-w-0 break-words">
-                    {c.label}
-                    {c.detail && <span className="block text-xs text-muted">{c.detail}</span>}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <p className="border-t border-line pt-2 text-xs text-muted">
-              Read via {METHOD[document.method] || 'n/a'}
-              {document.ocrConfidence != null && ` · OCR confidence ${document.ocrConfidence}%`}. Compare the checks with the document
-              before deciding — automated checks never approve on their own.
-            </p>
-            {error && <p className="text-xs text-red-600">{error}</p>}
-            <button type="button" className="btn-secondary w-full sm:w-auto" onClick={rerun} disabled={rerunning}>
-              <RefreshCw className={`h-4 w-4 ${rerunning ? 'animate-spin' : ''}`} aria-hidden="true" />
-              {rerunning ? 'Re-running checks…' : 'Re-run checks'}
-            </button>
-          </div>
+      <p>
+        <span className="font-semibold">{title}</span>
+        {' · Automated flag: '}
+        <StatusText status={pending || rerunning ? 'processing' : document.flag} />
+        {!pending && (
+          <span className="adm-muted">
+            {' · Read via '}
+            {METHOD[document.method] || 'n/a'}
+            {document.ocrConfidence != null && `, OCR confidence ${document.ocrConfidence}%`}
+          </span>
         )}
-      </div>
+      </p>
+      {pending ? (
+        <p className="adm-muted">The automated check is still running. This updates when it finishes.</p>
+      ) : (
+        <div className="adm-table-wrap">
+          <table className="adm-table">
+            <thead>
+              <tr>
+                <th>Check</th>
+                <th>Result</th>
+                <th>Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {document.checks.map((c) => (
+                <tr key={c.id}>
+                  <td>{c.label}</td>
+                  <td className="whitespace-nowrap">{result(c)}</td>
+                  <td className="adm-muted break-words">{c.detail || ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="adm-hint">
+        Automated checks never approve on their own. Compare them with the document before deciding.{' '}
+        <button type="button" className="adm-btn" onClick={rerun} disabled={rerunning || pending}>
+          {rerunning ? 'Re-running checks…' : 'Re-run checks'}
+        </button>
+      </p>
+      {error && <p className="adm-bad">{error}</p>}
     </div>
   );
 }

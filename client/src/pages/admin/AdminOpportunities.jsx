@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Inbox, Plus } from 'lucide-react';
 import { api } from '../../lib/api';
-import { Alert, EmptyState, PageHeader, PageLoader, Pill, StatusPill, formatDate } from '../../components/ui';
+import { formatDate } from '../../components/ui';
 import OpportunityForm, { CriteriaSummary } from '../../components/OpportunityForm';
 import ReasonDialog from '../../components/ReasonDialog';
+import { AdminPage, EmptyRow, FilterLinks, Filters, Loading, Messages, StatusText, TableWrap } from '../../components/admin';
 
-const TABS = [
+const STATUSES = [
   ['pending_review', 'Staff proposals'],
   ['published', 'Published'],
   ['closed', 'Closed'],
@@ -36,9 +36,8 @@ export default function AdminOpportunities() {
 
   if (editing) {
     return (
-      <>
-        <PageHeader title={editing === 'new' ? 'Post an opportunity' : `Edit: ${editing.title}`} description={editing === 'new' ? 'Opportunities you post are published immediately.' : undefined} />
-        <div className="card p-5">
+      <AdminPage title={editing === 'new' ? 'Add opportunity' : `Edit: ${editing.title}`} hint={editing === 'new' ? 'Opportunities you add are published immediately.' : undefined}>
+        <div className="border border-line bg-surface p-4">
           <OpportunityForm
             initial={editing === 'new' ? null : editing}
             submitLabel={editing === 'new' ? 'Publish opportunity' : 'Save changes'}
@@ -53,80 +52,75 @@ export default function AdminOpportunities() {
             }}
           />
         </div>
-      </>
+      </AdminPage>
     );
   }
 
   return (
-    <>
-      <PageHeader
-        title="Hackathons & Opportunities"
-        description="Publish staff proposals, post your own opportunities and close them when applications end. Selection decisions are made by ALU staff."
-        actions={
-          <button type="button" className="btn-primary" onClick={() => setEditing('new')}>
-            <Plus className="h-4 w-4" aria-hidden="true" /> Post opportunity
-          </button>
-        }
-      />
-      {notice && <Alert type="success" className="mb-4">{notice}</Alert>}
-      {error && <Alert type="error" className="mb-4">{error}</Alert>}
-      <div className="mb-4 flex gap-1 border-b border-line" role="tablist">
-        {TABS.map(([key, label]) => (
-          <button
-            key={key}
-            role="tab"
-            aria-selected={tab === key}
-            onClick={() => setTab(key)}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm ${tab === key ? 'border-accent font-medium' : 'border-transparent text-muted hover:text-ink'}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+    <AdminPage
+      title="Opportunities"
+      hint="Selection decisions are made by ALU staff."
+      actions={
+        <button type="button" className="adm-btn" onClick={() => setEditing('new')}>
+          Add opportunity
+        </button>
+      }
+    >
+      <Messages notice={notice} error={error} />
+      <Filters>
+        <FilterLinks label="Status" options={STATUSES} value={tab} onChange={setTab} />
+      </Filters>
       {!rows ? (
-        <PageLoader />
-      ) : rows.length === 0 ? (
-        <div className="card">
-          <EmptyState icon={Inbox} title="No opportunities here" />
-        </div>
+        <Loading />
       ) : (
-        <div className="space-y-3">
-          {rows.map((o) => (
-            <div key={o.id} className="card flex flex-col gap-3 p-4 md:flex-row md:items-start">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="font-semibold">{o.title}</h2>
-                  <Pill tone="blue">{o.type}</Pill>
-                  <StatusPill status={o.status} />
-                </div>
-                <p className="mt-1 text-xs text-muted">
-                  Deadline {formatDate(o.deadline, true)} · {o.applicationCount} application(s) · proposed by {o.createdBy?.name} ({o.createdBy?.role})
-                </p>
-                <p className="mt-2 line-clamp-2 text-sm">{o.description}</p>
-                <div className="mt-2">
-                  <CriteriaSummary criteria={o.criteria} />
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" className="btn-secondary" onClick={() => setEditing(o)}>
-                  Edit
-                </button>
-                {Object.entries(ACTIONS)
-                  .filter(([, a]) => a.from.includes(o.status))
-                  .map(([key, a]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      className={a.tone === 'danger' ? 'btn-danger' : a.tone === 'success' ? 'btn-cta' : 'btn-secondary'}
-                      onClick={() => setDialog({ key, action: a, o })}
-                    >
-                      {a.label}
+        <TableWrap>
+          <table className="adm-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Deadline</th>
+                <th className="adm-num">Applications</th>
+                <th>Proposed by</th>
+                <th className="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && <EmptyRow colSpan={7}>No opportunities with this status.</EmptyRow>}
+              {rows.map((o) => (
+                <tr key={o.id}>
+                  <td>
+                    {o.title}
+                    <CriteriaSummary criteria={o.criteria} />
+                  </td>
+                  <td className="capitalize">{o.type}</td>
+                  <td>
+                    <StatusText status={o.status} />
+                  </td>
+                  <td className="whitespace-nowrap">{formatDate(o.deadline, true)}</td>
+                  <td className="adm-num">{o.applicationCount}</td>
+                  <td>
+                    {o.createdBy?.name}
+                    <div className="adm-muted capitalize">{o.createdBy?.role}</div>
+                  </td>
+                  <td className="adm-actions">
+                    <button type="button" className="adm-btn" onClick={() => setEditing(o)}>
+                      Edit
                     </button>
-                  ))}
-              </div>
-            </div>
-          ))}
-        </div>
+                    {Object.entries(ACTIONS)
+                      .filter(([, a]) => a.from.includes(o.status))
+                      .map(([key, a]) => (
+                        <button key={key} type="button" className={`adm-btn ${a.tone === 'danger' ? 'adm-btn-danger' : ''}`} onClick={() => setDialog({ key, action: a, o })}>
+                          {a.label}
+                        </button>
+                      ))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableWrap>
       )}
       <ReasonDialog
         open={Boolean(dialog)}
@@ -141,6 +135,6 @@ export default function AdminOpportunities() {
           load();
         }}
       />
-    </>
+    </AdminPage>
   );
 }

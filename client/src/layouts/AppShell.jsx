@@ -1,32 +1,14 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import {
-  BadgeCheck,
-  Briefcase,
-  ClipboardCheck,
-  CreditCard,
-  FolderKanban,
-  Gauge,
-  Handshake,
-  LayoutDashboard,
-  LogOut,
-  Mail,
-  Menu,
-  Search,
-  Settings,
-  SlidersHorizontal,
-  Trophy,
-  UserCheck,
-  Users,
-  X,
-} from 'lucide-react';
+import { BadgeCheck, CreditCard, FolderKanban, Handshake, LayoutDashboard, LogOut, Menu, Search, Settings, Trophy, X } from 'lucide-react';
 import Logo from '../components/Logo';
 import { useAuth } from '../context/AuthContext';
 import { Pill } from '../components/ui';
 import Avatar from '../components/Avatar';
+import AdminShell from './AdminShell';
 
-// Only real features for the signed-in role (no Figma placeholders such as
-// Admin Operations for graduates, Disbursements, Cap Table or tokens).
+// Graduate and investor navigation: only real features for the role (no Figma
+// placeholders such as Disbursements, Cap Table or tokens).
 const NAV = {
   graduate: [
     {
@@ -52,35 +34,6 @@ const NAV = {
       items: [{ to: '/app/billing', label: 'Billing & Premium Plans', icon: CreditCard }],
     },
   ],
-  admin: [
-    {
-      section: 'Workspace',
-      items: [
-        { to: '/app/admin', label: 'Dashboard', icon: Gauge, end: true },
-        { to: '/app/admin/projects', label: 'Project Verification', icon: ClipboardCheck },
-        { to: '/app/admin/graduates', label: 'Graduate Approvals', icon: UserCheck },
-        { to: '/app/admin/investors', label: 'Investor Approvals', icon: Users },
-        { to: '/app/admin/introductions', label: 'Introductions & Funding', icon: Handshake },
-        { to: '/app/admin/opportunities', label: 'Hackathons & Grants', icon: Trophy },
-      ],
-    },
-    {
-      section: 'Management',
-      items: [
-        { to: '/app/admin/outbox', label: 'Email Outbox', icon: Mail },
-        { to: '/app/admin/config', label: 'Rules & Thresholds', icon: SlidersHorizontal },
-      ],
-    },
-  ],
-  staff: [
-    {
-      section: 'Workspace console',
-      items: [
-        { to: '/app/staff', label: 'Hackathons & Opportunities', icon: Trophy, end: true },
-        { to: '/app/staff/selection', label: 'Staff Selection', icon: Briefcase },
-      ],
-    },
-  ],
 };
 
 const ROLE_LABEL = { graduate: 'Graduate Founder', investor: 'Investor / Sponsor', admin: 'Administrator', staff: 'ALU Staff' };
@@ -104,7 +57,13 @@ function NavItem({ to, label, icon: Icon, end }) {
   );
 }
 
+// Administrators and staff get the plain admin shell.
 export default function AppShell() {
+  const { user } = useAuth();
+  return ['admin', 'staff'].includes(user.role) ? <AdminShell /> : <MemberShell />;
+}
+
+function MemberShell() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();

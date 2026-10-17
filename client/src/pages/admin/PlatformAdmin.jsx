@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ExternalLink, RotateCw } from 'lucide-react';
 import { api } from '../../lib/api';
-import { Alert, Field, PageHeader, PageLoader, Pill, StatusPill, formatDate } from '../../components/ui';
+import { formatDate } from '../../components/ui';
+import { AdminPage, EmptyRow, FilterLinks, Filters, Loading, Messages, StatusText, TableWrap } from '../../components/admin';
 
 // FR10: the persistent email outbox, with failures visible for follow-up.
 export function Outbox() {
@@ -26,51 +26,54 @@ export function Outbox() {
   };
 
   return (
-    <>
-      <PageHeader title="Email Outbox" description="Every notification is stored with its delivery status. Failed emails are retried automatically and can be retried here." />
-      {error && <Alert type="error" className="mb-4">{error}</Alert>}
-      <div className="mb-4 flex flex-wrap gap-2">
-        {[['', 'All'], ['pending', 'Pending'], ['sent', 'Sent'], ['failed', 'Failed']].map(([k, l]) => (
-          <button key={k} type="button" onClick={() => setStatus(k)} className={`rounded-full border px-3 py-1 text-xs ${status === k ? 'border-accent bg-accent-soft text-accent' : 'border-line text-muted'}`}>
-            {l} {data?.counts && k && <span className="tabular-nums">({data.counts[k] || 0})</span>}
-          </button>
-        ))}
-      </div>
+    <AdminPage title="Email outbox" hint="Failed emails are retried automatically; Retry sends one again now.">
+      <Messages error={error} />
+      <Filters>
+        <FilterLinks
+          label="Status"
+          options={[['', 'All'], ['pending', 'Pending'], ['sent', 'Sent'], ['failed', 'Failed']].map(([k, l]) => [k, l, k ? data?.counts?.[k] || 0 : undefined])}
+          value={status}
+          onChange={setStatus}
+        />
+      </Filters>
       {!data ? (
-        <PageLoader />
+        <Loading />
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="border-b border-line bg-subtle text-xs text-muted">
+        <TableWrap>
+          <table className="adm-table">
+            <thead>
               <tr>
-                <th className="px-4 py-2 font-medium">Subject</th>
-                <th className="px-4 py-2 font-medium">Recipient</th>
-                <th className="px-4 py-2 font-medium">Status</th>
-                <th className="px-4 py-2 font-medium">Queued</th>
-                <th className="px-4 py-2" />
+                <th>Subject</th>
+                <th>Recipient</th>
+                <th>Status</th>
+                <th className="adm-num">Attempts</th>
+                <th>Queued</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-line">
+            <tbody>
+              {data.notifications.length === 0 && <EmptyRow colSpan={6}>No emails.</EmptyRow>}
               {data.notifications.map((n) => (
                 <tr key={n.id}>
-                  <td className="px-4 py-2">
+                  <td>
                     {n.subject}
-                    {n.lastError && <p className="text-xs text-red-600">{n.lastError}</p>}
+                    {n.lastError && <div className="adm-bad">{n.lastError}</div>}
                   </td>
-                  <td className="px-4 py-2 text-xs">{n.toEmail}</td>
-                  <td className="px-4 py-2">
-                    <StatusPill status={n.status} /> <span className="text-xs text-muted">{n.attempts} attempt(s)</span>
+                  <td className="break-all">{n.toEmail}</td>
+                  <td>
+                    <StatusText status={n.status} />
                   </td>
-                  <td className="px-4 py-2 text-xs text-muted">{formatDate(n.createdAt, true)}</td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="adm-num">{n.attempts}</td>
+                  <td className="whitespace-nowrap">{formatDate(n.createdAt, true)}</td>
+                  <td className="adm-actions">
                     {n.status !== 'sent' && (
-                      <button type="button" className="btn-secondary px-2 py-1 text-xs" onClick={() => retry(n.id)}>
-                        <RotateCw className="h-3 w-3" aria-hidden="true" /> Retry
+                      <button type="button" className="adm-btn" onClick={() => retry(n.id)}>
+                        Retry
                       </button>
                     )}
                     {n.previewUrl && (
-                      <a href={n.previewUrl} target="_blank" rel="noreferrer" className="ml-2 inline-flex items-center gap-1 text-xs text-accent hover:underline">
-                        Preview <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                      <a href={n.previewUrl} target="_blank" rel="noreferrer" className="adm-btn">
+                        Preview
                       </a>
                     )}
                   </td>
@@ -78,9 +81,9 @@ export function Outbox() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableWrap>
       )}
-    </>
+    </AdminPage>
   );
 }
 
@@ -123,63 +126,98 @@ export function RulesConfig() {
   };
   const list = (s) => s.split(',').map((k) => k.trim()).filter(Boolean);
 
-  if (!data) return error ? <Alert type="error">{error}</Alert> : <PageLoader />;
+  if (!data) return <AdminPage title="Rules & thresholds">{error ? <Messages error={error} /> : <Loading />}</AdminPage>;
   return (
-    <>
-      <PageHeader title="Rules & Thresholds" description="Keyword map for sector suggestions and the thresholds used by similarity and name matching. Changes apply to new checks." />
-      {notice && <Alert type="success" className="mb-4">{notice}</Alert>}
-      {error && <Alert type="error" className="mb-4">{error}</Alert>}
-      <div className="card mb-6 p-5">
-        <h2 className="font-semibold">Thresholds</h2>
-        <div className="mt-3 grid gap-4 sm:grid-cols-2">
-          <Field label="Project similarity threshold" htmlFor="sim" help="0.30–0.99. Submissions at or above this score are Similarity Flagged.">
-            <input id="sim" type="number" step="0.01" min="0.3" max="0.99" className="input" value={thresholds.similarity_threshold ?? ''} onChange={(e) => setThresholds((t) => ({ ...t, similarity_threshold: e.target.value }))} />
-          </Field>
-          <Field label="Document name-match threshold" htmlFor="ocr" help="0.50–1.00. Minimum fuzzy similarity between a certificate name and the profile name.">
-            <input id="ocr" type="number" step="0.01" min="0.5" max="1" className="input" value={thresholds.ocr_name_match_threshold ?? ''} onChange={(e) => setThresholds((t) => ({ ...t, ocr_name_match_threshold: e.target.value }))} />
-          </Field>
-        </div>
-        <button type="button" className="btn-primary mt-4" onClick={() => run(() => api.put('/admin/config/settings', thresholds), 'Thresholds saved.')}>
+    <AdminPage title="Rules & thresholds" hint="Changes apply to new checks and submissions.">
+      <Messages notice={notice} error={error} />
+
+      <TableWrap>
+        <table className="adm-table">
+          <thead>
+            <tr>
+              <th>Threshold</th>
+              <th>Value</th>
+              <th>Range</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <label htmlFor="sim">Project similarity (at or above → Similarity Flagged)</label>
+              </td>
+              <td>
+                <input id="sim" type="number" step="0.01" min="0.3" max="0.99" className="adm-field max-w-28" value={thresholds.similarity_threshold ?? ''} onChange={(e) => setThresholds((t) => ({ ...t, similarity_threshold: e.target.value }))} />
+              </td>
+              <td className="adm-muted">0.30–0.99</td>
+            </tr>
+            <tr>
+              <td>
+                <label htmlFor="ocr">Document name match (certificate name vs profile name)</label>
+              </td>
+              <td>
+                <input id="ocr" type="number" step="0.01" min="0.5" max="1" className="adm-field max-w-28" value={thresholds.ocr_name_match_threshold ?? ''} onChange={(e) => setThresholds((t) => ({ ...t, ocr_name_match_threshold: e.target.value }))} />
+              </td>
+              <td className="adm-muted">0.50–1.00</td>
+            </tr>
+          </tbody>
+        </table>
+      </TableWrap>
+      <p className="mt-2">
+        <button type="button" className="adm-btn adm-btn-primary" onClick={() => run(() => api.put('/admin/config/settings', thresholds), 'Thresholds saved.')}>
           Save thresholds
         </button>
-      </div>
-      <div className="card p-5">
-        <h2 className="font-semibold">Sector keyword map</h2>
-        <p className="text-xs text-muted">Comma-separated keywords. A project’s text is matched against these to suggest a sector; graduates always confirm.</p>
-        <div className="mt-4 space-y-3">
-          {data.sectors.map((s) => (
-            <div key={s.id} className="flex flex-col gap-2 sm:flex-row sm:items-start">
-              <div className="w-48 shrink-0 pt-1.5 text-sm font-medium">{s.sector}</div>
-              <textarea rows={2} className="input" aria-label={`${s.sector} keywords`} value={drafts[s.id] || ''} onChange={(e) => setDrafts((d) => ({ ...d, [s.id]: e.target.value }))} />
-              <button type="button" className="btn-secondary shrink-0" onClick={() => run(() => api.put(`/admin/config/sectors/${s.id}`, { keywords: list(drafts[s.id]) }), `${s.sector} keywords saved.`)}>
-                Save
-              </button>
-            </div>
-          ))}
-        </div>
-        <div className="mt-6 border-t border-line pt-4">
-          <p className="mb-2 text-sm font-medium">Add a sector</p>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <input className="input sm:w-48" placeholder="Sector name" aria-label="New sector name" value={newSector.sector} onChange={(e) => setNewSector((n) => ({ ...n, sector: e.target.value }))} />
-            <input className="input" placeholder="keyword, keyword, …" aria-label="New sector keywords" value={newSector.keywords} onChange={(e) => setNewSector((n) => ({ ...n, keywords: e.target.value }))} />
-            <button
-              type="button"
-              className="btn-primary shrink-0"
-              onClick={() =>
-                run(async () => {
-                  await api.post('/admin/config/sectors', { sector: newSector.sector, keywords: list(newSector.keywords) });
-                  setNewSector({ sector: '', keywords: '' });
-                }, 'Sector added.')
-              }
-            >
-              Add
-            </button>
-          </div>
-          <p className="help">
-            <Pill tone="slate">Note</Pill> New sectors appear in the project form’s sector list straight away.
-          </p>
-        </div>
-      </div>
-    </>
+      </p>
+
+      <h2>Sector keyword map</h2>
+      <p className="adm-hint">Comma-separated keywords suggest a sector from a project’s text; graduates always confirm. New sectors appear in the project form straight away.</p>
+      <TableWrap>
+        <table className="adm-table">
+          <thead>
+            <tr>
+              <th>Sector</th>
+              <th className="w-full">Keywords</th>
+              <th className="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.sectors.map((s) => (
+              <tr key={s.id}>
+                <td className="whitespace-nowrap">{s.sector}</td>
+                <td>
+                  <textarea rows={2} className="adm-field" aria-label={`${s.sector} keywords`} value={drafts[s.id] || ''} onChange={(e) => setDrafts((d) => ({ ...d, [s.id]: e.target.value }))} />
+                </td>
+                <td className="adm-actions">
+                  <button type="button" className="adm-btn" onClick={() => run(() => api.put(`/admin/config/sectors/${s.id}`, { keywords: list(drafts[s.id]) }), `${s.sector} keywords saved.`)}>
+                    Save
+                  </button>
+                </td>
+              </tr>
+            ))}
+            <tr>
+              <td>
+                <input className="adm-field" placeholder="New sector" aria-label="New sector name" value={newSector.sector} onChange={(e) => setNewSector((n) => ({ ...n, sector: e.target.value }))} />
+              </td>
+              <td>
+                <input className="adm-field" placeholder="keyword, keyword, …" aria-label="New sector keywords" value={newSector.keywords} onChange={(e) => setNewSector((n) => ({ ...n, keywords: e.target.value }))} />
+              </td>
+              <td className="adm-actions">
+                <button
+                  type="button"
+                  className="adm-btn"
+                  onClick={() =>
+                    run(async () => {
+                      await api.post('/admin/config/sectors', { sector: newSector.sector, keywords: list(newSector.keywords) });
+                      setNewSector({ sector: '', keywords: '' });
+                    }, 'Sector added.')
+                  }
+                >
+                  Add
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </TableWrap>
+    </AdminPage>
   );
 }

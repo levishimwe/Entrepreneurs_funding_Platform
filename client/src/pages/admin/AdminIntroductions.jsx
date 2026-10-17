@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, Circle, Handshake } from 'lucide-react';
 import { api } from '../../lib/api';
-import { Alert, PageHeader, PageLoader, StatusPill, formatDate } from '../../components/ui';
+import { formatDate } from '../../components/ui';
 import ReasonDialog from '../../components/ReasonDialog';
+import { AdminPage, EmptyRow, FilterLinks, Filters, Loading, Messages, StatusText, TableWrap } from '../../components/admin';
 
-const TABS = [
+const STATUSES = [
   ['ready', 'Ready to record'],
   ['requested', 'Requested'],
   ['accepted', 'Introduced'],
@@ -14,13 +14,9 @@ const TABS = [
   ['all', 'All'],
 ];
 
-const Tick = ({ on, label }) => (
-  <span className={`inline-flex items-center gap-1 ${on ? 'text-green-700 dark:text-green-400' : 'text-muted'}`}>
-    {on ? <CheckCircle2 className="h-3.5 w-3.5" aria-label="Yes" /> : <Circle className="h-3.5 w-3.5" aria-label="No" />} {label}
-  </span>
-);
+const yes = (on) => (on ? 'yes' : 'no');
 
-// Introductions & Funding (FR07, FR13): the administrator records an
+// Introductions & funding (FR07, FR13): the administrator records an
 // investment only after both parties confirmed it.
 export default function AdminIntroductions() {
   const [tab, setTab] = useState('ready');
@@ -40,82 +36,68 @@ export default function AdminIntroductions() {
   }, [load]);
 
   return (
-    <>
-      <PageHeader title="Introductions & Funding" description="Track introductions and record investment outcomes once the founder and the investor have both confirmed them. Two recorded investors move a project to Investor Limit Reached." />
-      {notice && <Alert type="success" className="mb-4">{notice}</Alert>}
-      {error && <Alert type="error" className="mb-4">{error}</Alert>}
-      <div className="mb-3 overflow-x-auto border-b border-line">
-        <div className="flex min-w-max gap-1" role="tablist">
-          {TABS.map(([key, label]) => (
-            <button key={key} role="tab" aria-selected={tab === key} onClick={() => setTab(key)} className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm ${tab === key ? 'border-accent font-semibold' : 'border-transparent text-muted hover:text-ink'}`}>
-              {label}
-              {data?.counts && <span className="rounded-full bg-subtle px-1.5 text-xs tabular-nums text-muted ring-1 ring-line">{data.counts[key]}</span>}
-            </button>
-          ))}
-        </div>
-      </div>
+    <AdminPage title="Introductions & funding" hint="Record an investment once both the founder and the investor have confirmed it. Two recorded investors close a project to new introductions.">
+      <Messages notice={notice} error={error} />
+      <Filters>
+        <FilterLinks label="Show" options={STATUSES.map(([k, l]) => [k, l, data?.counts?.[k] ?? null])} value={tab} onChange={setTab} />
+      </Filters>
       {!data ? (
-        <PageLoader />
-      ) : data.introductions.length === 0 ? (
-        <div className="card flex flex-col items-center px-6 py-12 text-center">
-          <Handshake className="h-8 w-8 text-muted" aria-hidden="true" />
-          <p className="mt-2 text-sm text-muted">{tab === 'ready' ? 'No investments are waiting to be recorded.' : 'No introductions in this view.'}</p>
-        </div>
+        <Loading />
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full min-w-[820px] text-left text-sm">
-            <thead className="border-b border-line bg-subtle text-[11px] font-semibold uppercase tracking-wide text-muted">
+        <TableWrap>
+          <table className="adm-table">
+            <thead>
               <tr>
-                <th className="px-4 py-2.5">Project</th>
-                <th className="px-4 py-2.5">Investor</th>
-                <th className="px-4 py-2.5">Status</th>
-                <th className="px-4 py-2.5">Confirmations</th>
-                <th className="px-4 py-2.5 text-right">Action</th>
+                <th>Project</th>
+                <th>Investor</th>
+                <th>Requested</th>
+                <th>Introduction</th>
+                <th>Met (both)</th>
+                <th>Invested (investor / founder)</th>
+                <th>Recorded</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-line">
+            <tbody>
+              {data.introductions.length === 0 && (
+                <EmptyRow colSpan={8}>{tab === 'ready' ? 'No investments are waiting to be recorded.' : 'No introductions in this view.'}</EmptyRow>
+              )}
               {data.introductions.map((i) => (
-                <tr key={i.id} className="align-top">
-                  <td className="px-4 py-3">
-                    <Link to={`/app/admin/projects/${i.project.id}`} className="font-semibold hover:text-accent hover:underline">
+                <tr key={i.id}>
+                  <td>
+                    <Link className="adm-a" to={`/app/admin/projects/${i.project.id}`}>
                       {i.project.title}
                     </Link>
-                    <p className="font-mono text-[11px] text-muted">{i.project.projectCode}</p>
-                    <p className="text-xs text-muted">Founder: {i.project.founder}</p>
+                    <div className="adm-mono adm-muted">{i.project.projectCode}</div>
+                    <div className="adm-muted">
+                      Founder: {i.project.founder} · <StatusText status={i.project.status} />
+                    </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td>
                     {i.investor.name}
-                    {i.investor.organisation && <p className="text-xs text-muted">{i.investor.organisation}</p>}
-                    <p className="text-xs text-muted">Requested {formatDate(i.requestedAt)}</p>
+                    {i.investor.organisation && <div className="adm-muted">{i.investor.organisation}</div>}
                   </td>
-                  <td className="px-4 py-3">
-                    <StatusPill status={i.status} />
-                    <div className="mt-1">
-                      <StatusPill status={i.project.status} />
-                    </div>
+                  <td className="whitespace-nowrap">{formatDate(i.requestedAt)}</td>
+                  <td>
+                    <StatusText status={i.status} />
                   </td>
-                  <td className="space-y-0.5 px-4 py-3 text-xs">
-                    <div className="flex flex-col">
-                      <Tick on={i.meeting.investor && i.meeting.graduate} label="Meeting confirmed by both" />
-                      <Tick on={i.investment.investor} label="Investment confirmed by investor" />
-                      <Tick on={i.investment.graduate} label="Investment confirmed by founder" />
-                      <Tick on={Boolean(i.investment.recordedAt)} label={i.investment.recordedAt ? `Recorded ${formatDate(i.investment.recordedAt)}` : 'Not recorded'} />
-                    </div>
+                  <td>{yes(i.meeting.investor && i.meeting.graduate)}</td>
+                  <td>
+                    {yes(i.investment.investor)} / {yes(i.investment.graduate)}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    {i.status === 'accepted' && i.investment.investor && i.investment.graduate && !i.investment.recordedAt ? (
-                      <button type="button" className="btn-cta" onClick={() => setDialog(i)}>
+                  <td className="whitespace-nowrap">{i.investment.recordedAt ? formatDate(i.investment.recordedAt) : 'no'}</td>
+                  <td className="adm-actions">
+                    {i.status === 'accepted' && i.investment.investor && i.investment.graduate && !i.investment.recordedAt && (
+                      <button type="button" className="adm-btn adm-btn-primary" onClick={() => setDialog(i)}>
                         Record investment
                       </button>
-                    ) : (
-                      <span className="text-xs text-muted">—</span>
                     )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </TableWrap>
       )}
       <ReasonDialog
         open={Boolean(dialog)}
@@ -135,6 +117,6 @@ export default function AdminIntroductions() {
           load();
         }}
       />
-    </>
+    </AdminPage>
   );
 }

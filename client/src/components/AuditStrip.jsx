@@ -1,75 +1,59 @@
-import { History } from 'lucide-react';
+import { Collapsed, EmptyRow, TableWrap } from './admin';
 
 const VERB = {
-  'opportunity.proposed': 'submitted opportunity',
-  'opportunity.edited': 'edited opportunity',
-  'opportunity.published': 'published opportunity',
-  'opportunity.closed': 'closed applications for',
-  'opportunity.archived': 'archived opportunity',
-  'application.submitted': 'received application from',
-  'application.shortlisted': 'altered status for',
-  'application.selected': 'altered status for',
-  'application.not_selected': 'altered status for',
+  'opportunity.proposed': 'Submitted opportunity',
+  'opportunity.edited': 'Edited opportunity',
+  'opportunity.published': 'Published opportunity',
+  'opportunity.closed': 'Closed applications',
+  'opportunity.archived': 'Archived opportunity',
+  'application.submitted': 'Received application',
+  'application.shortlisted': 'Decision',
+  'application.selected': 'Decision',
+  'application.not_selected': 'Decision',
 };
 const RESULT = {
-  'application.shortlisted': 'SHORTLISTED',
-  'application.selected': 'SELECTED',
-  'application.not_selected': 'NOT_SELECTED',
+  'application.shortlisted': 'Shortlisted',
+  'application.selected': 'Selected',
+  'application.not_selected': 'Not selected',
 };
 
-// "KWIZERA, S." style, as in the Figma governance log.
-function surnameFirst(name = '') {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length < 2) return name.toUpperCase();
-  const last = parts.pop();
-  return `${last.toUpperCase()}, ${parts[0][0].toUpperCase()}.`;
-}
+const utc = (d) => `${new Date(d).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 
-const utcTime = (d) => new Date(d).toISOString().slice(11, 19);
-const utcDate = (d) => new Date(d).toISOString().slice(0, 10);
-
-// Governance audit log (FR10): who did what, to whom, when, and why.
-export default function AuditStrip({ title = 'Staff Selection Governance Audit Log', note, entries }) {
+// Governance audit log (FR10): who did what, to whom, when, and why. Shown
+// collapsed under a page's main table.
+export default function AuditStrip({ title = 'History', entries }) {
   return (
-    <section className="card mt-6 bg-subtle" aria-label={title}>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-2.5">
-        <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <History className="h-4 w-4 text-muted" aria-hidden="true" /> {title}
-        </h2>
-        {note && <span className="text-xs text-muted">{note}</span>}
-      </div>
-      {!entries ? (
-        <p className="px-4 py-3 font-mono text-xs text-muted">Loading…</p>
-      ) : entries.length === 0 ? (
-        <p className="px-4 py-3 font-mono text-xs text-muted">No recorded actions yet.</p>
-      ) : (
-        <ul className="divide-y divide-line font-mono text-xs">
-          {entries.map((e) => (
-            <li key={e.id} className="flex flex-col gap-0.5 px-4 py-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-              <span className="min-w-0">
-                <span className="text-muted" title={utcDate(e.at)}>
-                  [{utcDate(e.at)} {utcTime(e.at)} UTC]
-                </span>{' '}
-                <span className="text-ink">{e.actor?.email || 'system'}</span> <span className="text-muted">{VERB[e.action] || e.action}</span>{' '}
-                <span className="font-semibold text-ink">
-                  {e.entityType === 'application' ? surnameFirst(e.subject || 'applicant') : e.subject}
-                </span>
-                {RESULT[e.action] && (
-                  <span className={e.action === 'application.not_selected' ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400'}>
-                    {' '}
-                    -&gt; {RESULT[e.action]}
-                  </span>
-                )}
-                {e.reason && <span className="block truncate text-muted">  rationale: “{e.reason}”</span>}
-              </span>
-              <span className="shrink-0 text-muted">
-                #{String(e.id).padStart(5, '0')}
-                {RESULT[e.action] && (e.notified ? ' · applicant emailed' : ' · not emailed')}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+    <Collapsed title={`${title}${entries ? ` (${entries.length})` : ''}`}>
+      <TableWrap>
+        <table className="adm-table">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Who</th>
+              <th>Action</th>
+              <th>Subject</th>
+              <th>Result</th>
+              <th>Reason</th>
+              <th>Emailed</th>
+            </tr>
+          </thead>
+          <tbody>
+            {!entries && <EmptyRow colSpan={7}>Loading…</EmptyRow>}
+            {entries?.length === 0 && <EmptyRow colSpan={7}>No recorded actions yet.</EmptyRow>}
+            {entries?.map((e) => (
+              <tr key={e.id}>
+                <td className="whitespace-nowrap">{utc(e.at)}</td>
+                <td className="break-all">{e.actor?.email || 'system'}</td>
+                <td>{VERB[e.action] || e.action}</td>
+                <td>{e.subject}</td>
+                <td className={e.action === 'application.not_selected' ? 'adm-bad' : undefined}>{RESULT[e.action] || ''}</td>
+                <td className="adm-muted">{e.reason || ''}</td>
+                <td>{RESULT[e.action] ? (e.notified ? 'yes' : 'no') : ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableWrap>
+    </Collapsed>
   );
 }
