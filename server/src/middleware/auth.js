@@ -37,7 +37,7 @@ async function loadUser(req, res, next) {
         { model: InvestorProfile, as: 'investorProfile' },
       ],
     });
-    if (user && user.tokenVersion === payload.tv && !['suspended', 'rejected'].includes(user.status)) {
+    if (user && user.tokenVersion === payload.tv && !['suspended', 'rejected', 'archived'].includes(user.status)) {
       req.user = user;
     } else {
       clearSessionCookie(res);

@@ -338,6 +338,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     throw new HttpError(403, 'Your registration was not approved. Contact the ALU Ventures administrator for details.');
   }
   if (user.status === 'suspended') throw new HttpError(403, 'This account is suspended.');
+  if (user.status === 'archived') throw new HttpError(403, 'This account is archived. Contact the ALU Ventures administrator.');
 
   setSessionCookie(res, user);
   await audit.record({ actorId: user.id, action: 'auth.login', entityType: 'user', entityId: user.id });
@@ -357,7 +358,7 @@ router.get('/me', requireAuth, (req, res) => {
 router.post('/forgot-password', codeLimiter, async (req, res) => {
   const data = z.object({ email }).parse(req.body);
   const user = await User.findOne({ where: { email: data.email } });
-  if (user && !['suspended', 'rejected'].includes(user.status)) {
+  if (user && !['suspended', 'rejected', 'archived'].includes(user.status)) {
     const code = await issueCode(user.id, 'password_reset');
     const link = `${env.clientUrl}/reset-password?email=${encodeURIComponent(user.email)}&code=${code}`;
     await enqueueEmail({

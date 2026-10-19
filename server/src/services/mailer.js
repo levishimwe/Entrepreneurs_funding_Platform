@@ -162,7 +162,8 @@ async function deliver(notification) {
 // Called periodically by the worker; sends everything that is due.
 async function processOutbox() {
   const due = await Notification.findAll({
-    where: { status: 'pending', nextAttemptAt: { [Op.lte]: new Date() } },
+    // Archived emails are never sent.
+    where: { status: 'pending', archivedAt: null, nextAttemptAt: { [Op.lte]: new Date() } },
     order: [['id', 'ASC']],
     limit: 20,
   });

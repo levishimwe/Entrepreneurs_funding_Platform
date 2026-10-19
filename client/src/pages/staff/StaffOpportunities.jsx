@@ -4,7 +4,7 @@ import { api } from '../../lib/api';
 import { formatDate } from '../../components/ui';
 import OpportunityForm from '../../components/OpportunityForm';
 import AuditStrip from '../../components/AuditStrip';
-import { AdminPage, EmptyRow, FilterLinks, Filters, Loading, Messages, Pager, StatusText, TableWrap } from '../../components/admin';
+import { AdminPage, DataTable, ListLayout, Loading, Messages, Pager, SearchInput, StatusPill, StatusSelect } from '../../components/admin';
 
 const TYPES = [
   ['', 'All types'],
@@ -14,7 +14,7 @@ const TYPES = [
   ['other', 'Other'],
 ];
 const STATUS_LABEL = { published: 'Live', pending_review: 'Under review', closed: 'Closed' };
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 25;
 
 export const ref = (id) => `OPP-${String(id).padStart(4, '0')}`;
 
@@ -53,123 +53,92 @@ export default function StaffOpportunities() {
   const filtered = useMemo(() => {
     if (!rows) return [];
     const term = q.trim().toLowerCase();
-    return rows.filter(
-      (o) =>
-        (!type || o.type === type) &&
-        (!status || o.status === status) &&
-        (!term || `${o.title} ${o.organiser || ''} ${ref(o.id)}`.toLowerCase().includes(term))
-    );
+    return rows.filter((o) => (!type || o.type === type) && (!status || o.status === status) && (!term || `${o.title} ${o.organiser || ''} ${ref(o.id)}`.toLowerCase().includes(term)));
   }, [rows, q, type, status]);
   useEffect(() => setPage(1), [q, type, status]);
 
-  const count = (s) => rows?.filter((o) => o.status === s).length ?? null;
+  const count = (s) => (rows ? rows.filter((o) => !s || o.status === s).length : null);
+  const statusOptions = [
+    ['', 'All', count('')],
+    ['published', 'Live', count('published')],
+    ['pending_review', 'Under review', count('pending_review')],
+    ['closed', 'Closed', count('closed')],
+  ];
   const shown = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  return (
-    <AdminPage
-      title="Opportunities"
-      hint="The administrator reviews and publishes submissions; you evaluate applicants once an opportunity is live."
-      actions={
+  const columns = [
+    {
+      key: 'title',
+      label: 'Title',
+      render: (o) => (
         <>
-          <Link to="/opportunities" target="_blank" className="adm-btn">
-            Public listing
-          </Link>
-          <Link to="/app/staff/new" className="adm-btn">
-            Submit opportunity
-          </Link>
+          <span className="font-medium">{o.title}</span>
+          <div className="adm-mono adm-muted">{ref(o.id)}</div>
         </>
-      }
-    >
-      <Messages error={error} />
-      <Filters>
-        <FilterLinks
-          label="Status"
-          options={[
-            ['', 'All', rows?.length ?? null],
-            ['published', 'Live', count('published')],
-            ['pending_review', 'Under review', count('pending_review')],
-            ['closed', 'Closed', count('closed')],
-          ]}
-          value={status}
-          onChange={setStatus}
-        />
-        <select aria-label="Filter by type" value={type} onChange={(e) => setType(e.target.value)}>
-          {TYPES.map(([value, label]) => (
-            <option key={label} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-        <input aria-label="Filter opportunities" placeholder="Title, sponsor or OPP ref" value={q} onChange={(e) => setQ(e.target.value)} />
-      </Filters>
-
-      {!rows ? (
-        <Loading />
-      ) : (
-        <TableWrap>
-          <table className="adm-table">
-            <thead>
-              <tr>
-                <th>Ref</th>
-                <th>Title</th>
-                <th>Type</th>
-                <th>Sponsor</th>
-                <th>Cohort</th>
-                <th className="adm-num">Applicants</th>
-                <th>Deadline</th>
-                <th>Status</th>
-                <th className="text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 && <EmptyRow colSpan={9}>No opportunities yet.</EmptyRow>}
-              {rows.length > 0 && shown.length === 0 && <EmptyRow colSpan={9}>No opportunities match these filters.</EmptyRow>}
-              {shown.map((o) => (
-                <tr key={o.id}>
-                  <td className="adm-mono whitespace-nowrap">{ref(o.id)}</td>
-                  <td>
-                    {o.title}
-                    {o.criteria?.sectors?.length > 0 && <div className="adm-muted">{o.criteria.sectors.join(', ')}</div>}
-                  </td>
-                  <td className="capitalize">{o.type}</td>
-                  <td>{o.organiser || o.createdBy?.name}</td>
-                  <td>{cohortLabel(o.criteria)}</td>
-                  <td className="adm-num">
-                    {o.applicationCount}
-                    {o.tally.submitted > 0 && <div className="adm-muted">{o.tally.submitted} undecided</div>}
-                  </td>
-                  <td className="whitespace-nowrap">
-                    {formatDate(o.deadline)}
-                    <div className="adm-muted">{deadlineNote(o)}</div>
-                  </td>
-                  <td>
-                    <StatusText status={o.status} label={STATUS_LABEL[o.status]} />
-                  </td>
-                  <td className="adm-actions">
-                    {o.mine && o.status === 'pending_review' && (
-                      <Link to={`/app/staff/${o.id}/edit`} className="adm-btn">
-                        Edit
-                      </Link>
-                    )}
-                    {o.status !== 'pending_review' && (
-                      <Link to={`/app/staff/${o.id}`} className="adm-btn">
-                        Applicants
-                      </Link>
-                    )}
-                    {o.status === 'published' && (
-                      <Link to="/opportunities" target="_blank" className="adm-btn">
-                        Public page
-                      </Link>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableWrap>
+      ),
+    },
+    { key: 'type', label: 'Type', render: (o) => <span className="capitalize">{o.type}</span> },
+    { key: 'sponsor', label: 'Sponsor', render: (o) => o.organiser || o.createdBy?.name },
+    { key: 'cohort', label: 'Cohort', render: (o) => cohortLabel(o.criteria) },
+    { key: 'apps', label: 'Applicants', num: true, render: (o) => `${o.applicationCount}${o.tally.submitted ? ` (${o.tally.submitted} new)` : ''}` },
+    {
+      key: 'deadline',
+      label: 'Deadline',
+      render: (o) => (
+        <>
+          {formatDate(o.deadline)}
+          <div className="adm-muted text-[12px]">{deadlineNote(o)}</div>
+        </>
+      ),
+    },
+    { key: 'status', label: 'Status', render: (o) => <StatusPill status={o.status} label={STATUS_LABEL[o.status]} /> },
+  ];
+  const actions = (o) => (
+    <>
+      {o.status !== 'pending_review' && (
+        <Link to={`/app/staff/${o.id}`} className="adm-act">
+          Applicants
+        </Link>
       )}
-      <Pager page={page} pageSize={PAGE_SIZE} total={filtered.length} onPage={setPage} />
-      <AuditStrip title="History" entries={activity} />
+      {o.mine && o.status === 'pending_review' && (
+        <Link to={`/app/staff/${o.id}/edit`} className="adm-act">
+          Edit
+        </Link>
+      )}
+      {o.status === 'published' && (
+        <Link to="/opportunities" target="_blank" className="adm-act">
+          Public page
+        </Link>
+      )}
+    </>
+  );
+
+  return (
+    <AdminPage title="Opportunities" meta={rows ? `${filtered.length} shown` : null}>
+      <Messages error={error} />
+      <ListLayout
+        toolbar={
+          <>
+            <SearchInput value={q} onChange={setQ} placeholder="Title, sponsor or OPP ref" />
+            <StatusSelect value={status} options={statusOptions} onChange={setStatus} />
+            <Link to="/app/staff/new" className="adm-primary">
+              Submit opportunity
+            </Link>
+          </>
+        }
+        filters={[
+          { title: 'Status', value: status, onChange: setStatus, options: statusOptions },
+          { title: 'Type', value: type, onChange: setType, options: TYPES },
+        ]}
+        footer={
+          <>
+            <Pager page={page} pageSize={PAGE_SIZE} total={filtered.length} onPage={setPage} />
+            <AuditStrip title="History" entries={activity} />
+          </>
+        }
+      >
+        {!rows ? <Loading /> : <DataTable columns={columns} rows={shown} actions={actions} empty={rows.length ? 'No opportunities match.' : 'No opportunities yet.'} />}
+      </ListLayout>
     </AdminPage>
   );
 }
@@ -188,36 +157,22 @@ export function StaffSelectionHome() {
   const pending = [...rows].sort((a, b) => b.tally.submitted - a.tally.submitted).find((o) => o.tally.submitted > 0);
   if (pending) return <Navigate to={`/app/staff/${pending.id}`} replace />;
   return (
-    <AdminPage title="Applicant selection" hint="No applications are awaiting a decision.">
-      <TableWrap>
-        <table className="adm-table">
-          <thead>
-            <tr>
-              <th>Ref</th>
-              <th>Opportunity</th>
-              <th className="adm-num">Applicants</th>
-              <th className="adm-num">Selected</th>
-              <th className="text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 && <EmptyRow colSpan={5}>No published opportunities yet.</EmptyRow>}
-            {rows.map((o) => (
-              <tr key={o.id}>
-                <td className="adm-mono">{ref(o.id)}</td>
-                <td>{o.title}</td>
-                <td className="adm-num">{o.applicationCount}</td>
-                <td className="adm-num">{o.tally.selected}</td>
-                <td className="adm-actions">
-                  <Link to={`/app/staff/${o.id}`} className="adm-btn">
-                    View
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </TableWrap>
+    <AdminPage title="Applicant selection" meta="No applications awaiting a decision">
+      <DataTable
+        columns={[
+          { key: 'title', label: 'Opportunity', render: (o) => <span className="font-medium">{o.title}</span> },
+          { key: 'ref', label: 'Ref', render: (o) => <span className="adm-mono">{ref(o.id)}</span> },
+          { key: 'apps', label: 'Applicants', num: true, render: (o) => o.applicationCount },
+          { key: 'selected', label: 'Selected', num: true, render: (o) => o.tally.selected },
+        ]}
+        rows={rows}
+        actions={(o) => (
+          <Link to={`/app/staff/${o.id}`} className="adm-act">
+            View
+          </Link>
+        )}
+        empty="No published opportunities yet."
+      />
     </AdminPage>
   );
 }
@@ -231,8 +186,8 @@ export function StaffOpportunityForm() {
   }, [id]);
   if (initial === null) return <AdminPage title="Edit submission"><Loading /></AdminPage>;
   return (
-    <AdminPage title={id ? 'Edit submission' : 'Submit opportunity'} hint="The administrator reviews and publishes submissions.">
-      <div className="border border-line bg-surface p-4">
+    <AdminPage title={id ? 'Edit submission' : 'Submit opportunity'}>
+      <div className="adm-card p-4 sm:p-6">
         <OpportunityForm
           initial={initial}
           submitLabel={id ? 'Save submission' : 'Submit for publication'}

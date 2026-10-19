@@ -1,9 +1,25 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
-import { AdminPage, Loading, Messages, TableWrap } from '../../components/admin';
+import { AdminPage, Loading, Messages, StatTile } from '../../components/admin';
 
-// FR11: the review queues and the 12 platform-wide totals, computed live by the API.
+// Where each total leads (the filtered list behind it).
+const LINKS = {
+  graduates: '/app/admin/graduates?status=approved',
+  investors: '/app/admin/investors?status=approved',
+  opportunities: '/app/admin/opportunities',
+  submitted: '/app/admin/projects?status=pending_review',
+  approved: '/app/admin/projects?status=approved',
+  seeking: '/app/admin/projects?status=approved',
+  similarity: '/app/admin/projects?status=similarity_flagged',
+  funded: '/app/admin/projects?status=funded',
+  oneInvestor: '/app/admin/projects?status=approved',
+  limit: '/app/admin/projects?status=investor_limit_reached',
+  introductions: '/app/admin/introductions?status=all',
+  rdbRate: '/app/admin/projects?status=pending_review',
+};
+
+// FR11: what needs attention, then the 12 platform totals, computed live.
 export default function AdminDashboard() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -16,42 +32,37 @@ export default function AdminDashboard() {
   if (error) return <AdminPage title="Dashboard"><Messages error={error} /></AdminPage>;
   if (!data) return <AdminPage title="Dashboard"><Loading /></AdminPage>;
   const q = data.queues;
-  const queues = [
-    ['Graduates awaiting approval', q.pendingGraduates, '/app/admin/graduates'],
-    ['Investors awaiting approval', q.pendingInvestors, '/app/admin/investors'],
-    ['Similarity flags to resolve', q.similarityFlagged, '/app/admin/projects?status=similarity_flagged'],
-  ];
+  const attention = [
+    ['Graduates to review', q.pendingGraduates, '/app/admin/graduates?status=pending'],
+    ['Investors to review', q.pendingInvestors, '/app/admin/investors?status=pending'],
+    ['Projects to review', q.pendingProjects, '/app/admin/projects?status=pending_review'],
+    ['Similarity flags', q.similarityFlagged, '/app/admin/projects?status=similarity_flagged'],
+  ].filter(([, n]) => n > 0);
 
   return (
     <AdminPage title="Dashboard">
-      <TableWrap>
-        <table className="adm-table">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th className="adm-num">Number</th>
-            </tr>
-          </thead>
-          <tbody>
-            {queues.map(([label, n, to]) => (
-              <tr key={label}>
-                <td>
-                  <Link className="adm-a" to={to}>
-                    {label}
-                  </Link>
-                </td>
-                <td className="adm-num">{n}</td>
-              </tr>
+      <section className="adm-card mb-6" aria-label="Needs attention">
+        <h2 className="!m-0 border-b border-[var(--adm-border)] px-4 py-3">Needs attention</h2>
+        {attention.length === 0 ? (
+          <p className="adm-muted px-4 py-3">Nothing is waiting for review.</p>
+        ) : (
+          <ul>
+            {attention.map(([label, n, to]) => (
+              <li key={label} className="border-b border-[var(--adm-border)] last:border-0">
+                <Link to={to} className="flex items-center justify-between px-4 py-3 hover:bg-[var(--adm-accent-soft)]">
+                  <span className="adm-a">{label}</span>
+                  <span className="adm-pill adm-pill-warning">{n}</span>
+                </Link>
+              </li>
             ))}
-            {data.cards.map((c) => (
-              <tr key={c.key}>
-                <td title={c.hint || undefined}>{c.label}</td>
-                <td className="adm-num">{c.value}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </TableWrap>
+          </ul>
+        )}
+      </section>
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+        {data.cards.map((c) => (
+          <StatTile key={c.key} label={c.label} value={c.value} to={LINKS[c.key]} />
+        ))}
+      </div>
     </AdminPage>
   );
 }

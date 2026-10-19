@@ -17,8 +17,13 @@ const User = sequelize.define(
     phone: { type: DataTypes.STRING(20) },
     role: { type: DataTypes.ENUM('graduate', 'investor', 'admin', 'staff'), allowNull: false },
     status: {
-      type: DataTypes.ENUM('pending_email', 'pending_review', 'active', 'rejected', 'suspended'),
+      type: DataTypes.ENUM('pending_email', 'pending_review', 'active', 'rejected', 'suspended', 'archived'),
       defaultValue: 'pending_email',
+    },
+    // Status restored by unarchive.
+    statusBeforeArchive: {
+      type: DataTypes.ENUM('pending_email', 'pending_review', 'active', 'rejected', 'suspended'),
+      field: 'status_before_archive',
     },
     emailVerifiedAt: { type: DataTypes.DATE, field: 'email_verified_at' },
     theme: { type: DataTypes.ENUM('light', 'dark', 'system'), defaultValue: 'light' },
@@ -201,6 +206,7 @@ const Opportunity = sequelize.define(
       type: DataTypes.ENUM('pending_review', 'published', 'closed', 'archived'),
       defaultValue: 'pending_review',
     },
+    statusBeforeArchive: { type: DataTypes.ENUM('pending_review', 'published', 'closed'), field: 'status_before_archive' },
     publishedAt: { type: DataTypes.DATE, field: 'published_at' },
   },
   { tableName: 'opportunities' }
@@ -245,6 +251,8 @@ const Notification = sequelize.define(
     previewUrl: { type: DataTypes.STRING(255), field: 'preview_url' },
     sentAt: { type: DataTypes.DATE, field: 'sent_at' },
     readAt: { type: DataTypes.DATE, field: 'read_at' },
+    // Archived emails are hidden from the active outbox and never sent.
+    archivedAt: { type: DataTypes.DATE, field: 'archived_at' },
   },
   { tableName: 'notifications' }
 );

@@ -17,6 +17,8 @@ export default function ReasonDialog({
   onConfirm,
   onClose,
   children,
+  // e.g. a delete that the server says is blocked
+  confirmDisabled = false,
 }) {
   const [text, setText] = useState('');
   const [error, setError] = useState('');
@@ -95,7 +97,7 @@ export default function ReasonDialog({
           <button type="button" className="btn-secondary" onClick={onClose} disabled={busy}>
             Cancel
           </button>
-          <button type="submit" className={btn} disabled={busy}>
+          <button type="submit" className={btn} disabled={busy || confirmDisabled}>
             {busy ? 'Saving…' : confirmLabel}
           </button>
         </div>

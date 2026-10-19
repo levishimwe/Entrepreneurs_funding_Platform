@@ -182,11 +182,12 @@ describe('project verification queue', () => {
     expect(actions).toEqual(expect.arrayContaining(['project.request_revision', 'project.archive', 'project.restore']));
   });
 
-  test('there is no delete and no manual close-discovery action', async () => {
+  test('a project that was not rejected cannot be deleted, and there is no manual close-discovery action', async () => {
     const admin = await loginAs('admin');
     const { client } = await approvedGraduate();
     const project = await submitCompany(client);
-    expect((await admin.delete(`/api/admin/projects/${project.id}`)).status).toBe(404);
+    // Delete exists only for rejected projects (tests/records.test.js).
+    expect((await admin.delete(`/api/admin/projects/${project.id}`)).status).toBe(409);
     expect((await admin.post(`/api/admin/projects/${project.id}/close_discovery`).send({})).status).toBe(404);
     expect(await Project.findByPk(project.id)).not.toBeNull();
   });

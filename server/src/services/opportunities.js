@@ -73,6 +73,7 @@ function serializeOpportunity(o, extra = {}) {
     criteria: o.criteria || {},
     deadline: o.deadline,
     status: o.status,
+    statusBeforeArchive: o.statusBeforeArchive || null,
     publishedAt: o.publishedAt,
     createdAt: o.createdAt,
     createdBy: o.creator ? { id: o.creator.id, name: o.creator.fullName, role: o.creator.role } : undefined,

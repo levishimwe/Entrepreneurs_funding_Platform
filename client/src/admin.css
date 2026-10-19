@@ -1,0 +1,376 @@
+/* Admin and staff console. Tokens follow Settings -> Appearance (data-theme).
+   8px spacing grid, 8px card radius, one font, a small fixed type scale:
+   12 / 13 / 14 / 20 px. Components live in components/admin.jsx. */
+:root {
+  --adm-navy: #0b1f3a;
+  --adm-navy-2: #132c4f;
+  --adm-page: #f4f6f9;
+  --adm-card: #ffffff;
+  --adm-border: #e3e8ef;
+  --adm-text: #111827;
+  --adm-muted: #5b6676;
+  --adm-zebra: #f9fafb;
+  --adm-accent: #2563eb;
+  --adm-accent-soft: #e8efff;
+  --adm-success: #15803d;
+  --adm-success-soft: #e7f6ec;
+  --adm-warning: #b45309;
+  --adm-warning-soft: #fdf1e3;
+  --adm-danger: #b91c1c;
+  --adm-danger-soft: #fdeaea;
+  --adm-neutral-soft: #eef1f5;
+}
+[data-theme='dark'] {
+  --adm-page: #0f1623;
+  --adm-card: #161f2e;
+  --adm-border: #263246;
+  --adm-text: #e6eaf0;
+  --adm-muted: #93a0b4;
+  --adm-zebra: #1a2435;
+  --adm-accent: #4f8cff;
+  --adm-accent-soft: #1b2b4a;
+  --adm-success: #4ade80;
+  --adm-success-soft: #13301f;
+  --adm-warning: #f5a95a;
+  --adm-warning-soft: #352512;
+  --adm-danger: #f87171;
+  --adm-danger-soft: #3a1717;
+  --adm-neutral-soft: #222d40;
+}
+
+/* In the components layer so Tailwind utilities (lg:hidden, sm:w-…) still win. */
+@layer components {
+  .adm-root {
+    min-height: 100vh;
+    background: var(--adm-page);
+    color: var(--adm-text);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .adm {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--adm-text);
+  }
+  .adm h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .adm h2 {
+    margin: 24px 0 8px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .adm-muted {
+    color: var(--adm-muted);
+  }
+  .adm-hint {
+    margin: 0 0 8px;
+    font-size: 12px;
+    color: var(--adm-muted);
+  }
+  .adm-bad {
+    color: var(--adm-danger);
+  }
+  .adm-mono {
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+  .adm-a {
+    color: var(--adm-accent);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .adm-a:hover {
+    text-decoration: underline;
+  }
+
+  /* Card + table with a sticky header, comfortable rows, zebra and hover. */
+  .adm-card,
+  .adm-table-wrap {
+    border: 1px solid var(--adm-border);
+    border-radius: 8px;
+    background: var(--adm-card);
+    overflow: hidden;
+  }
+  .adm-scroll {
+    max-height: calc(100vh - 220px);
+    overflow: auto;
+  }
+  .adm-table-wrap {
+    overflow-x: auto;
+  }
+  .adm-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+  }
+  .adm-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--adm-border);
+    background: var(--adm-card);
+    color: var(--adm-muted);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+  }
+  .adm-table td {
+    height: 48px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--adm-border);
+    vertical-align: middle;
+  }
+  .adm-table tbody tr:nth-child(even) td {
+    background: var(--adm-zebra);
+  }
+  .adm-table tbody tr:hover td {
+    background: var(--adm-accent-soft);
+  }
+  .adm-table tbody tr:last-child td,
+  .adm-table tbody tr:last-child th {
+    border-bottom: 0;
+  }
+  .adm-table tr.adm-selected td {
+    background: var(--adm-accent-soft);
+  }
+  .adm-table .adm-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .adm-table td {
+    background: var(--adm-card);
+  }
+  /* The actions column stays visible when a wide table scrolls sideways. */
+  .adm-table td.adm-actions,
+  .adm-table th.adm-actions {
+    position: sticky;
+    right: 0;
+    text-align: right;
+    white-space: nowrap;
+    box-shadow: -1px 0 0 var(--adm-border);
+  }
+  .adm-table th.adm-actions {
+    z-index: 2;
+  }
+  .adm-kv th {
+    position: static;
+    width: 220px;
+    padding-top: 12px;
+    background: transparent;
+    color: var(--adm-muted);
+    font-size: 13px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    white-space: normal;
+    vertical-align: top;
+  }
+  .adm-kv tbody tr:hover td,
+  .adm-kv tbody tr:nth-child(even) td {
+    background: transparent;
+  }
+  .adm-kv td {
+    height: auto;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  /* Text actions; one primary style; destructive in red. */
+  .adm-btn,
+  .adm-act {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 16px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--adm-accent);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .adm-btn:first-child,
+  .adm-act:first-child {
+    margin-left: 0;
+  }
+  .adm-btn:hover,
+  .adm-act:hover {
+    text-decoration: underline;
+  }
+  .adm-btn:disabled,
+  .adm-act:disabled {
+    color: var(--adm-muted);
+    text-decoration: none;
+    cursor: not-allowed;
+  }
+  .adm-btn-danger,
+  .adm-act-danger {
+    color: var(--adm-danger);
+  }
+  .adm-primary,
+  .adm-secondary,
+  .adm-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 32px;
+    padding: 0 16px;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .adm-primary,
+  .adm-btn-primary {
+    border: 1px solid var(--adm-accent);
+    background: var(--adm-accent);
+    color: #fff;
+  }
+  .adm-primary:hover,
+  .adm-btn-primary:hover {
+    filter: brightness(0.95);
+    text-decoration: none;
+  }
+  .adm-secondary {
+    border: 1px solid var(--adm-border);
+    background: var(--adm-card);
+    color: var(--adm-text);
+  }
+  .adm-secondary:hover {
+    border-color: var(--adm-accent);
+  }
+  .adm-primary:disabled,
+  .adm-secondary:disabled,
+  .adm-btn-primary:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .adm-input,
+  .adm-field {
+    height: 32px;
+    width: 100%;
+    padding: 0 8px;
+    border: 1px solid var(--adm-border);
+    border-radius: 6px;
+    background: var(--adm-card);
+    color: var(--adm-text);
+    font: inherit;
+    font-size: 13px;
+  }
+  textarea.adm-field {
+    height: auto;
+    padding: 8px;
+  }
+  .adm-input:focus,
+  .adm-field:focus {
+    outline: 2px solid var(--adm-accent);
+    outline-offset: -1px;
+  }
+
+  /* Soft status pills */
+  .adm-pill {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .adm-pill-success {
+    background: var(--adm-success-soft);
+    color: var(--adm-success);
+  }
+  .adm-pill-warning {
+    background: var(--adm-warning-soft);
+    color: var(--adm-warning);
+  }
+  .adm-pill-danger {
+    background: var(--adm-danger-soft);
+    color: var(--adm-danger);
+  }
+  .adm-pill-info {
+    background: var(--adm-accent-soft);
+    color: var(--adm-accent);
+  }
+  .adm-pill-neutral {
+    background: var(--adm-neutral-soft);
+    color: var(--adm-muted);
+  }
+
+  /* Right-hand filter panel */
+  .adm-filter h3 {
+    margin: 0;
+    padding: 8px 16px;
+    background: var(--adm-navy);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .adm-filter-group {
+    padding: 8px 16px 16px;
+    border-top: 1px solid var(--adm-border);
+  }
+  .adm-filter-group:first-of-type {
+    border-top: 0;
+  }
+  .adm-filter-group p {
+    margin: 8px 0 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--adm-muted);
+  }
+  .adm-filter-group button {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    padding: 4px 0;
+    border: 0;
+    background: none;
+    color: var(--adm-text);
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .adm-filter-group button:hover {
+    color: var(--adm-accent);
+  }
+  .adm-filter-group button[aria-pressed='true'] {
+    color: var(--adm-accent);
+    font-weight: 600;
+  }
+
+  .adm-message {
+    margin-bottom: 16px;
+    padding: 8px 16px;
+    border: 1px solid var(--adm-border);
+    border-left: 3px solid var(--adm-success);
+    border-radius: 8px;
+    background: var(--adm-card);
+  }
+  .adm-message-error {
+    border-left-color: var(--adm-danger);
+  }
+}

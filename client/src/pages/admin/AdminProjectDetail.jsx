@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { formatDate } from '../../components/ui';
 import VerificationChecks, { adminFileUrl } from '../../components/VerificationChecks';
@@ -7,7 +7,7 @@ import DocumentViewer from '../../components/DocumentViewer';
 import ReasonDialog from '../../components/ReasonDialog';
 import { ARCHIVE_NOTICE, availableActions } from '../../lib/projectActions';
 import { statusLabel } from '../../lib/status';
-import { AdminPage, EmptyRow, KeyValue, Loading, Messages, StatusText, TableWrap } from '../../components/admin';
+import { AdminPage, DeleteDialog, EmptyRow, KeyValue, Loading, Messages, StatusPill, StatusText, TableWrap } from '../../components/admin';
 
 const KIND_LABEL = {
   rdb_certificate: 'RDB certificate',
@@ -23,6 +23,8 @@ export default function AdminProjectDetail() {
   const [notice, setNotice] = useState('');
   const [dialog, setDialog] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const navigate = useNavigate();
 
   const load = useCallback(
     () =>
@@ -50,9 +52,10 @@ export default function AdminProjectDetail() {
   const suspiciousApproval = dialog?.key === 'approve' && latestRdb?.flag === 'suspicious';
   const fundedHint = actions.some(([k, , d]) => k === 'mark_funded' && d);
 
+  const deletable = project.status === 'rejected' || (project.status === 'archived' && project.statusBeforeArchive === 'rejected');
   return (
-    <AdminPage title={project.title}>
-      <p className="adm-hint">
+    <AdminPage title={project.title} meta={<StatusPill status={project.status} />}>
+      <p className="adm-hint -mt-2">
         <Link className="adm-a" to="/app/admin/projects">
           Projects
         </Link>
@@ -61,8 +64,8 @@ export default function AdminProjectDetail() {
       </p>
       <Messages notice={notice} error={error} />
 
-      <p className="mb-3">
-        {actions.length === 0 && <span className="adm-muted">No actions available in this state.</span>}
+      <div className="adm-card mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+        {actions.length === 0 && !deletable && <span className="adm-muted">No actions in this state.</span>}
         {actions.map(([key, a, disabled]) => (
           <button
             key={key}
@@ -70,13 +73,18 @@ export default function AdminProjectDetail() {
             disabled={Boolean(disabled)}
             title={disabled || undefined}
             onClick={() => setDialog({ key, action: a })}
-            className={`adm-btn ${a.tone === 'danger' ? 'adm-btn-danger' : ''}`}
+            className={key === 'approve' ? 'adm-primary' : `adm-act ${a.tone === 'danger' ? 'adm-act-danger' : ''}`}
           >
             {a.label}
           </button>
         ))}
-      </p>
-      {fundedHint && <p className="adm-hint">Mark as Funded needs an investment confirmed by both the graduate and an investor.</p>}
+        {deletable && (
+          <button type="button" className="adm-act adm-act-danger" onClick={() => setDeleting(true)}>
+            Delete
+          </button>
+        )}
+        {fundedHint && <span className="adm-muted w-full text-[12px]">Mark as Funded needs an investment confirmed by both sides.</span>}
+      </div>
 
       <KeyValue
         rows={[
@@ -105,7 +113,7 @@ export default function AdminProjectDetail() {
       />
 
       <h2>Description</h2>
-      <p className="whitespace-pre-line">{project.description}</p>
+      <p className="adm-card whitespace-pre-line p-4">{project.description}</p>
 
       {project.status === 'similarity_flagged' && (
         <>
@@ -259,6 +267,14 @@ export default function AdminProjectDetail() {
           setNotice(`${dialog.action.label} recorded.`);
           await load();
         }}
+      />
+      <DeleteDialog
+        open={deleting}
+        title={`Delete ${project.title}?`}
+        planUrl={`/admin/projects/${project.id}/delete-plan`}
+        deleteUrl={`/admin/projects/${project.id}`}
+        onClose={() => setDeleting(false)}
+        onDeleted={() => navigate('/app/admin/projects?status=rejected')}
       />
     </AdminPage>
   );

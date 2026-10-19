@@ -4,7 +4,7 @@ import { api } from '../../lib/api';
 import { formatDate } from '../../components/ui';
 import { CriteriaSummary } from '../../components/OpportunityForm';
 import AuditStrip from '../../components/AuditStrip';
-import { AdminPage, EmptyRow, FilterLinks, Filters, KeyValue, Loading, Messages, SidePanel, StatusText, TableWrap } from '../../components/admin';
+import { AdminPage, DataTable, KeyValue, ListLayout, Loading, Messages, SearchInput, SidePanel, StatusPill, StatusSelect, StatusText } from '../../components/admin';
 import { ref } from './StaffOpportunities';
 
 const NEXT = { submitted: ['shortlisted', 'selected', 'not_selected'], shortlisted: ['selected', 'not_selected'] };
@@ -178,61 +178,57 @@ export default function StaffSelection() {
         <CriteriaSummary criteria={opportunity.criteria} />
       </div>
       <Messages notice={notice} error={error} />
-      <Filters>
-        <FilterLinks label="Status" options={STATUSES.map(([k, l]) => [k, l, count(k)])} value={tab} onChange={setTab} />
-        <select aria-label="Filter by cohort" value={cohortFilter} onChange={(e) => setCohortFilter(e.target.value)}>
-          <option value="">All cohorts</option>
-          {cohorts.map((c) => (
-            <option key={c} value={c}>
-              Class of {c}
-            </option>
-          ))}
-        </select>
-        <input aria-label="Filter applicants" placeholder="Candidate, venture or keyword" value={q} onChange={(e) => setQ(e.target.value)} />
-      </Filters>
-
-      <TableWrap>
-        <table className="adm-table">
-          <thead>
-            <tr>
-              <th>Applicant</th>
-              <th>Venture</th>
-              <th>Programme</th>
-              <th>Status</th>
-              <th className="text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {applications.length === 0 && <EmptyRow colSpan={5}>No applications yet. Approved graduates can apply until the deadline.</EmptyRow>}
-            {applications.length > 0 && shown.length === 0 && <EmptyRow colSpan={5}>No applicants in this view.</EmptyRow>}
-            {shown.map((a) => (
-              <tr key={a.id} className={a.id === openId ? 'adm-selected' : undefined}>
-                <td>{a.applicant.name}</td>
-                <td>
+      <ListLayout
+        toolbar={
+          <>
+            <SearchInput value={q} onChange={setQ} placeholder="Candidate, venture or keyword" />
+            <StatusSelect value={tab} options={STATUSES.map(([k, l]) => [k, l, count(k)])} onChange={setTab} />
+          </>
+        }
+        filters={[
+          { title: 'Status', value: tab, onChange: setTab, options: STATUSES.map(([k, l]) => [k, l, count(k)]) },
+          { title: 'Cohort', value: cohortFilter, onChange: setCohortFilter, options: [['', 'All cohorts'], ...cohorts.map((c) => [String(c), `Class of ${c}`])] },
+        ]}
+        footer={<AuditStrip title="History" entries={audit} />}
+      >
+        <DataTable
+          columns={[
+            { key: 'name', label: 'Applicant', render: (a) => <span className="font-medium">{a.applicant.name}</span> },
+            {
+              key: 'venture',
+              label: 'Venture',
+              render: (a) => (
+                <>
                   {a.project.title}
-                  <div className="adm-muted">
+                  <div className="adm-muted text-[12px]">
                     {a.project.sector} · {a.project.stage}
                   </div>
-                </td>
-                <td>
+                </>
+              ),
+            },
+            {
+              key: 'programme',
+              label: 'Programme',
+              render: (a) => (
+                <>
                   {a.applicant.program || '—'}
-                  <div className="adm-muted">{cohort(a)}</div>
-                  {a.eligibilityIssues.length > 0 && <div className="adm-bad">Check eligibility</div>}
-                </td>
-                <td>
-                  <StatusText status={a.status} label={STATUS_LABEL[a.status]} />
-                </td>
-                <td className="adm-actions">
-                  <button type="button" className="adm-btn" onClick={() => setOpenId(a.id)}>
-                    {NEXT[a.status] ? 'Decide' : 'View'}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </TableWrap>
-
+                  <div className="adm-muted text-[12px]">{cohort(a)}</div>
+                  {a.eligibilityIssues.length > 0 && <div className="adm-bad text-[12px]">Check eligibility</div>}
+                </>
+              ),
+            },
+            { key: 'status', label: 'Status', render: (a) => <StatusPill status={a.status} label={STATUS_LABEL[a.status]} /> },
+          ]}
+          rows={shown}
+          rowClass={(a) => (a.id === openId ? 'adm-selected' : undefined)}
+          actions={(a) => (
+            <button type="button" className="adm-act" onClick={() => setOpenId(a.id)}>
+              {NEXT[a.status] ? 'Decide' : 'View'}
+            </button>
+          )}
+          empty={applications.length ? 'No applicants in this view.' : 'No applications yet.'}
+        />
+      </ListLayout>
       {open && (
         <ApplicationPanel
           application={open}
@@ -243,7 +239,6 @@ export default function StaffSelection() {
           }}
         />
       )}
-      <AuditStrip title="History" entries={audit} />
     </AdminPage>
   );
 }

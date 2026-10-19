@@ -31,6 +31,7 @@ const audit = require('../services/audit');
 const { sendStoredFile } = require('../services/fileDelivery');
 const { recordInvestment } = require('../services/funding');
 const { enqueueDocumentVerification, VERIFIABLE } = require('../workers/jobs');
+const records = require('../services/records');
 
 const router = express.Router();
 router.use(requireRole('admin'));
@@ -118,7 +119,9 @@ const ACCOUNT_FILTERS = {
   pending: { status: 'pending_review' },
   approved: { status: 'active' },
   rejected: { status: 'rejected' },
-  all: { status: { [Op.ne]: 'pending_email' } },
+  archived: { status: 'archived' },
+  // Active lists never include archived accounts.
+  all: { status: { [Op.notIn]: ['pending_email', 'archived'] } },
 };
 
 router.get('/graduates', async (req, res) => {
@@ -139,6 +142,7 @@ router.get('/graduates', async (req, res) => {
       phone: u.phone,
       hasPhoto: Boolean(u.photoKey),
       status: u.status,
+      statusBeforeArchive: u.statusBeforeArchive,
       registeredAt: u.createdAt,
       cohortYear: u.graduateProfile?.cohortYear,
       program: u.graduateProfile?.program,
@@ -163,6 +167,7 @@ router.get('/investors', async (req, res) => {
       phone: u.phone,
       hasPhoto: Boolean(u.photoKey),
       status: u.status,
+      statusBeforeArchive: u.statusBeforeArchive,
       registeredAt: u.createdAt,
       investorType: u.investorProfile?.investorType,
       organisation: u.investorProfile?.organisation,
@@ -246,6 +251,33 @@ router.post('/graduates/:id/reject', (req, res) => decideAccount(req, res, 'grad
 router.post('/investors/:id/approve', (req, res) => decideAccount(req, res, 'investor', 'approve'));
 router.post('/investors/:id/reject', (req, res) => decideAccount(req, res, 'investor', 'reject'));
 
+// Archive / unarchive / delete for graduate and investor accounts. An archived
+// account is signed out and cannot sign in until unarchived.
+async function findAccount(role, id) {
+  const user = await User.findOne({ where: { id, role } });
+  if (!user) throw notFound('Account not found.');
+  return user;
+}
+for (const [path, role] of [
+  ['graduates', 'graduate'],
+  ['investors', 'investor'],
+]) {
+  router.post(`/${path}/:id/archive`, async (req, res) => {
+    await records.archiveAccount(await findAccount(role, req.params.id), req.user.id);
+    res.json({ ok: true, status: 'archived' });
+  });
+  router.post(`/${path}/:id/unarchive`, async (req, res) => {
+    const status = await records.unarchiveAccount(await findAccount(role, req.params.id), req.user.id);
+    res.json({ ok: true, status });
+  });
+  router.get(`/${path}/:id/delete-plan`, async (req, res) => {
+    res.json({ plan: await records.accountDeletePlan(await findAccount(role, req.params.id)) });
+  });
+  router.delete(`/${path}/:id`, async (req, res) => {
+    res.json({ ok: true, removed: (await records.deleteAccount(await findAccount(role, req.params.id), req.user.id)).removes });
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Project verification queue (FR05, FR11, FR13, FR16)
 const PROJECT_FILTERS = [
@@ -327,6 +359,7 @@ router.get('/projects', async (req, res) => {
         sector: p.sector,
         stage: p.stage,
         status: p.status,
+        statusBeforeArchive: p.statusBeforeArchive,
         owner: p.owner && { id: p.owner.id, name: p.owner.fullName, email: p.owner.email },
         rdbFlag: p.type === 'company' ? rdb?.flag || (rdb ? 'processing' : null) : null,
         rdbIssue: rdbIssue(rdb),
@@ -534,6 +567,19 @@ router.post('/projects/:id/:action', async (req, res) => {
   res.json({ ok: true, status: changes.status });
 });
 
+// Permanent delete: rejected projects only, never with introductions,
+// investments or applications. Files are removed from storage.
+router.get('/projects/:id/delete-plan', async (req, res) => {
+  const project = await Project.findByPk(req.params.id);
+  if (!project) throw notFound('Project not found.');
+  res.json({ plan: await records.projectDeletePlan(project) });
+});
+router.delete('/projects/:id', async (req, res) => {
+  const project = await Project.findByPk(req.params.id);
+  if (!project) throw notFound('Project not found.');
+  res.json({ ok: true, removed: (await records.deleteProject(project, req.user.id)).removes });
+});
+
 // ---------------------------------------------------------------------------
 // Introductions & funding outcomes (FR07, FR13). The administrator records an
 // investment only after both parties confirmed it; the funding service applies
@@ -638,13 +684,33 @@ const OPP_ACTIONS = {
   publish: { from: ['pending_review', 'closed'], to: 'published' },
   close: { from: ['published'], to: 'closed' },
   archive: { from: ['pending_review', 'published', 'closed'], to: 'archived' },
+  unarchive: { from: ['archived'] },
 };
+router.get('/opportunities/:id/delete-plan', async (req, res) => {
+  const opportunity = await Opportunity.findByPk(req.params.id);
+  if (!opportunity) throw notFound('Opportunity not found.');
+  res.json({ plan: await records.opportunityDeletePlan(opportunity) });
+});
+router.delete('/opportunities/:id', async (req, res) => {
+  const opportunity = await Opportunity.findByPk(req.params.id);
+  if (!opportunity) throw notFound('Opportunity not found.');
+  res.json({ ok: true, removed: (await records.deleteOpportunity(opportunity, req.user.id)).removes });
+});
 router.post('/opportunities/:id/:action', async (req, res) => {
   const rule = OPP_ACTIONS[req.params.action];
   if (!rule) throw notFound('Unknown action.');
   const { reason } = z.object({ reason: reasonField }).parse(req.body || {});
   const opportunity = await Opportunity.findByPk(req.params.id);
   if (!opportunity) throw notFound('Opportunity not found.');
+  // Archive stores the previous status so unarchive can restore it.
+  if (req.params.action === 'archive' && rule.from.includes(opportunity.status)) {
+    await records.archiveOpportunity(opportunity, req.user.id, reason);
+    return res.json({ opportunity: serializeOpportunity(opportunity) });
+  }
+  if (req.params.action === 'unarchive') {
+    await records.unarchiveOpportunity(opportunity, req.user.id);
+    return res.json({ opportunity: serializeOpportunity(opportunity) });
+  }
   if (!rule.from.includes(opportunity.status)) throw badRequest(`This opportunity is already ${opportunity.status.replace('_', ' ')}.`);
   if (req.params.action === 'publish' && new Date(opportunity.deadline) <= new Date()) {
     throw badRequest('The deadline has passed. Edit the deadline before publishing.');
@@ -657,16 +723,17 @@ router.post('/opportunities/:id/:action', async (req, res) => {
 // ---------------------------------------------------------------------------
 // Email outbox: failures stay visible for follow-up (FR10).
 router.get('/notifications', async (req, res) => {
+  const archived = req.query.status === 'archived';
   const status = ['pending', 'sent', 'failed'].includes(req.query.status) ? req.query.status : undefined;
   const rows = await Notification.findAll({
-    where: status ? { status } : {},
+    where: { ...(status ? { status } : {}), archivedAt: archived ? { [Op.ne]: null } : null },
     order: [['id', 'DESC']],
     limit: 100,
     attributes: { exclude: ['bodyHtml', 'bodyText'] },
   });
-  const counts = await Notification.findAll({ attributes: ['status', [sequelize.fn('COUNT', sequelize.col('id')), 'n']], group: ['status'], raw: true });
+  const counts = await Notification.findAll({ where: { archivedAt: null }, attributes: ['status', [sequelize.fn('COUNT', sequelize.col('id')), 'n']], group: ['status'], raw: true });
   res.json({
-    counts: Object.fromEntries(counts.map((c) => [c.status, Number(c.n)])),
+    counts: { ...Object.fromEntries(counts.map((c) => [c.status, Number(c.n)])), archived: await Notification.count({ where: { archivedAt: { [Op.ne]: null } } }) },
     notifications: rows.map((n) => ({
       id: n.id,
       // Codes are never shown: event keys for OTP/reset emails carry no secret, but
@@ -679,6 +746,7 @@ router.get('/notifications', async (req, res) => {
       previewUrl: n.previewUrl,
       sentAt: n.sentAt,
       createdAt: n.createdAt,
+      archivedAt: n.archivedAt,
     })),
   });
 });
@@ -687,9 +755,46 @@ router.post('/notifications/:id/retry', async (req, res) => {
   const notification = await Notification.findByPk(req.params.id);
   if (!notification) throw notFound('Notification not found.');
   if (notification.status === 'sent') throw badRequest('This email was already sent.');
+  if (notification.archivedAt) throw badRequest('Unarchive this email before retrying it.');
   const updated = await retryNotification(notification);
   await audit.record({ actorId: req.user.id, action: 'notification.retried', entityType: 'notification', entityId: notification.id });
   res.json({ status: updated.status, lastError: updated.lastError });
+});
+
+// Archive / unarchive / delete outbox emails: one, a selection, or by status and age.
+const notificationIds = z.array(z.coerce.number().int().positive()).min(1).max(500);
+const purgeFilter = z.object({
+  status: z.enum(['all', 'pending', 'sent', 'failed']).default('all'),
+  olderThanDays: z.coerce.number().int().min(0).max(3650).optional(),
+});
+router.post('/notifications/bulk', async (req, res) => {
+  const body = z.object({ action: z.enum(['archive', 'unarchive', 'delete']), ids: notificationIds }).parse(req.body || {});
+  const count =
+    body.action === 'delete'
+      ? await records.deleteNotifications({ ids: body.ids }, req.user.id)
+      : await records.setNotificationsArchived(body.ids, body.action === 'archive', req.user.id);
+  res.json({ ok: true, count });
+});
+router.get('/notifications/purge-preview', async (req, res) => {
+  res.json({ count: await records.countNotifications(purgeFilter.parse(req.query)) });
+});
+router.post('/notifications/purge', async (req, res) => {
+  res.json({ ok: true, count: await records.deleteNotifications(purgeFilter.parse(req.body || {}), req.user.id) });
+});
+router.post('/notifications/:id/archive', async (req, res) => {
+  const count = await records.setNotificationsArchived([Number(req.params.id)], true, req.user.id);
+  if (!count) throw badRequest('Email not found or already archived.');
+  res.json({ ok: true });
+});
+router.post('/notifications/:id/unarchive', async (req, res) => {
+  const count = await records.setNotificationsArchived([Number(req.params.id)], false, req.user.id);
+  if (!count) throw badRequest('Email not found or not archived.');
+  res.json({ ok: true });
+});
+router.delete('/notifications/:id', async (req, res) => {
+  const count = await records.deleteNotifications({ ids: [Number(req.params.id)] }, req.user.id);
+  if (!count) throw notFound('Email not found.');
+  res.json({ ok: true, count });
 });
 
 // ---------------------------------------------------------------------------

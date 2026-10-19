@@ -36,10 +36,10 @@ async function getDashboardStats() {
     rdbLikelyValid,
     pendingProjects,
   ] = await Promise.all([
-    count(User, { role: 'graduate', status: { [Op.ne]: 'pending_email' } }),
+    count(User, { role: 'graduate', status: { [Op.notIn]: ['pending_email', 'archived'] } }),
     count(GraduateProfile, { verificationStatus: 'approved' }),
     count(User, { role: 'graduate', status: 'pending_review' }),
-    count(User, { role: 'investor', status: { [Op.ne]: 'pending_email' } }),
+    count(User, { role: 'investor', status: { [Op.notIn]: ['pending_email', 'archived'] } }),
     count(User, { role: 'investor', status: 'active' }),
     count(Opportunity, { status: { [Op.ne]: 'archived' } }),
     count(Opportunity, { status: 'published', deadline: { [Op.gt]: new Date() } }),

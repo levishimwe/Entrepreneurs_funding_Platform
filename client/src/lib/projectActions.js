@@ -55,11 +55,11 @@ export const PROJECT_ACTIONS = {
     description: ARCHIVE_NOTICE,
   },
   restore: {
-    label: 'Restore',
+    label: 'Unarchive',
     tone: 'primary',
     from: ['archived'],
     reason: 'optional',
-    title: 'Restore this project?',
+    title: 'Unarchive this project?',
     description: 'It returns to the status it had before it was archived.',
   },
 };
