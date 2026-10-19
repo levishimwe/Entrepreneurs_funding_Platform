@@ -2,12 +2,13 @@
 // delivered "by email or SMS" and FR12 sends reset codes to an "approved phone
 // number"; the profile photo key (users.photo_key) already exists.
 const { DataTypes } = require('sequelize');
+const { addColumnIfMissing, removeColumnIfPresent } = require('../db/schemaHelpers');
 
 module.exports = {
   async up({ context: qi }) {
-    await qi.addColumn('users', 'phone', { type: DataTypes.STRING(20), allowNull: true, after: 'full_name' });
+    await addColumnIfMissing(qi, 'users', 'phone', { type: DataTypes.STRING(20), allowNull: true, after: 'full_name' });
   },
   async down({ context: qi }) {
-    await qi.removeColumn('users', 'phone');
+    await removeColumnIfPresent(qi, 'users', 'phone');
   },
 };

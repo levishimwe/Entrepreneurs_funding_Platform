@@ -17,6 +17,7 @@ const { issueCode, verifyCode } = require('../services/otp');
 const { enqueueEmail } = require('../services/mailer');
 const storage = require('../services/storage');
 const audit = require('../services/audit');
+const { describeDbError } = require('../db/errors');
 const { enqueueDocumentVerification } = require('../workers/jobs');
 
 const router = express.Router();
@@ -323,7 +324,13 @@ router.post('/resend-code', codeLimiter, async (req, res) => {
 // --- Sessions ---
 router.post('/login', loginLimiter, async (req, res) => {
   const data = z.object({ email, password: z.string().min(1, 'Enter your password.').max(128) }).parse(req.body);
-  const user = await loadFullUser({ email: data.email });
+  let user;
+  try {
+    user = await loadFullUser({ email: data.email });
+  } catch (err) {
+    console.error(`[auth] sign-in lookup failed: ${describeDbError(err)}`);
+    throw new HttpError(503, 'Sign-in is temporarily unavailable. Please try again in a minute.');
+  }
   const valid = user && (await bcrypt.compare(data.password, user.passwordHash));
   if (!valid) throw new HttpError(401, 'Incorrect email or password.');
 
@@ -341,7 +348,10 @@ router.post('/login', loginLimiter, async (req, res) => {
   if (user.status === 'archived') throw new HttpError(403, 'This account is archived. Contact the ALU Ventures administrator.');
 
   setSessionCookie(res, user);
-  await audit.record({ actorId: user.id, action: 'auth.login', entityType: 'user', entityId: user.id });
+  // A failed audit write must not undo a successful sign-in.
+  await audit.record({ actorId: user.id, action: 'auth.login', entityType: 'user', entityId: user.id }).catch((err) => {
+    console.error(`[auth] could not record sign-in: ${describeDbError(err)}`);
+  });
   res.json({ user: serializeUser(user) });
 });
 

@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const env = require('../config/env');
 const { User, GraduateProfile, InvestorProfile } = require('../models');
 const { HttpError, forbidden } = require('./errors');
+const { describeDbError } = require('../db/errors');
 
 const COOKIE = 'alu_session';
 
@@ -29,20 +30,29 @@ function clearSessionCookie(res) {
 async function loadUser(req, res, next) {
   const token = req.cookies?.[COOKIE];
   if (!token) return next();
+  let payload;
   try {
-    const payload = jwt.verify(token, env.jwtSecret);
-    const user = await User.findByPk(payload.sub, {
+    payload = jwt.verify(token, env.jwtSecret);
+  } catch {
+    clearSessionCookie(res);
+    return next();
+  }
+  let user;
+  try {
+    user = await User.findByPk(payload.sub, {
       include: [
         { model: GraduateProfile, as: 'graduateProfile' },
         { model: InvestorProfile, as: 'investorProfile' },
       ],
     });
-    if (user && user.tokenVersion === payload.tv && !['suspended', 'rejected', 'archived'].includes(user.status)) {
-      req.user = user;
-    } else {
-      clearSessionCookie(res);
-    }
-  } catch {
+  } catch (err) {
+    // A database problem is not a reason to sign the user out.
+    console.error(`[auth] session lookup failed: ${describeDbError(err)}`);
+    return next(new HttpError(503, 'The service is temporarily unavailable. Please try again in a minute.'));
+  }
+  if (user && user.tokenVersion === payload.tv && !['suspended', 'rejected', 'archived'].includes(user.status)) {
+    req.user = user;
+  } else {
     clearSessionCookie(res);
   }
   return next();

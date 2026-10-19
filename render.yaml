@@ -10,9 +10,11 @@ services:
     rootDir: server
     # Installs dependencies and downloads the OCR language data at build time.
     buildCommand: npm ci && npm run ocr:warm
-    # Applies pending migrations and seeds the admin/staff accounts from the
-    # environment before starting (both are safe to re-run on every boot).
-    startCommand: npm run release && npm start
+    # The server applies pending migrations, checks the schema and seeds the
+    # admin/staff accounts itself before it listens (src/server.js), and exits
+    # with a "[boot] FATAL" line if any step fails. Plain "npm start" is enough,
+    # which is also what a service created outside a Blueprint runs.
+    startCommand: npm start
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:

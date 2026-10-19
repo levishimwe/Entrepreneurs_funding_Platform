@@ -1,5 +1,6 @@
 const { ZodError } = require('zod');
 const multer = require('multer');
+const { isDatabaseError, describeDbError, isSchemaMismatch } = require('../db/errors');
 
 class HttpError extends Error {
   constructor(status, message, details) {
@@ -44,7 +45,12 @@ function errorHandler(err, req, res, next) {
   if (err.name === 'SequelizeUniqueConstraintError') {
     return res.status(409).json({ error: 'A record with these details already exists.' });
   }
-  console.error(err);
+  if (isDatabaseError(err)) {
+    // Class, code and message only: the full error carries the SQL and its values.
+    console.error(`[db] ${req.method} ${req.path}: ${describeDbError(err)}${isSchemaMismatch(err) ? ' (database schema is behind the code: run migrations)' : ''}`);
+    return res.status(503).json({ error: 'The service is temporarily unavailable. Please try again in a minute.' });
+  }
+  console.error(`[error] ${req.method} ${req.path}: ${err?.name || 'Error'}: ${err?.message || err}`);
   return res.status(500).json({ error: 'Something went wrong on our side. Please try again.' });
 }
 

@@ -54,6 +54,14 @@ const env = {
     sslCaCert: process.env.DB_CA_CERT || '',
   },
 
+  // What the server does at start-up, before it listens (src/server.js).
+  boot: {
+    // Apply pending migrations and refuse to start if the schema is behind.
+    migrate: process.env.MIGRATE_ON_BOOT ? process.env.MIGRATE_ON_BOOT === 'true' : !isTest,
+    // Create/update the admin and staff accounts from ADMIN_* / STAFF*_ variables.
+    seed: process.env.SEED_ON_BOOT ? process.env.SEED_ON_BOOT === 'true' : isProduction,
+  },
+
   jwtSecret: required('JWT_SECRET'),
   sessionHours: Number(process.env.SESSION_HOURS || 12),
 

@@ -8,6 +8,7 @@ const { verifyDocument } = require('../services/verification/documentVerifier');
 const { getSetting } = require('../services/settings');
 const { processOutbox } = require('../services/mailer');
 const audit = require('../services/audit');
+const { describeDbError, isSchemaMismatch } = require('../db/errors');
 
 // RRA documents are optional evidence (FR16) but are checked when uploaded.
 const VERIFIABLE = new Set(['degree_certificate', 'rdb_certificate', 'rra_certificate']);
@@ -91,13 +92,28 @@ function whenIdle() {
 }
 
 let outboxTimer = null;
+
+// The outbox runs every 20 s; a persistent failure is logged once, then every
+// 30 attempts (10 minutes), so the log stays readable and nothing crashes.
+let outboxFailures = 0;
+function outboxFailed(err) {
+  outboxFailures += 1;
+  if (outboxFailures === 1 || outboxFailures % 30 === 0) {
+    const hint = isSchemaMismatch(err) ? ' (database schema is behind the code: run migrations)' : '';
+    console.error(`[worker] outbox error${outboxFailures > 1 ? ` (failing for ${outboxFailures} runs)` : ''}: ${describeDbError(err)}${hint}`);
+  }
+}
+function outboxRecovered() {
+  if (outboxFailures) console.log(`[worker] outbox recovered after ${outboxFailures} failed run(s).`);
+  outboxFailures = 0;
+}
 async function startWorkers() {
   // Resume documents left mid-verification by a restart.
   const pending = await Document.findAll({ where: { status: 'processing' }, attributes: ['id'] });
   pending.forEach((d) => enqueueDocumentVerification(d.id));
 
   outboxTimer = setInterval(() => {
-    processOutbox().catch((err) => console.error('[worker] outbox error:', err.message));
+    processOutbox().then(outboxRecovered, outboxFailed);
   }, 20000);
   outboxTimer.unref();
 }
