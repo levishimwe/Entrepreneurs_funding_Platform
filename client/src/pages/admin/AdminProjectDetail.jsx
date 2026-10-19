@@ -44,7 +44,8 @@ export default function AdminProjectDetail() {
 
   const rdbDocs = project.documents.filter((d) => d.kind === 'rdb_certificate');
   const latestRdb = rdbDocs.at(-1);
-  const otherDocs = project.documents.filter((d) => d.kind !== 'rdb_certificate');
+  const rraDocs = project.documents.filter((d) => d.kind === 'rra_certificate');
+  const otherDocs = project.documents.filter((d) => !['rdb_certificate', 'rra_certificate'].includes(d.kind));
   const actions = availableActions(project);
   const suspiciousApproval = dialog?.key === 'approve' && latestRdb?.flag === 'suspicious';
   const fundedHint = actions.some(([k, , d]) => k === 'mark_funded' && d);
@@ -151,6 +152,14 @@ export default function AdminProjectDetail() {
         </>
       ) : (
         <p className="adm-muted">Idea-stage project: the graduate declared it is not yet registered, so no RDB certificate is required.</p>
+      )}
+
+      {rraDocs.length > 0 && (
+        <>
+          <h2>RRA document (optional)</h2>
+          <VerificationChecks document={rraDocs.at(-1)} title="Latest RRA document" />
+          {rraDocs.length > 1 && <p className="adm-hint mt-1">{rraDocs.length - 1} earlier RRA document(s) on file.</p>}
+        </>
       )}
 
       <h2>Other evidence</h2>

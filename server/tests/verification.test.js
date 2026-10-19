@@ -55,8 +55,8 @@ describe('issuing authority', () => {
     ['Registered via the RDB One Stop Centre', 'RDB'],
     ['Office of the Registrar General', 'Office of the Registrar General'],
   ])('passes on “%s” and names the phrase and the pass', (text, phrase) => {
-    expect(authority(text)).toMatchObject({ passed: true, matched: phrase, source: 'text layer' });
-    expect(authority('', text)).toMatchObject({ passed: true, matched: phrase, source: 'OCR text' });
+    expect(authority(text)).toMatchObject({ passed: true, matched: phrase, foundIn: 'text layer' });
+    expect(authority('', text)).toMatchObject({ passed: true, matched: phrase, foundIn: 'OCR text' });
   });
 
   test('tolerates OCR errors and says what was actually read', () => {
@@ -85,7 +85,7 @@ describe('RDB certificate checks', () => {
     const result = await verifyRdb(pdf);
     expect(result.method).toBe('pdf-text+ocr');
     expect(result.checks.map((c) => c.id)).not.toContain('republic');
-    expect(check(result, 'issuing_authority')).toMatchObject({ passed: true, source: 'OCR text' });
+    expect(check(result, 'issuing_authority')).toMatchObject({ passed: true, foundIn: 'OCR text' });
     expect(check(result, 'issuing_authority').detail).toMatch(/^Matched “(Rwanda Development Board|Republic of Rwanda)”.* in the OCR text\.$/);
     expect(check(result, 'name_match')).toMatchObject({ passed: true });
     expect(result.flag).toBe('likely_valid');
@@ -208,7 +208,7 @@ describe('degree certificate checks', () => {
     const result = await verifyDocument('degree_certificate', pdf, PDF, { expectedName: 'Amina Uwase', nameThreshold: 0.8 });
     expect(result.method).toBe('pdf-text+ocr');
     expect(check(result, 'institution')).toMatchObject({ passed: true });
-    expect(check(result, 'institution')).toMatchObject({ source: 'OCR text', matched: 'African Leadership University' });
+    expect(check(result, 'institution')).toMatchObject({ foundIn: 'OCR text', matched: 'African Leadership University' });
     expect(result.flag).toBe('likely_valid');
   });
 });

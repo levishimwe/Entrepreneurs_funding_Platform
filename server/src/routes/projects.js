@@ -389,17 +389,20 @@ router.post('/:id/clarification', requireApprovedGraduate, uploadLimiter, clarif
   const stored = req.file
     ? await storeFiles([{ file: req.file, kind: data.documentKind, label: 'The supporting document' }])
     : [];
+  const created = [];
   await sequelize.transaction(async (transaction) => {
     await project.update(
       { clarificationText: data.clarification, clarificationSubmittedAt: new Date(), similarityStatus: 'clarified' },
       { transaction }
     );
-    for (const s of stored) await Document.create({ ...s, uploaderId: req.user.id, projectId: project.id }, { transaction });
+    for (const s of stored) created.push(await Document.create({ ...s, uploaderId: req.user.id, projectId: project.id }, { transaction }));
     await audit.record(
       { actorId: req.user.id, action: 'project.clarification_submitted', entityType: 'project', entityId: project.id, metadata: { documents: stored.length } },
       { transaction }
     );
   });
+  // Optional RRA documents are checked in the background, like RDB certificates.
+  created.filter((d) => d.kind === 'rra_certificate').forEach((d) => enqueueDocumentVerification(d.id));
   res.json({ project: ownerProject(await loadOwnedProject(req)) });
 });
 
@@ -412,8 +415,9 @@ router.post('/:id/documents', requireApprovedGraduate, uploadLimiter, evidenceUp
     .object({ kind: z.enum(['rra_certificate', 'supporting_document', 'revenue_document']) })
     .parse(req.body);
   const stored = await storeFiles([{ file: req.file, kind, label: 'The document' }]);
-  await Document.create({ ...stored[0], uploaderId: req.user.id, projectId: project.id });
+  const document = await Document.create({ ...stored[0], uploaderId: req.user.id, projectId: project.id });
   await audit.record({ actorId: req.user.id, action: 'document.uploaded', entityType: 'project', entityId: project.id, metadata: { kind } });
+  if (kind === 'rra_certificate') enqueueDocumentVerification(document.id);
   res.status(201).json({ project: ownerProject(await loadOwnedProject(req)) });
 });
 

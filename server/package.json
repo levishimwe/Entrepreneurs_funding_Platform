@@ -16,7 +16,8 @@
     "documents:reverify": "node scripts/reverify-documents.js",
     "release": "node scripts/migrate.js up && node scripts/seed.js",
     "ocr:warm": "node scripts/warm-ocr.js",
-    "storage:copy-to-s3": "node scripts/copy-uploads-to-s3.js"
+    "storage:copy-to-s3": "node scripts/copy-uploads-to-s3.js",
+    "documents:try-gemini": "node scripts/try-gemini.js"
   },
   "jest": {
     "testEnvironment": "node",

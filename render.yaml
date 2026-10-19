@@ -70,6 +70,16 @@ services:
       - key: MAIL_FROM
         sync: false # "ALU Ventures" <verified-sender@example.org>
 
+      # AI document verification (Gemini free tier). Tesseract OCR still runs and
+      # takes over when Gemini fails. On the free tier Google may use uploaded
+      # files to improve its products; set VERIFIER=ocr to send nothing to Google.
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite
+      - key: VERIFIER
+        value: gemini
+
       # OCR: one thread fits a 512 MB instance; idle threads exit after 60 s.
       - key: OCR_POOL_SIZE
         value: "1"

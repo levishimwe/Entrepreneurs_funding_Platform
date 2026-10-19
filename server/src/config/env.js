@@ -87,6 +87,17 @@ const env = {
     idleMs: Number(process.env.OCR_IDLE_MS || 60000),
   },
 
+  // AI document verification. Tests never call the real API (no key in tests).
+  gemini: {
+    apiKey: isTest ? '' : process.env.GEMINI_API_KEY || '',
+    model: process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
+    timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS || 45000),
+    // Free-tier friendly: one request at a time, spaced out, and a pause after a 429.
+    concurrency: Math.max(1, Number(process.env.GEMINI_CONCURRENCY || 1)),
+    minIntervalMs: Number(process.env.GEMINI_MIN_INTERVAL_MS || 4000),
+    cooldownMs: Number(process.env.GEMINI_COOLDOWN_MS || 60000),
+  },
+
   mail: {
     // smtp (Nodemailer) | resend | brevo. Tests always use the in-memory JSON transport.
     driver: isTest ? 'json' : (process.env.EMAIL_DRIVER || 'smtp').toLowerCase(),
@@ -101,5 +112,14 @@ const env = {
       (process.env.SMTP_USER ? `"ALU Ventures" <${process.env.SMTP_USER}>` : 'ALU Ventures <no-reply@aluventures.local>'),
   },
 };
+
+// VERIFIER=gemini|ocr. Default: gemini when a key is set, otherwise Tesseract only.
+{
+  const requested = (process.env.VERIFIER || '').toLowerCase();
+  if (requested === 'gemini' && !env.gemini.apiKey && !isTest) {
+    console.warn('[verifier] VERIFIER=gemini but GEMINI_API_KEY is not set — using OCR only.');
+  }
+  env.verifier = requested === 'ocr' || !env.gemini.apiKey ? 'ocr' : 'gemini';
+}
 
 module.exports = env;

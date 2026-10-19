@@ -9,7 +9,8 @@ const { getSetting } = require('../services/settings');
 const { processOutbox } = require('../services/mailer');
 const audit = require('../services/audit');
 
-const VERIFIABLE = new Set(['degree_certificate', 'rdb_certificate']);
+// RRA documents are optional evidence (FR16) but are checked when uploaded.
+const VERIFIABLE = new Set(['degree_certificate', 'rdb_certificate', 'rra_certificate']);
 // Matches the OCR thread pool, so a verification never waits on a busy thread.
 const CONCURRENCY = require('../config/env').ocr.poolSize;
 const queue = [];
@@ -31,6 +32,7 @@ async function verify(documentId, { rerun = false } = {}) {
     const result = await verifyDocument(document.kind, buffer, document.mimeType, {
       expectedName: document.uploader.fullName,
       companyNumber: document.project?.companyNumber || undefined,
+      companyName: document.project?.companyName || undefined,
       nameThreshold: Number(await getSetting('ocr_name_match_threshold', 0.8)),
     });
     await document.update({ extractionJson: result, flag: result.flag, status: 'processed' });
@@ -39,7 +41,12 @@ async function verify(documentId, { rerun = false } = {}) {
       entityType: 'document',
       entityId: document.id,
       reason: `${rerun ? 'Automated pre-check re-run' : 'Automated pre-check'}: ${result.flag === 'likely_valid' ? 'Likely Valid' : 'Suspicious'}`,
-      metadata: { kind: document.kind, failedChecks: result.checks.filter((c) => !c.passed).map((c) => c.id) },
+      metadata: {
+        kind: document.kind,
+        source: result.primary,
+        gemini: result.gemini?.status || null,
+        failedChecks: result.checks.filter((c) => c.counted !== false && !c.passed).map((c) => c.id),
+      },
     });
   } catch (err) {
     console.error(`[worker] verification failed for document ${document.id}:`, err.message);

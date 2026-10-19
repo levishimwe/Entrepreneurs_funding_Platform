@@ -12,6 +12,15 @@ const METHOD = {
 
 export const adminFileUrl = (id) => `/api/admin/documents/${id}/file`;
 
+const SOURCE = { gemini: 'Gemini', ocr: 'OCR' };
+
+// Which reader set the flag, and why OCR took over if Gemini was used.
+function basis(document) {
+  if (document.primary === 'gemini') return `Flag from the Gemini checks (${document.gemini?.model || 'Gemini'}); OCR shown for comparison.`;
+  if (document.gemini?.status === 'failed') return `Gemini ${document.gemini.reason || 'unavailable'}: flag from the OCR checks.`;
+  return 'Flag from the OCR checks.';
+}
+
 // Plain result text for one check.
 function result(check) {
   if (check.neutral) return <span className="adm-muted">Note</span>;
@@ -76,7 +85,9 @@ export default function VerificationChecks({ document: initial, title }) {
         <StatusText status={pending || rerunning ? 'processing' : document.flag} />
         {!pending && (
           <span className="adm-muted">
-            {' · Read via '}
+            {' · '}
+            {basis(document)}
+            {' OCR read via '}
             {METHOD[document.method] || 'n/a'}
             {document.ocrConfidence != null && `, OCR confidence ${document.ocrConfidence}%`}
           </span>
@@ -89,6 +100,7 @@ export default function VerificationChecks({ document: initial, title }) {
           <table className="adm-table">
             <thead>
               <tr>
+                <th>Source</th>
                 <th>Check</th>
                 <th>Result</th>
                 <th>Detail</th>
@@ -96,7 +108,11 @@ export default function VerificationChecks({ document: initial, title }) {
             </thead>
             <tbody>
               {document.checks.map((c) => (
-                <tr key={c.id}>
+                <tr key={`${c.source || 'ocr'}-${c.id}`}>
+                  <td className="whitespace-nowrap">
+                    {SOURCE[c.source] || 'OCR'}
+                    {c.counted === false && !c.neutral && <div className="adm-muted">for comparison</div>}
+                  </td>
                   <td>{c.label}</td>
                   <td className="whitespace-nowrap">{result(c)}</td>
                   <td className="adm-muted break-words">{c.detail || ''}</td>

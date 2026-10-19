@@ -1,11 +1,14 @@
-// Shared OCR-assisted verification for degree certificates (FR02) and RDB
-// certificates (FR05). One engine, two rule sets: extract text (PDF text layer
-// and OCR, merged), run the document's pattern checks, extract the people named
-// on it and compare them with the profile name using fuzzy matching. The result
-// is a preliminary "Likely Valid" / "Suspicious" flag for an administrator —
-// never a decision.
+// Shared verification for degree certificates (FR02), RDB certificates (FR05)
+// and optional RRA documents (FR16). Two readers feed the same rules: Tesseract
+// OCR (PDF text layer and OCR, merged) always, and Gemini (structured JSON)
+// when VERIFIER=gemini. The rules check the issuer, numbers and dates and
+// compare the people named with the profile name using fuzzy matching. The
+// result is a preliminary "Likely Valid" / "Suspicious" flag for an
+// administrator — never a decision.
+const env = require('../../config/env');
 // Called through the module so tests can substitute a text-layer-only stub.
 const textExtraction = require('./textExtraction');
+const gemini = require('./gemini');
 const { nameSimilarity, findNameInText, findPhrase, normalize } = require('./fuzzy');
 
 const MONTHS = {
@@ -106,7 +109,7 @@ function phraseCheck(id, label, variants, sources) {
     const hit = findPhrase(text, variants);
     if (hit.found) {
       const matched = normalize(hit.match) === normalize(hit.variant) ? `“${hit.variant}”` : `“${hit.variant}” (read as “${hit.match}”)`;
-      return { id, label, passed: true, detail: `Matched ${matched} in the ${source}.`, matched: hit.variant, source };
+      return { id, label, passed: true, detail: `Matched ${matched} in the ${source}.`, matched: hit.variant, foundIn: source };
     }
   }
   return { id, label, passed: false, detail: `None of ${variants.map((v) => `“${v}”`).join(', ')} found in the text layer or OCR.` };
@@ -259,7 +262,52 @@ const ISSUING_AUTHORITY = [
   'RDB',
 ];
 
+// Where a degree certificate prints the holder's name.
+const DEGREE_NAME_LABELS = [/certif(?:y|ies)\s+that/i, /conferred\s+(?:up)?on/i, /awarded\s+to/i, /presented\s+to/i, /\bname\s*(?:of\s+graduate)?\s*:/i];
+
+// Rwanda Revenue Authority, in English and Kinyarwanda.
+const RRA_AUTHORITY = ['Rwanda Revenue Authority', 'Ikigo cy’Igihugu cy’Imisoro n’Amahoro', 'RRA'];
+const TIN_RE = /\bTIN\b[^0-9\n]{0,25}(\d{9})\b/i;
+
+// Taxpayer on an RRA document: the submitted company (or, for a sole trader, the graduate).
+function taxpayerCheck(taxpayer, { companyName, expectedName, nameThreshold }) {
+  const label = 'Taxpayer matches the submitted company or the graduate';
+  if (!taxpayer) return { id: 'taxpayer_match', label, passed: false, detail: 'No taxpayer name could be read.' };
+  const scores = [
+    ['company', companyName, companyName ? nameSimilarity(taxpayer, companyName) : 0],
+    ['graduate', expectedName, expectedName ? nameSimilarity(taxpayer, expectedName) : 0],
+  ].sort((a, b) => b[2] - a[2]);
+  const [who, against, score] = scores[0];
+  return {
+    id: 'taxpayer_match',
+    label,
+    passed: score >= nameThreshold,
+    detail: `Taxpayer “${taxpayer}” — ${Math.round(score * 100)}% similar to the ${who} “${against || '—'}”.`,
+  };
+}
+
 const RULES = {
+  rra_certificate(text, { expectedName, nameThreshold, companyNumber, companyName }, sources) {
+    const checks = [];
+    checks.push(phraseCheck('issuing_authority', 'Issued by the Rwanda Revenue Authority', RRA_AUTHORITY, sources));
+    const tin = (text.match(TIN_RE) || [])[1] || null;
+    checks.push({ id: 'tin', label: 'Contains a 9-digit TIN', passed: Boolean(tin), detail: tin || 'No TIN found.' });
+    if (companyNumber) {
+      const matches = tin && normalize(tin) === normalize(companyNumber);
+      checks.push({
+        id: 'tin_match',
+        label: 'TIN matches the submitted company code',
+        passed: Boolean(matches),
+        detail: matches ? tin : `Submitted ${companyNumber}; document shows ${tin || 'none'}.`,
+      });
+    }
+    checks.push(expiryCheck(text));
+    const taxpayer = extractLabelledValues(text, [/(?:taxpayer|tax\s*payer)(?:'s)?\s*(?:name)?\s*:/i, /name\s+of\s+(?:the\s+)?tax\s*payer\s*:/i, /business\s+name\s*:/i])[0];
+    const taxpayerName = taxpayer ? cleanName(taxpayer) : null;
+    checks.push(taxpayerCheck(taxpayerName, { companyName, expectedName, nameThreshold }));
+    return { checks, extractedName: taxpayerName, nameScore: 0, fields: { tin, taxpayer: taxpayerName } };
+  },
+
   degree_certificate(text, { expectedName, nameThreshold }, sources) {
     const checks = [];
     checks.push(phraseCheck('institution', 'Mentions “African Leadership University”', ['African Leadership University'], sources));
@@ -283,13 +331,7 @@ const RULES = {
       detail: graduationDates.length ? graduationDates[graduationDates.length - 1].raw : 'No plausible past date found.',
     });
 
-    const candidates = extractLabelledValues(text, [
-      /certif(?:y|ies)\s+that/i,
-      /conferred\s+(?:up)?on/i,
-      /awarded\s+to/i,
-      /presented\s+to/i,
-      /\bname\s*(?:of\s+graduate)?\s*:/i,
-    ]);
+    const candidates = extractLabelledValues(text, DEGREE_NAME_LABELS);
     const name = compareName(text, candidates, expectedName, nameThreshold);
     checks.push({
       id: 'name_match',
@@ -353,23 +395,199 @@ const RULES = {
   },
 };
 
+// ---- Rules on Gemini's extracted fields ----------------------------------------
+// The same rules as for OCR, applied to Gemini's JSON. A name or number Gemini
+// reports must also be what OCR reads in the labelled position (the line after
+// "This is to certify that", "Managing Director:", "Taxpayer Name:", "TIN:",
+// "Company Code:"). That corroboration catches a hallucination, and a document
+// that tries to talk the model into a different answer: text hidden elsewhere
+// on the page cannot satisfy it.
+const known = (f) => (f && f.value && !/^unknown$/i.test(f.value.trim()) ? f.value.trim() : null);
+
+// Names and numbers OCR reads in labelled positions, for corroboration.
+function ocrEvidence(kind, text, ocrResult, textFound) {
+  let names = [];
+  if (kind === 'degree_certificate') {
+    names = extractLabelledValues(text, DEGREE_NAME_LABELS)
+      .flatMap((v) => v.split(/,|;|\band\b|&/i))
+      .map(cleanName)
+      // A person's name has at least two words ("Conferred on 14 June 2024" is not one).
+      .filter((n) => n.split(' ').length >= 2);
+  }
+  if (kind === 'rdb_certificate') names = extractPeople(text).map((p) => p.name);
+  if (kind === 'rra_certificate') names = [ocrResult.fields?.taxpayer].filter(Boolean);
+  const numbers = [ocrResult.fields?.registrationNumber, ocrResult.fields?.tin].filter(Boolean);
+  return { textFound, names, numbers };
+}
+const TYPE_LABEL = { degree_certificate: 'an ALU degree certificate', rdb_certificate: 'an RDB company registration certificate', rra_document: 'an RRA tax registration' };
+
+function corroborate(check, value, evidence, threshold, isNumber = false) {
+  if (!check.passed || !value) return check;
+  if (!evidence.textFound) return { ...check, passed: false, detail: `${check.detail} Not corroborated: no readable text in the document.` };
+  const read = isNumber ? evidence.numbers : evidence.names;
+  const found = isNumber ? read.some((n) => normalize(n) === normalize(value)) : read.some((n) => nameSimilarity(n, value) >= threshold);
+  if (found) return check;
+  const seen = read.length ? read.map((n) => `“${n}”`).join(', ') : 'nothing';
+  return { ...check, passed: false, detail: `${check.detail} Not corroborated: OCR reads ${seen} where the ${isNumber ? 'number' : 'name'} is printed.` };
+}
+
+function isoDate(value) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || '');
+  if (!m) return null;
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function geminiChecks(kind, gemini, { expectedName, nameThreshold, companyNumber, companyName }, evidence) {
+  const f = gemini.fields;
+  const checks = [];
+  const reason = (x) => (x?.reason ? ` (${x.reason})` : '');
+
+  checks.push({
+    id: 'document_type',
+    label: `Is ${TYPE_LABEL[gemini.expectedType]}`,
+    passed: f.document_type.value === gemini.expectedType,
+    detail: `Read as ${f.document_type.value.replace(/_/g, ' ')}${reason(f.document_type)}.`,
+  });
+
+  const issuer = known(f.issuer);
+  const authority = { degree_certificate: ['African Leadership University'], rdb_certificate: ISSUING_AUTHORITY, rra_certificate: RRA_AUTHORITY }[kind];
+  const issuerHit = issuer ? findPhrase(issuer, authority) : { found: false };
+  checks.push({
+    id: kind === 'degree_certificate' ? 'institution' : 'issuing_authority',
+    label: { degree_certificate: 'Issued by African Leadership University', rdb_certificate: 'Issued by a recognised Rwandan registry', rra_certificate: 'Issued by the Rwanda Revenue Authority' }[kind],
+    passed: issuerHit.found,
+    detail: issuer ? `Issuer: “${issuer}”.` : `Issuer not visible${reason(f.issuer)}.`,
+  });
+
+  const number = known(f.registration_number);
+  const people = (f.people.value || []).filter((p) => known({ value: p.name }));
+  let best = null;
+
+  if (kind === 'degree_certificate') {
+    const programme = known(f.programme);
+    checks.push({ id: 'program', label: 'States a degree programme', passed: Boolean(programme), detail: programme || `Not visible${reason(f.programme)}.` });
+    const issued = isoDate(known(f.issue_date));
+    const ok = issued && issued.getUTCFullYear() >= 2008 && issued <= new Date();
+    checks.push({ id: 'graduation_date', label: 'Shows a graduation or award date', passed: Boolean(ok), detail: known(f.issue_date) || `Not visible${reason(f.issue_date)}.` });
+    // The graduate is the holder; people named (signatories) are not candidates.
+    const holder = known(f.holder_name);
+    best = holder ? { name: holder, score: Math.round(nameSimilarity(holder, expectedName) * 100) / 100 } : null;
+    const check = {
+      id: 'name_match',
+      label: 'Holder name matches the registered name',
+      passed: Boolean(best && best.score >= nameThreshold),
+      detail: best ? `Holder “${best.name}” — ${Math.round(best.score * 100)}% similar to “${expectedName}”.` : `No holder name visible${reason(f.holder_name)}.`,
+    };
+    checks.push(corroborate(check, best?.name, evidence, nameThreshold));
+  }
+
+  if (kind === 'rdb_certificate') {
+    checks.push(corroborate({ id: 'registration_number', label: 'Contains a registration number', passed: Boolean(number), detail: number || 'Not visible.' }, number, evidence, nameThreshold, true));
+    if (companyNumber) {
+      const matches = number && normalize(number) === normalize(companyNumber);
+      checks.push({ id: 'registration_number_match', label: 'Registration number matches the submitted company number', passed: Boolean(matches), detail: matches ? number : `Submitted ${companyNumber}; certificate shows ${number || 'none'}.` });
+    }
+    // People only, never the company name.
+    const scored = people.map((p) => ({ ...p, score: Math.round(nameSimilarity(p.name, expectedName) * 100) / 100 })).sort((a, b) => b.score - a.score);
+    best = scored[0] || null;
+    const listed = people.map((p) => `${p.name} (${p.role})`).join(', ');
+    const check = {
+      id: 'name_match',
+      label: 'A named officer or shareholder matches the graduate’s name',
+      passed: Boolean(best && best.score >= nameThreshold),
+      detail: best
+        ? `People named: ${listed}. Best match: “${best.name}” — ${Math.round(best.score * 100)}% similar to “${expectedName}”.`
+        : 'No people (CEO, directors, company secretary or shareholders) are named.',
+    };
+    checks.push(corroborate(check, best?.name, evidence, nameThreshold));
+  }
+
+  if (kind === 'rra_certificate') {
+    const tin = number && /^\d{9}$/.test(number.replace(/[\s-]/g, '')) ? number.replace(/[\s-]/g, '') : null;
+    checks.push(corroborate({ id: 'tin', label: 'Contains a 9-digit TIN', passed: Boolean(tin), detail: number || 'Not visible.' }, tin, evidence, nameThreshold, true));
+    if (companyNumber) {
+      const matches = tin && normalize(tin) === normalize(companyNumber);
+      checks.push({ id: 'tin_match', label: 'TIN matches the submitted company code', passed: Boolean(matches), detail: matches ? tin : `Submitted ${companyNumber}; document shows ${tin || 'none'}.` });
+    }
+    const taxpayer = known(f.holder_name) || known(f.company_name);
+    checks.push(corroborate(taxpayerCheck(taxpayer, { companyName, expectedName, nameThreshold }), taxpayer, evidence, nameThreshold));
+  }
+
+  if (kind !== 'degree_certificate') {
+    const expiry = known(f.expiry_date);
+    const date = isoDate(expiry);
+    checks.push(
+      !expiry
+        ? { id: 'unexpired', label: 'Expiry date', passed: true, neutral: true, detail: 'No expiry date on this certificate type.' }
+        : !date
+          ? { id: 'unexpired', label: 'Expiry date', passed: false, detail: `“${expiry}” is stated but could not be read as a date.` }
+          : { id: 'unexpired', label: 'Expiry date', passed: date > new Date(), detail: `${date > new Date() ? 'Valid until' : 'Expired on'} ${expiry}.` }
+    );
+  }
+
+  // Gemini's own view: counted only when it says the document does not look genuine.
+  const g = f.looks_genuine;
+  checks.push({
+    id: 'looks_genuine',
+    label: 'Looks genuine (model opinion)',
+    passed: g.value !== 'no',
+    neutral: g.value === 'unknown' || undefined,
+    detail: `${g.value}${g.reason ? `: ${g.reason}` : ''}`,
+  });
+
+  return {
+    checks,
+    extractedName: best?.name || known(f.holder_name),
+    nameScore: best?.score || 0,
+    fields: {
+      documentType: f.document_type.value,
+      issuer,
+      holderName: known(f.holder_name),
+      companyName: known(f.company_name),
+      people,
+      registrationNumber: number,
+      programme: known(f.programme),
+      issueDate: known(f.issue_date),
+      expiry: known(f.expiry_date),
+      looksGenuine: g.value,
+    },
+  };
+}
+
+const tag = (checks, source, counted) => checks.map((c) => ({ ...c, source, counted }));
+
 /**
- * @param {'degree_certificate'|'rdb_certificate'} kind
+ * Verifies one document. Tesseract OCR always runs; with VERIFIER=gemini,
+ * Gemini runs in parallel and its checks decide the flag. If Gemini fails
+ * (timeout, HTTP error, 429, malformed JSON), the OCR checks decide instead and
+ * a note says so. The result is a flag for an administrator, never a decision.
+ *
+ * @param {'degree_certificate'|'rdb_certificate'|'rra_certificate'} kind
  * @param {Buffer} buffer
  * @param {string} mimeType
- * @param {{expectedName: string, nameThreshold?: number, companyNumber?: string}} options
+ * @param {{expectedName: string, nameThreshold?: number, companyNumber?: string, companyName?: string,
+ *   verifier?: 'gemini'|'ocr', gemini?: object}} options  `verifier`/`gemini` override the environment (tests, scripts)
  */
 async function verifyDocument(kind, buffer, mimeType, options) {
   const rules = RULES[kind];
   if (!rules) throw new Error(`No verification rules for document kind "${kind}"`);
   const nameThreshold = options.nameThreshold ?? 0.8;
+  const opts = { ...options, nameThreshold };
+  const useGemini = (options.verifier ?? env.verifier) === 'gemini';
 
-  const extraction = await textExtraction.extractText(buffer, mimeType);
+  const [ocrRun, geminiRun] = await Promise.allSettled([
+    textExtraction.extractText(buffer, mimeType),
+    useGemini ? gemini.analyzeDocument(kind, buffer, mimeType, options.gemini) : Promise.resolve(null),
+  ]);
+  if (ocrRun.status === 'rejected' && !(useGemini && geminiRun.status === 'fulfilled')) throw ocrRun.reason;
+
+  const extraction = ocrRun.status === 'fulfilled' ? ocrRun.value : { text: '', textLayer: '', ocrText: '', method: 'failed', pages: null, confidence: null };
   const text = extraction.text || '';
   const textFound = text.replace(/\s/g, '').length >= 20;
 
-  const result = textFound
-    ? rules(text, { ...options, nameThreshold }, { textLayer: extraction.textLayer, ocrText: extraction.ocrText })
+  const ocrResult = textFound
+    ? rules(text, opts, { textLayer: extraction.textLayer, ocrText: extraction.ocrText })
     : {
         checks: [{ id: 'text', label: 'Readable text extracted', passed: false, detail: 'The document could not be read. It may be blurred, rotated or low resolution.' }],
         extractedName: null,
@@ -377,19 +595,51 @@ async function verifyDocument(kind, buffer, mimeType, options) {
         fields: {},
       };
 
-  // Neutral notes count as passed, so they never make a document Suspicious.
-  const flag = result.checks.every((c) => c.passed) ? 'likely_valid' : 'suspicious';
+  let primary = 'ocr';
+  let geminiResult = null;
+  let geminiInfo = null;
+  if (useGemini) {
+    if (geminiRun.status === 'fulfilled') {
+      primary = 'gemini';
+      geminiResult = geminiChecks(kind, geminiRun.value, opts, ocrEvidence(kind, text, ocrResult, textFound));
+      geminiInfo = { status: 'ok', model: geminiRun.value.model, fields: geminiResult.fields };
+    } else {
+      const err = geminiRun.reason;
+      // Code only: never the document text or the key.
+      console.warn(`[gemini] ${kind}: ${err?.code || 'error'} — falling back to OCR`);
+      geminiInfo = { status: 'failed', error: err?.code || 'error', reason: gemini.describe(err) };
+    }
+  }
+
+  const checks = [
+    ...(geminiResult ? tag(geminiResult.checks, 'gemini', true) : []),
+    ...(geminiInfo?.status === 'failed'
+      ? [{ id: 'gemini', label: 'Gemini analysis', passed: true, neutral: true, source: 'gemini', counted: false, detail: `Unavailable: Gemini ${geminiInfo.reason}. The flag uses the OCR checks.` }]
+      : []),
+    ...tag(ocrResult.checks, 'ocr', primary === 'ocr'),
+  ];
+  const lead = primary === 'gemini' ? geminiResult : ocrResult;
+
+  // Neutral notes count as passed; only checks from the primary source decide.
+  const flag = checks.filter((c) => c.counted).every((c) => c.passed) ? 'likely_valid' : 'suspicious';
   return {
     kind,
+    verifier: useGemini ? 'gemini' : 'ocr',
+    primary,
+    gemini: geminiInfo,
     method: extraction.method,
     pages: extraction.pages,
     ocrConfidence: extraction.confidence != null ? Math.round(extraction.confidence) : null,
     expectedName: options.expectedName,
-    ...result,
+    checks,
+    extractedName: lead.extractedName,
+    nameScore: lead.nameScore,
+    fields: lead.fields,
+    ocrFields: ocrResult.fields,
     flag,
     textExcerpt: text.slice(0, 1500),
     processedAt: new Date().toISOString(),
   };
 }
 
-module.exports = { verifyDocument, findDates, extractPeople, findExpiry, RULES };
+module.exports = { verifyDocument, findDates, extractPeople, findExpiry, geminiChecks, RULES };

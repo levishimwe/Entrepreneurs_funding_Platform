@@ -45,6 +45,9 @@ function documentReview(d) {
     ...documentSummary(d),
     flag: d.flag,
     method: x.method || null,
+    // Which reader decided the flag (gemini | ocr) and Gemini's outcome, if used.
+    primary: x.primary || 'ocr',
+    gemini: x.gemini ? { status: x.gemini.status, model: x.gemini.model || null, reason: x.gemini.reason || null } : null,
     checks: x.checks || [],
     extractedName: x.extractedName || null,
     nameScore: x.nameScore ?? null,
@@ -262,6 +265,8 @@ const ISSUE = {
   registration_number_match: 'Registration number mismatch',
   unexpired: 'Expired certificate',
   registration_number: 'No registration number',
+  document_type: 'Not the expected document',
+  looks_genuine: 'May not be genuine',
   issuing_authority: 'Issuing registry not found',
   republic: 'Missing official markings',
   rdb: 'Missing official markings',
@@ -269,7 +274,8 @@ const ISSUE = {
 };
 function rdbIssue(doc) {
   if (!doc || doc.flag !== 'suspicious') return null;
-  const failed = (doc.extractionJson?.checks || []).find((c) => !c.passed);
+  // Only checks that counted toward the flag (OCR rows are for comparison when Gemini led).
+  const failed = (doc.extractionJson?.checks || []).find((c) => c.counted !== false && !c.passed);
   return failed ? ISSUE[failed.id] || failed.label : 'Needs review';
 }
 

@@ -58,6 +58,20 @@ const RDB = ({ company, number, director, issued, expires, printed, headerAsImag
   { text: 'SYNTHETIC SAMPLE - FOR DEVELOPMENT AND DEMONSTRATION ONLY', size: 9 },
 ];
 
+// Synthetic RRA tax registration (tests build it in memory; not written to samples/).
+const RRA = ({ taxpayer, tin, registered, extraLines = [] }) => [
+  { text: 'REPUBLIC OF RWANDA', size: 20, bold: true },
+  { text: 'RWANDA REVENUE AUTHORITY', size: 18, bold: true },
+  { text: 'TAX REGISTRATION CERTIFICATE', size: 15, bold: true },
+  { text: '', size: 10 },
+  { text: `Taxpayer Name: ${taxpayer}`, size: 14 },
+  { text: `TIN: ${tin}`, size: 14 },
+  { text: `Registration Date: ${registered}`, size: 13 },
+  ...extraLines.map((text) => ({ text, size: 12 })),
+  { text: '', size: 10 },
+  { text: 'SYNTHETIC SAMPLE - FOR DEVELOPMENT AND DEMONSTRATION ONLY', size: 9 },
+];
+
 const OTHER = [
   { text: 'Weekly Grocery List', size: 22, bold: true },
   { text: 'Tomatoes, onions, rice, beans, cooking oil and bread.', size: 13 },
@@ -163,7 +177,9 @@ async function main() {
   for (const f of fs.readdirSync(OUT)) console.log('  ' + f);
 }
 
-module.exports = { buildRdbPdf, buildTextPdf };
+const buildRraPdf = (opts) => textPdfBuffer(RRA(opts));
+
+module.exports = { buildRdbPdf, buildRraPdf, buildTextPdf };
 
 if (require.main === module) {
   main().catch((err) => {
