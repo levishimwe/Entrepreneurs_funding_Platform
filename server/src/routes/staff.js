@@ -5,12 +5,16 @@ const express = require('express');
 const { Op } = require('sequelize');
 const { z } = require('zod');
 const env = require('../config/env');
-const { sequelize, User, GraduateProfile, Opportunity, Application, Project, AuditLog } = require('../models');
+const { sequelize, User, GraduateProfile, Opportunity, Application, Project, AuditLog, CompetitionResult } = require('../models');
 const { requireRole } = require('../middleware/auth');
 const { badRequest, forbidden, notFound } = require('../middleware/errors');
 const { opportunitySchema, serializeOpportunity, checkEligibility } = require('../services/opportunities');
 const { enqueueEmail } = require('../services/mailer');
 const audit = require('../services/audit');
+const storage = require('../services/storage');
+const { upload, validateDocument } = require('../middleware/upload');
+const { uploadLimiter } = require('../middleware/rateLimits');
+const { serializeResult, RESULT_TYPES } = require('../services/results');
 
 const router = express.Router();
 router.use(requireRole('staff'));
@@ -62,11 +66,13 @@ router.get('/opportunities/:id', async (req, res) => {
       { model: Project, as: 'project' },
       { model: User, as: 'applicant', attributes: ['id', 'fullName', 'email', 'role', 'status'], include: [{ model: GraduateProfile, as: 'graduateProfile' }] },
       { model: User, as: 'decider', attributes: ['fullName'] },
+      { model: CompetitionResult, as: 'results' },
     ],
     order: [['submittedAt', 'ASC']],
   });
   res.json({
     opportunity: serializeOpportunity(opportunity),
+    resultsEnabled: RESULT_TYPES.includes(opportunity.type),
     applications: applications.map((a) => ({
       id: a.id,
       status: a.status,
@@ -91,6 +97,7 @@ router.get('/opportunities/:id', async (req, res) => {
         type: a.project.type,
         status: a.project.status,
       },
+      result: a.results?.length ? serializeResult([...a.results].sort((x, y) => y.id - x.id)[0]) : null,
       // Re-checked live so staff see if eligibility changed after applying.
       eligibilityIssues: checkEligibility({ ...opportunity.get(), status: 'published', deadline: new Date(Date.now() + 1000) }, a.project, a.applicant),
     })),
@@ -169,6 +176,73 @@ router.post('/applications/:id/decision', async (req, res) => {
     cta: { label: 'View your applications', url: `${env.clientUrl}/app/opportunities` },
   });
   res.json({ ok: true, status: data.decision, notified: true });
+});
+
+// Competition results: after a participant is selected for a hackathon or
+// competition, staff record the outcome. It waits for administrator approval.
+const resultSchema = z
+  .object({
+    outcome: z.enum(['won', 'participated', 'not_placed'], { message: 'Choose an outcome.' }),
+    awardTitle: z.string().trim().max(200).optional().transform((v) => v || null),
+    amount: z
+      .union([z.literal(''), z.coerce.number().min(0, 'Amount cannot be negative.').max(1e12)])
+      .optional()
+      .transform((v) => (v === '' || v === undefined ? null : v)),
+    currency: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z]{3}$/, 'Use a 3-letter currency code, e.g. RWF or USD.')
+      .optional()
+      .or(z.literal(''))
+      .transform((v) => v || null),
+    resultDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use the date picker.')
+      .optional()
+      .or(z.literal(''))
+      .transform((v) => v || null),
+    notes: z.string().trim().max(2000).optional().transform((v) => v || null),
+  })
+  .refine((d) => d.amount === null || d.currency, { message: 'Give the currency for the amount.', path: ['currency'] });
+
+router.post('/applications/:id/result', uploadLimiter, upload.single('proof'), async (req, res) => {
+  const data = resultSchema.parse(req.body || {});
+  const application = await Application.findByPk(req.params.id, { include: [{ model: Opportunity, as: 'opportunity' }] });
+  if (!application) throw notFound('Application not found.');
+  if (!RESULT_TYPES.includes(application.opportunity.type)) throw badRequest('Results are recorded for hackathons and competitions only.');
+  if (application.status !== 'selected') throw badRequest('Record a result only for a selected participant.');
+  const open = await CompetitionResult.count({ where: { applicationId: application.id, status: { [Op.in]: ['pending', 'approved'] } } });
+  if (open) throw badRequest('A result for this participant is already awaiting approval or approved.');
+
+  const proof = req.file ? await validateDocument(req.file, 'Proof') : null;
+  const proofKey = proof ? await storage.put(proof.buffer, { prefix: 'results', mimeType: proof.mimeType }) : null;
+  try {
+    const result = await sequelize.transaction(async (transaction) => {
+      const created = await CompetitionResult.create(
+        {
+          ...data,
+          applicationId: application.id,
+          opportunityId: application.opportunityId,
+          projectId: application.projectId,
+          graduateId: application.applicantId,
+          submittedBy: req.user.id,
+          status: 'pending',
+          ...(proof ? { proofKey, proofMime: proof.mimeType, proofName: proof.originalName } : {}),
+        },
+        { transaction }
+      );
+      await audit.record(
+        { actorId: req.user.id, action: 'result.submitted', entityType: 'competition_result', entityId: created.id, metadata: { applicationId: application.id, outcome: data.outcome } },
+        { transaction }
+      );
+      return created;
+    });
+    res.status(201).json({ result: serializeResult(result) });
+  } catch (err) {
+    if (proofKey) await storage.remove(proofKey).catch(() => {});
+    throw err;
+  }
 });
 
 // Audit entries for an opportunity and its applications (FR10), newest first.

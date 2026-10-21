@@ -21,6 +21,31 @@ const withFounder = [
   },
 ];
 
+// Success stories for the home page: Fully Funded projects the administrator
+// chose to show (and whose founder consented to publication). Public-safe
+// fields only: no names, emails, phones, documents or ids beyond the public code.
+const FUNDING_LABEL = { investor: 'Investor', competition: 'Competition' };
+router.get('/success-stories', async (req, res) => {
+  const projects = await Project.findAll({
+    where: { status: 'funded', showOnHome: true, publicationConsent: true },
+    attributes: ['title', 'sector', 'projectCode', 'summary', 'fundingSource', 'fundingAmount', 'fundingCurrency', 'showAmount', 'closedAt'],
+    order: [['closedAt', 'DESC']],
+    limit: 12,
+  });
+  res.json({
+    stories: projects.map((p) => ({
+      title: p.title,
+      sector: p.sector,
+      projectCode: p.projectCode,
+      summary: p.summary.length > 220 ? `${p.summary.slice(0, 217).trimEnd()}…` : p.summary,
+      fundingSource: FUNDING_LABEL[p.fundingSource] || null,
+      // Only when the administrator ticked "Show amount publicly".
+      amount: p.showAmount && p.fundingAmount !== null ? { value: Number(p.fundingAmount), currency: p.fundingCurrency } : null,
+      founder: 'Verified ALU graduate',
+    })),
+  });
+});
+
 router.get('/sectors', async (req, res) => {
   const rows = await SectorKeyword.findAll({ attributes: ['sector'], order: [['sector', 'ASC']] });
   res.json({ sectors: rows.map((r) => r.sector) });

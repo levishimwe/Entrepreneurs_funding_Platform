@@ -102,6 +102,13 @@ const Project = sequelize.define(
     submittedAt: { type: DataTypes.DATE, field: 'submitted_at' },
     approvedAt: { type: DataTypes.DATE, field: 'approved_at' },
     closedAt: { type: DataTypes.DATE, field: 'closed_at' },
+    // How a Fully Funded project was funded, and whether it may be shown publicly.
+    fundingSource: { type: DataTypes.ENUM('investor', 'competition'), field: 'funding_source' },
+    fundingName: { type: DataTypes.STRING(200), field: 'funding_name' },
+    fundingAmount: { type: DataTypes.DECIMAL(14, 2), field: 'funding_amount' },
+    fundingCurrency: { type: DataTypes.STRING(3), field: 'funding_currency' },
+    showOnHome: { type: DataTypes.BOOLEAN, defaultValue: false, field: 'show_on_home' },
+    showAmount: { type: DataTypes.BOOLEAN, defaultValue: false, field: 'show_amount' },
   },
   { tableName: 'projects' }
 );
@@ -257,6 +264,67 @@ const Notification = sequelize.define(
   { tableName: 'notifications' }
 );
 
+// Contact / request help: a thread between one graduate or investor and the administrator.
+const SupportThread = sequelize.define(
+  'SupportThread',
+  {
+    id: ID,
+    userId: { ...REF, allowNull: false, field: 'user_id' },
+    category: { type: DataTypes.ENUM('profile', 'project', 'account', 'opportunity', 'introduction', 'other'), allowNull: false },
+    subject: { type: DataTypes.STRING(200), allowNull: false },
+    status: { type: DataTypes.ENUM('open', 'in_progress', 'resolved'), defaultValue: 'open' },
+    startedBy: { type: DataTypes.ENUM('user', 'admin'), defaultValue: 'user', field: 'started_by' },
+    requestedName: { type: DataTypes.STRING(150), field: 'requested_name' },
+    nameAppliedAt: { type: DataTypes.DATE, field: 'name_applied_at' },
+    lastMessageAt: { type: DataTypes.DATE, field: 'last_message_at' },
+    archivedAt: { type: DataTypes.DATE, field: 'archived_at' },
+  },
+  { tableName: 'support_threads' }
+);
+
+const SupportMessage = sequelize.define(
+  'SupportMessage',
+  {
+    id: ID,
+    threadId: { ...REF, allowNull: false, field: 'thread_id' },
+    authorId: { ...REF, allowNull: false, field: 'author_id' },
+    authorRole: { type: DataTypes.ENUM('user', 'admin'), allowNull: false, field: 'author_role' },
+    body: { type: DataTypes.TEXT, allowNull: false },
+    attachmentKey: { type: DataTypes.STRING(255), field: 'attachment_key' },
+    attachmentMime: { type: DataTypes.STRING(60), field: 'attachment_mime' },
+    attachmentName: { type: DataTypes.STRING(255), field: 'attachment_name' },
+  },
+  { tableName: 'support_messages', updatedAt: false }
+);
+
+// A participant's outcome in a hackathon or competition, recorded by staff and
+// approved or rejected by the administrator.
+const CompetitionResult = sequelize.define(
+  'CompetitionResult',
+  {
+    id: ID,
+    applicationId: { ...REF, allowNull: false, field: 'application_id' },
+    opportunityId: { ...REF, allowNull: false, field: 'opportunity_id' },
+    projectId: { ...REF, allowNull: false, field: 'project_id' },
+    graduateId: { ...REF, allowNull: false, field: 'graduate_id' },
+    submittedBy: { ...REF, allowNull: false, field: 'submitted_by' },
+    outcome: { type: DataTypes.ENUM('won', 'participated', 'not_placed'), allowNull: false },
+    awardTitle: { type: DataTypes.STRING(200), field: 'award_title' },
+    amount: DataTypes.DECIMAL(14, 2),
+    currency: DataTypes.STRING(3),
+    resultDate: { type: DataTypes.DATEONLY, field: 'result_date' },
+    notes: DataTypes.TEXT,
+    proofKey: { type: DataTypes.STRING(255), field: 'proof_key' },
+    proofMime: { type: DataTypes.STRING(60), field: 'proof_mime' },
+    proofName: { type: DataTypes.STRING(255), field: 'proof_name' },
+    status: { type: DataTypes.ENUM('pending', 'approved', 'rejected'), defaultValue: 'pending' },
+    decidedBy: { ...REF, field: 'decided_by' },
+    decidedAt: { type: DataTypes.DATE, field: 'decided_at' },
+    decisionReason: { type: DataTypes.TEXT, field: 'decision_reason' },
+  },
+  { tableName: 'competition_results' }
+);
+
 const AuditLog = sequelize.define(
   'AuditLog',
   {
@@ -334,6 +402,20 @@ Application.belongsTo(User, { foreignKey: 'decidedBy', as: 'decider' });
 
 AuditLog.belongsTo(User, { foreignKey: 'actorId', as: 'actor' });
 
+SupportThread.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+SupportThread.hasMany(SupportMessage, { foreignKey: 'threadId', as: 'messages' });
+SupportMessage.belongsTo(SupportThread, { foreignKey: 'threadId', as: 'thread' });
+SupportMessage.belongsTo(User, { foreignKey: 'authorId', as: 'author' });
+
+CompetitionResult.belongsTo(Application, { foreignKey: 'applicationId', as: 'application' });
+CompetitionResult.belongsTo(Opportunity, { foreignKey: 'opportunityId', as: 'opportunity' });
+CompetitionResult.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+CompetitionResult.belongsTo(User, { foreignKey: 'graduateId', as: 'graduate' });
+CompetitionResult.belongsTo(User, { foreignKey: 'submittedBy', as: 'submitter' });
+CompetitionResult.belongsTo(User, { foreignKey: 'decidedBy', as: 'decider' });
+Application.hasMany(CompetitionResult, { foreignKey: 'applicationId', as: 'results' });
+Project.hasMany(CompetitionResult, { foreignKey: 'projectId', as: 'competitionResults' });
+
 module.exports = {
   sequelize,
   User,
@@ -347,6 +429,9 @@ module.exports = {
   Application,
   Notification,
   AuditLog,
+  SupportThread,
+  SupportMessage,
+  CompetitionResult,
   AuthToken,
   SectorKeyword,
   Setting,

@@ -1,6 +1,6 @@
 // The administrator dashboard totals required by FR11, computed live.
 const { Op, fn, col } = require('sequelize');
-const { User, GraduateProfile, Project, Opportunity, Introduction, Document } = require('../models');
+const { User, GraduateProfile, Project, Opportunity, Introduction, Document, CompetitionResult, SupportThread } = require('../models');
 
 async function projectsWithOneConfirmedInvestor() {
   const rows = await Introduction.findAll({
@@ -35,6 +35,9 @@ async function getDashboardStats() {
     rdbProcessed,
     rdbLikelyValid,
     pendingProjects,
+    fundedByCompetition,
+    pendingResults,
+    openRequests,
   ] = await Promise.all([
     count(User, { role: 'graduate', status: { [Op.notIn]: ['pending_email', 'archived'] } }),
     count(GraduateProfile, { verificationStatus: 'approved' }),
@@ -55,6 +58,9 @@ async function getDashboardStats() {
     count(Document, { kind: 'rdb_certificate', status: { [Op.in]: ['processed', 'failed'] } }),
     count(Document, { kind: 'rdb_certificate', flag: 'likely_valid' }),
     count(Project, { status: 'pending_review' }),
+    count(Project, { status: 'funded', fundingSource: 'competition' }),
+    count(CompetitionResult, { status: 'pending' }),
+    count(SupportThread, { status: 'open', archivedAt: null }),
   ]);
 
   const rdbRate = rdbProcessed ? Math.round((rdbLikelyValid / rdbProcessed) * 100) : null;
@@ -68,6 +74,7 @@ async function getDashboardStats() {
       { key: 'seeking', label: 'Active, seeking investment', value: activeSeeking, tone: 'blue' },
       { key: 'similarity', label: 'Similarity Flagged', value: similarityFlagged, tone: 'purple' },
       { key: 'funded', label: 'Fully funded', value: fullyFunded, tone: 'green' },
+      { key: 'fundedByCompetition', label: 'Funded by competition', value: fundedByCompetition, tone: 'green' },
       { key: 'oneInvestor', label: 'One confirmed investor', value: oneInvestor },
       { key: 'limit', label: 'Two-investor limit reached', value: investorLimit },
       { key: 'introductions', label: 'Investor introductions', value: introductions, hint: `${acceptedIntroductions} accepted` },
@@ -79,7 +86,7 @@ async function getDashboardStats() {
         tone: 'green',
       },
     ],
-    queues: { pendingGraduates, pendingInvestors: await count(User, { role: 'investor', status: 'pending_review' }), pendingProjects, similarityFlagged },
+    queues: { pendingGraduates, pendingInvestors: await count(User, { role: 'investor', status: 'pending_review' }), pendingProjects, similarityFlagged, pendingResults, openRequests },
   };
 }
 

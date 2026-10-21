@@ -19,6 +19,7 @@ const {
   AuditLog,
   SectorKeyword,
   Setting,
+  CompetitionResult,
 } = require('../models');
 const { requireRole } = require('../middleware/auth');
 const { badRequest, notFound, HttpError } = require('../middleware/errors');
@@ -32,6 +33,7 @@ const { sendStoredFile } = require('../services/fileDelivery');
 const { recordInvestment } = require('../services/funding');
 const { enqueueDocumentVerification, VERIFIABLE } = require('../workers/jobs');
 const records = require('../services/records');
+const { serializeResult } = require('../services/results');
 
 const router = express.Router();
 router.use(requireRole('admin'));
@@ -360,6 +362,8 @@ router.get('/projects', async (req, res) => {
         stage: p.stage,
         status: p.status,
         statusBeforeArchive: p.statusBeforeArchive,
+        fundingSource: p.fundingSource,
+        showOnHome: p.showOnHome,
         owner: p.owner && { id: p.owner.id, name: p.owner.fullName, email: p.owner.email },
         rdbFlag: p.type === 'company' ? rdb?.flag || (rdb ? 'processing' : null) : null,
         rdbIssue: rdbIssue(rdb),
@@ -429,6 +433,17 @@ router.get('/projects/:id', async (req, res) => {
       reviewNote: p.reviewNote,
       submittedAt: p.submittedAt,
       approvedAt: p.approvedAt,
+      funding: {
+        source: p.fundingSource,
+        name: p.fundingName,
+        amount: p.fundingAmount === null ? null : Number(p.fundingAmount),
+        currency: p.fundingCurrency,
+        showOnHome: p.showOnHome,
+        showAmount: p.showAmount,
+      },
+      competitionResults: (
+        await CompetitionResult.findAll({ where: { projectId: p.id }, include: [{ model: Opportunity, as: 'opportunity', attributes: ['id', 'title', 'type'] }], order: [['id', 'DESC']] })
+      ).map((r) => serializeResult(r)),
       owner: {
         id: p.owner.id,
         name: p.owner.fullName,
@@ -533,7 +548,7 @@ router.post('/projects/:id/:action', async (req, res) => {
   if (action === 'approve') Object.assign(changes, { approvedAt: now, reviewNote: null, similarityStatus: project.similarityStatus === 'none' ? 'none' : 'cleared' });
   if (action === 'clear_similarity') changes.similarityStatus = 'cleared';
   if (['reject', 'request_revision'].includes(action)) changes.reviewNote = body.reason;
-  if (action === 'mark_funded') changes.closedAt = now;
+  if (action === 'mark_funded') Object.assign(changes, { closedAt: now, fundingSource: 'investor' });
   if (action === 'archive') Object.assign(changes, { statusBeforeArchive: project.status, closedAt: project.closedAt || now });
   if (action === 'restore') Object.assign(changes, { statusBeforeArchive: null, closedAt: ['funded', 'investor_limit_reached'].includes(changes.status) ? project.closedAt : null });
 
@@ -840,5 +855,8 @@ router.put('/config/sectors/:id', async (req, res) => {
   await audit.record({ actorId: req.user.id, action: 'config.keywords_updated', entityType: 'sector', entityId: row.id, metadata: { sector: row.sector, keywords } });
   res.json({ sector: { id: row.id, sector: row.sector, keywords: row.keywords } });
 });
+
+require('./adminRequests')(router);
+require('./adminResults')(router);
 
 module.exports = router;

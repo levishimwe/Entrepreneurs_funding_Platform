@@ -13,6 +13,7 @@ import ProjectDetail from './pages/graduate/ProjectDetail';
 import { PublicOpportunities, PublicProject, Ventures, VerifyProject } from './pages/public';
 import Opportunities from './pages/graduate/Opportunities';
 import Settings from './pages/Settings';
+import Contact from './pages/Contact';
 import Introductions from './pages/Introductions';
 import Discover from './pages/investor/Discover';
 import InvestorProject from './pages/investor/InvestorProject';
@@ -23,6 +24,8 @@ import AccountQueue from './pages/admin/AccountQueue';
 import ProjectQueue from './pages/admin/ProjectQueue';
 import AdminProjectDetail from './pages/admin/AdminProjectDetail';
 import AdminOpportunities from './pages/admin/AdminOpportunities';
+import AdminRequests from './pages/admin/AdminRequests';
+import AdminResults from './pages/admin/AdminResults';
 import { Outbox, RulesConfig } from './pages/admin/PlatformAdmin';
 import StaffOpportunities, { StaffOpportunityForm, StaffSelectionHome } from './pages/staff/StaffOpportunities';
 import StaffSelection from './pages/staff/StaffSelection';
@@ -73,6 +76,7 @@ export default function App() {
             </Route>
             <Route element={<RequireAuth roles={['graduate', 'investor']} />}>
               <Route path="introductions" element={<Introductions />} />
+              <Route path="contact" element={<Contact />} />
             </Route>
             <Route path="admin" element={<RequireAuth roles={['admin']} />}>
               <Route index element={<AdminDashboard />} />
@@ -82,6 +86,8 @@ export default function App() {
               <Route path="projects/:id" element={<AdminProjectDetail />} />
               <Route path="introductions" element={<AdminIntroductions />} />
               <Route path="opportunities" element={<AdminOpportunities />} />
+              <Route path="requests" element={<AdminRequests />} />
+              <Route path="results" element={<AdminResults />} />
               <Route path="outbox" element={<Outbox />} />
               <Route path="config" element={<RulesConfig />} />
             </Route>

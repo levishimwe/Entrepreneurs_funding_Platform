@@ -61,6 +61,7 @@ app.use('/api/account', require('./routes/account'));
 app.use('/api/opportunities', require('./routes/opportunities'));
 app.use('/api/investor', require('./routes/investor'));
 app.use('/api/introductions', require('./routes/introductions'));
+app.use('/api/support', require('./routes/support'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/staff', require('./routes/staff'));
 

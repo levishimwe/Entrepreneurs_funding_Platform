@@ -51,6 +51,11 @@ export const STATUS = {
   sent: { label: 'Sent', tone: T.green },
   failed: { label: 'Failed', tone: T.red },
 
+  // Contact requests
+  open: { label: 'Open', tone: T.amber },
+  in_progress: { label: 'In progress', tone: T.blue },
+  resolved: { label: 'Resolved', tone: T.green },
+
   // Similarity
   flagged: { label: 'Flagged', tone: T.purple },
   clarified: { label: 'Clarified', tone: T.blue },

@@ -351,6 +351,39 @@ function UploadEvidence({ project, onSaved }) {
   );
 }
 
+const money = (amount, currency) => (amount === null || amount === undefined ? null : `${currency || ''} ${Number(amount).toLocaleString('en-GB')}`.trim());
+
+// Approved competition results and how the project was funded.
+function ResultsCard({ project }) {
+  const results = project.competitionResults || [];
+  if (!results.length && !project.funding) return null;
+  return (
+    <SectionCard title="Results & funding">
+      {project.funding && (
+        <p className="text-sm">
+          Fully funded through <strong>{project.funding.name || (project.funding.source === 'competition' ? 'a competition' : 'investors')}</strong>
+          {money(project.funding.amount, project.funding.currency) ? ` · ${money(project.funding.amount, project.funding.currency)}` : ''}
+        </p>
+      )}
+      {results.length > 0 && (
+        <ul className={`divide-y divide-line text-sm ${project.funding ? 'mt-3 border-t border-line' : ''}`}>
+          {results.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2">
+              <span>
+                <strong>{r.outcomeLabel}</strong>
+                {r.awardTitle ? ` · ${r.awardTitle}` : ''} — {r.opportunity?.title}
+              </span>
+              <span className="text-xs text-muted">
+                {[money(r.amount, r.currency), r.resultDate ? formatDate(r.resultDate) : null].filter(Boolean).join(' · ')}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </SectionCard>
+  );
+}
+
 export default function ProjectDetail() {
   const { id } = useParams();
   const location = useLocation();
@@ -434,6 +467,7 @@ export default function ProjectDetail() {
           <SectionCard title="Problem & Solution">
             <p className="whitespace-pre-line text-sm leading-relaxed">{project.description}</p>
           </SectionCard>
+          <ResultsCard project={project} />
         </div>
 
         <aside className="space-y-5">

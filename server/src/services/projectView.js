@@ -1,5 +1,6 @@
 // Response shapes for projects. Public responses carry only the approved,
 // consented summary — never documents, flags or review notes (FR06, FR14).
+const { serializeResult } = require('./results');
 
 function publicProject(p) {
   return {
@@ -73,6 +74,8 @@ function ownerProject(p) {
     approvedAt: p.approvedAt,
     updatedAt: p.updatedAt,
     documents: (p.documents || []).map(documentSummary),
+    funding: p.fundingSource ? { source: p.fundingSource, name: p.fundingName, amount: p.fundingAmount === null ? null : Number(p.fundingAmount), currency: p.fundingCurrency } : null,
+    competitionResults: (p.competitionResults || []).map((r) => serializeResult(r)),
   };
 }
 

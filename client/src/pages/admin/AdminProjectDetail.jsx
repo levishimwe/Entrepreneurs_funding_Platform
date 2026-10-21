@@ -16,6 +16,62 @@ const KIND_LABEL = {
   supporting_document: 'Supporting document',
 };
 
+const RESULT_STATUS = { pending: 'Pending Admin Approval', approved: 'Approved', rejected: 'Rejected' };
+const money = (amount, currency) => (amount === null || amount === undefined ? '—' : `${currency || ''} ${Number(amount).toLocaleString('en-GB')}`.trim());
+
+// Fully Funded projects: funding details and whether the home page may show it.
+function FundingSection({ project, onSaved }) {
+  const f = project.funding;
+  const [form, setForm] = useState({ showOnHome: f.showOnHome, showAmount: f.showAmount, fundingName: f.name || '', fundingAmount: f.amount ?? '', fundingCurrency: f.currency || '' });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const save = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      await api.patch(`/admin/projects/${project.id}/funding`, form);
+      onSaved();
+    } catch (err) {
+      setError(Object.values(err.fields || {})[0] || err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form className="adm-card space-y-3 p-4" onSubmit={save}>
+      {error && <p className="adm-bad">{error}</p>}
+      <p>
+        Source: <strong>{f.source === 'competition' ? 'Competition' : f.source === 'investor' ? 'Investor' : 'Not recorded'}</strong>
+      </p>
+      <div className="grid gap-3 sm:grid-cols-[1fr_9rem_6rem]">
+        <label className="block text-[13px]">
+          Funding name
+          <input className="adm-input mt-1" value={form.fundingName} onChange={(e) => setForm({ ...form, fundingName: e.target.value })} maxLength={200} />
+        </label>
+        <label className="block text-[13px]">
+          Amount
+          <input className="adm-input mt-1" type="number" min="0" step="any" value={form.fundingAmount} onChange={(e) => setForm({ ...form, fundingAmount: e.target.value })} />
+        </label>
+        <label className="block text-[13px]">
+          Currency
+          <input className="adm-input mt-1 uppercase" value={form.fundingCurrency} onChange={(e) => setForm({ ...form, fundingCurrency: e.target.value })} maxLength={3} placeholder="RWF" />
+        </label>
+      </div>
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={form.showOnHome} onChange={(e) => setForm({ ...form, showOnHome: e.target.checked })} /> Show on home page
+      </label>
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={form.showAmount} onChange={(e) => setForm({ ...form, showAmount: e.target.checked })} /> Show amount publicly
+      </label>
+      {form.showOnHome && !project.publicationConsent && <p className="adm-hint">The founder has not consented to publication, so it will not appear on the home page.</p>}
+      <button type="submit" className="adm-primary" disabled={busy}>
+        {busy ? 'Saving…' : 'Save funding'}
+      </button>
+    </form>
+  );
+}
+
 export default function AdminProjectDetail() {
   const { id } = useParams();
   const [project, setProject] = useState(null);
@@ -204,6 +260,55 @@ export default function AdminProjectDetail() {
               <DocumentViewer key={d.id} src={adminFileUrl(d.id)} mimeType={d.mimeType} name={d.originalName} height="h-96" />
             ))}
         </div>
+      )}
+
+      {project.status === 'funded' && project.funding && (
+        <>
+          <h2>Funding and home page</h2>
+          <FundingSection
+            key={JSON.stringify(project.funding)}
+            project={project}
+            onSaved={async () => {
+              setNotice('Funding saved.');
+              await load();
+            }}
+          />
+        </>
+      )}
+
+      {project.competitionResults?.length > 0 && (
+        <>
+          <h2>Competition results</h2>
+          <TableWrap>
+            <table className="adm-table">
+              <thead>
+                <tr>
+                  <th>Opportunity</th>
+                  <th>Outcome</th>
+                  <th className="adm-num">Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {project.competitionResults.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.opportunity?.title}</td>
+                    <td>
+                      {r.outcomeLabel}
+                      {r.awardTitle ? ` · ${r.awardTitle}` : ''}
+                    </td>
+                    <td className="adm-num">{money(r.amount, r.currency)}</td>
+                    <td>
+                      <Link className="adm-a" to={`/app/admin/results?status=${r.status}`}>
+                        {RESULT_STATUS[r.status]}
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableWrap>
+        </>
       )}
 
       <h2>Investor introductions</h2>

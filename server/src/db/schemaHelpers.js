@@ -44,4 +44,33 @@ async function enumValues(qi, table, column) {
   return [...type.matchAll(/'((?:[^']|'')*)'/g)].map((m) => m[1]);
 }
 
-module.exports = { hasColumn, addColumnIfMissing, removeColumnIfPresent, addIndexIfMissing, removeIndexIfPresent, enumValues };
+async function hasTable(qi, table) {
+  const [rows] = await qi.sequelize.query('SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?', {
+    replacements: [table],
+  });
+  return rows.length > 0;
+}
+
+async function createTableIfMissing(qi, table, attributes) {
+  if (await hasTable(qi, table)) return false;
+  await qi.createTable(table, attributes);
+  return true;
+}
+
+async function dropTableIfPresent(qi, table) {
+  if (!(await hasTable(qi, table))) return false;
+  await qi.dropTable(table);
+  return true;
+}
+
+module.exports = {
+  hasColumn,
+  hasTable,
+  addColumnIfMissing,
+  removeColumnIfPresent,
+  addIndexIfMissing,
+  removeIndexIfPresent,
+  enumValues,
+  createTableIfMissing,
+  dropTableIfPresent,
+};

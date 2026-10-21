@@ -4,7 +4,7 @@
 const express = require('express');
 const { z } = require('zod');
 const env = require('../config/env');
-const { sequelize, Project, Document, SectorKeyword } = require('../models');
+const { sequelize, Project, Document, SectorKeyword, CompetitionResult, Opportunity } = require('../models');
 const { badRequest, conflict, notFound, HttpError } = require('../middleware/errors');
 const { requireApprovedGraduate, requireRole } = require('../middleware/auth');
 const { upload, validateDocument } = require('../middleware/upload');
@@ -66,10 +66,19 @@ async function assertKnownSector(sector) {
   }
 }
 
+// Approved competition results shown to the graduate on their project and profile.
+const APPROVED_RESULTS = {
+  model: CompetitionResult,
+  as: 'competitionResults',
+  where: { status: 'approved' },
+  required: false,
+  include: [{ model: Opportunity, as: 'opportunity', attributes: ['id', 'title', 'type'] }],
+};
+
 async function loadOwnedProject(req) {
   const project = await Project.findOne({
     where: { id: req.params.id, ownerId: req.user.id },
-    include: [{ model: Document, as: 'documents' }],
+    include: [{ model: Document, as: 'documents' }, APPROVED_RESULTS],
     order: [[{ model: Document, as: 'documents' }, 'id', 'ASC']],
   });
   if (!project) throw notFound('Project not found.');
@@ -243,7 +252,7 @@ router.post('/', requireApprovedGraduate, uploadLimiter, uploadFields, async (re
 router.get('/mine', requireRole('graduate'), async (req, res) => {
   const projects = await Project.findAll({
     where: { ownerId: req.user.id },
-    include: [{ model: Document, as: 'documents' }],
+    include: [{ model: Document, as: 'documents' }, APPROVED_RESULTS],
     order: [['createdAt', 'DESC']],
   });
   res.json({ projects: projects.map(ownerProject) });

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { BadgeCheck, CreditCard, FolderKanban, Handshake, LayoutDashboard, LogOut, Menu, Search, Settings, Trophy, X } from 'lucide-react';
+import { BadgeCheck, CreditCard, FolderKanban, Handshake, LayoutDashboard, LifeBuoy, LogOut, Menu, Search, Settings, Trophy, X } from 'lucide-react';
 import Logo from '../components/Logo';
 import { useAuth } from '../context/AuthContext';
 import { Pill } from '../components/ui';
@@ -71,7 +71,16 @@ function MemberShell() {
 
   useEffect(() => setOpen(false), [location.pathname]);
 
-  const sections = [...(NAV[user.role] || []), { section: 'Settings', items: [{ to: '/app/settings', label: 'Account Settings', icon: Settings }] }];
+  const sections = [
+    ...(NAV[user.role] || []),
+    {
+      section: 'Settings',
+      items: [
+        { to: '/app/settings', label: 'Account Settings', icon: Settings },
+        { to: '/app/contact', label: 'Contact admin', icon: LifeBuoy },
+      ],
+    },
+  ];
   const signOut = async () => {
     await logout();
     navigate('/signin');

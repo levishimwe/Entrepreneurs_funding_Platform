@@ -234,11 +234,12 @@ describe('project verification queue', () => {
 });
 
 describe('dashboard (FR11)', () => {
-  test('returns the 12 live stat cards', async () => {
+  test('returns the 13 live stat cards and the review queues', async () => {
     const admin = await loginAs('admin');
     const res = await admin.get('/api/admin/dashboard');
     expect(res.status).toBe(200);
-    expect(res.body.cards).toHaveLength(12);
+    expect(res.body.cards).toHaveLength(13);
+    expect(res.body.queues).toEqual(expect.objectContaining({ pendingResults: expect.any(Number), openRequests: expect.any(Number) }));
     expect(res.body.cards.map((c) => c.key)).toEqual([
       'graduates',
       'investors',
@@ -248,6 +249,7 @@ describe('dashboard (FR11)', () => {
       'seeking',
       'similarity',
       'funded',
+      'fundedByCompetition',
       'oneInvestor',
       'limit',
       'introductions',

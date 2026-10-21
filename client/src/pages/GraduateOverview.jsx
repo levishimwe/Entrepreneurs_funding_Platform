@@ -22,8 +22,10 @@ import { Breadcrumb, StatTile, relativeTime } from '../components/kit';
 import { VenturesPanel, useMyProjects } from './graduate/MyProjects';
 import ReasonDialog from '../components/ReasonDialog';
 
-function ProfileCard({ user }) {
+function ProfileCard({ user, projects = [] }) {
   const g = user.graduateProfile || {};
+  // Competition results confirmed by the administrator.
+  const results = projects.flatMap((p) => (p.competitionResults || []).map((r) => ({ ...r, projectTitle: p.title })));
   return (
     <section className="card p-4">
       <div className="flex items-center gap-3">
@@ -55,6 +57,22 @@ function ProfileCard({ user }) {
           {user.phone && <dd className="text-muted">{user.phone}</dd>}
         </div>
       </dl>
+      {results.length > 0 && (
+        <div className="mt-3">
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted">Competition results</h3>
+          <ul className="mt-1.5 space-y-1.5 text-xs">
+            {results.map((r) => (
+              <li key={r.id}>
+                <span className="font-semibold">{r.outcomeLabel}</span>
+                {r.awardTitle ? ` · ${r.awardTitle}` : ''}
+                <span className="block text-muted">
+                  {r.opportunity?.title} · {r.projectTitle}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }
@@ -321,7 +339,7 @@ export default function GraduateOverview() {
           {user.approved && <GrantSubmissions applications={applications} />}
         </div>
         <aside className="space-y-6">
-          <ProfileCard user={user} />
+          <ProfileCard user={user} projects={projects} />
           <RecentActivity entries={activity} />
         </aside>
       </div>

@@ -22,6 +22,8 @@ const {
   Notification,
   AuditLog,
   AuthToken,
+  SupportThread,
+  SupportMessage,
 } = require('../models');
 const storage = require('./storage');
 const audit = require('./audit');
@@ -99,16 +101,31 @@ async function accountDeletePlan(user) {
     attributes: ['id', 'storageKey'],
   });
   const documentIds = documents.map((d) => d.id);
-  const [reviews, emails, tokens] = await Promise.all([
+  const [reviews, emails, tokens, threads] = await Promise.all([
     Review.count({ where: reviewTargets(user.id, projectIds, documentIds) }),
     Notification.count({ where: { recipientId: user.id } }),
     AuthToken.count({ where: { userId: user.id } }),
+    SupportThread.findAll({ where: { userId: user.id }, attributes: ['id'] }),
   ]);
+  const threadIds = threads.map((t) => t.id);
+  const attachments = threadIds.length
+    ? await SupportMessage.findAll({ where: { threadId: { [Op.in]: threadIds }, attachmentKey: { [Op.ne]: null } }, attributes: ['attachmentKey'] })
+    : [];
+  const attachmentKeys = attachments.map((m) => m.attachmentKey);
   return {
     allowed: blockers.length === 0,
     blockers,
-    removes: { account: 1, projects: projects.length, documents: documents.length, files: documents.length + (user.photoKey ? 1 : 0), reviews, emails, codes: tokens },
-    _ids: { projectIds, documentIds, keys: [...documents.map((d) => d.storageKey), ...(user.photoKey ? [user.photoKey] : [])] },
+    removes: {
+      account: 1,
+      projects: projects.length,
+      documents: documents.length,
+      files: documents.length + (user.photoKey ? 1 : 0) + attachmentKeys.length,
+      reviews,
+      emails,
+      codes: tokens,
+      requests: threadIds.length,
+    },
+    _ids: { projectIds, documentIds, threadIds, keys: [...documents.map((d) => d.storageKey), ...(user.photoKey ? [user.photoKey] : []), ...attachmentKeys] },
   };
 }
 
@@ -166,9 +183,13 @@ const removeFiles = (keys) => Promise.all(keys.map((k) => storage.remove(k).catc
 async function deleteAccount(user, actorId) {
   const plan = await accountDeletePlan(user);
   if (!plan.allowed) throw blocked(plan);
-  const { projectIds, documentIds, keys } = plan._ids;
+  const { projectIds, documentIds, threadIds, keys } = plan._ids;
   await sequelize.transaction(async (transaction) => {
     const t = { transaction };
+    if (threadIds.length) {
+      await SupportMessage.destroy({ where: { threadId: { [Op.in]: threadIds } }, ...t });
+      await SupportThread.destroy({ where: { id: { [Op.in]: threadIds } }, ...t });
+    }
     await Review.destroy({ where: reviewTargets(user.id, projectIds, documentIds), ...t });
     await Notification.destroy({ where: { recipientId: user.id }, ...t });
     await AuthToken.destroy({ where: { userId: user.id }, ...t });

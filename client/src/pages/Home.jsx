@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, BadgeCheck, FileSearch, Handshake, ScanSearch, ShieldCheck, Trophy, UploadCloud } from 'lucide-react';
 import { api } from '../lib/api';
+import SuccessStories from '../components/SuccessStories';
 
 const STEPS = [
   { icon: UploadCloud, title: '1. Submit & verify', body: 'Graduates submit their venture with RDB evidence or an idea declaration. OCR pre-checks support — never replace — administrator review.' },
@@ -95,6 +96,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <SuccessStories />
 
       {/* How it works */}
       <section className="border-t border-white/10 bg-[#0d1117]">

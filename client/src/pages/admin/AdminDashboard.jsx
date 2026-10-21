@@ -13,13 +13,14 @@ const LINKS = {
   seeking: '/app/admin/projects?status=approved',
   similarity: '/app/admin/projects?status=similarity_flagged',
   funded: '/app/admin/projects?status=funded',
+  fundedByCompetition: '/app/admin/results?status=approved',
   oneInvestor: '/app/admin/projects?status=approved',
   limit: '/app/admin/projects?status=investor_limit_reached',
   introductions: '/app/admin/introductions?status=all',
   rdbRate: '/app/admin/projects?status=pending_review',
 };
 
-// FR11: what needs attention, then the 12 platform totals, computed live.
+// FR11: what needs attention, then the platform totals, computed live.
 export default function AdminDashboard() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -37,6 +38,8 @@ export default function AdminDashboard() {
     ['Investors to review', q.pendingInvestors, '/app/admin/investors?status=pending'],
     ['Projects to review', q.pendingProjects, '/app/admin/projects?status=pending_review'],
     ['Similarity flags', q.similarityFlagged, '/app/admin/projects?status=similarity_flagged'],
+    ['Competition results to approve', q.pendingResults, '/app/admin/results?status=pending'],
+    ['Open requests', q.openRequests, '/app/admin/requests?status=open'],
   ].filter(([, n]) => n > 0);
 
   return (

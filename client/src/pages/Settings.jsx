@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { NavLink, useParams } from 'react-router-dom';
-import { BadgeCheck, CheckCircle2, Info, Monitor, Palette, RefreshCw, User } from 'lucide-react';
+import { Link, NavLink, useParams } from 'react-router-dom';
+import { BadgeCheck, CheckCircle2, Info, LifeBuoy, Monitor, Palette, RefreshCw, User } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { Alert, Field, formatDate } from '../components/ui';
@@ -154,6 +154,7 @@ function Appearance() {
 
 function Profile() {
   const { user, setUser } = useAuth();
+  const canContact = ['graduate', 'investor'].includes(user.role);
   const [phone, setPhone] = useState(user.phone || '');
   const [photoKey, setPhotoKey] = useState(0);
   const [notice, setNotice] = useState('');
@@ -234,7 +235,19 @@ function Profile() {
       <form className="card space-y-4 p-5" onSubmit={savePhone}>
         <h2 className="font-semibold">Contact details</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Full name" htmlFor="name" help="Contact the administrator to correct your name.">
+          <Field
+            label="Full name"
+            htmlFor="name"
+            help={
+              canContact ? (
+                <Link to="/app/contact?category=profile" className="text-accent hover:underline">
+                  Request a name change
+                </Link>
+              ) : (
+                'Contact the administrator to correct your name.'
+              )
+            }
+          >
             <input id="name" className="input bg-subtle" value={user.fullName} readOnly />
           </Field>
           <Field label="Email" htmlFor="email">
@@ -288,6 +301,11 @@ export default function Settings() {
                 <Icon className="h-4 w-4" aria-hidden="true" /> {label}
               </NavLink>
             ))}
+            {['graduate', 'investor'].includes(user.role) && (
+              <Link to="/app/contact" className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm hover:bg-subtle">
+                <LifeBuoy className="h-4 w-4" aria-hidden="true" /> Contact admin
+              </Link>
+            )}
           </nav>
         </div>
         <div className="card p-3 text-xs">
