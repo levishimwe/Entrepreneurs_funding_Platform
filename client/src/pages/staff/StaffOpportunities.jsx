@@ -4,6 +4,7 @@ import { api } from '../../lib/api';
 import { formatDate } from '../../components/ui';
 import OpportunityForm from '../../components/OpportunityForm';
 import AuditStrip from '../../components/AuditStrip';
+import ReasonDialog from '../../components/ReasonDialog';
 import { AdminPage, DataTable, ListLayout, Loading, Messages, Pager, SearchInput, StatusPill, StatusSelect } from '../../components/admin';
 
 const TYPES = [
@@ -43,10 +44,13 @@ export default function StaffOpportunities() {
   const [type, setType] = useState('');
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
+  const [notice, setNotice] = useState('');
+  const [completing, setCompleting] = useState(null);
+  const load = () => api.get('/staff/opportunities').then((d) => setRows(d.opportunities)).catch((e) => setError(e.message));
 
   useEffect(() => {
     document.title = 'Opportunities · ALU Ventures';
-    api.get('/staff/opportunities').then((d) => setRows(d.opportunities)).catch((e) => setError(e.message));
+    load();
     api.get('/staff/activity').then((d) => setActivity(d.entries)).catch(() => setActivity([]));
   }, []);
 
@@ -92,6 +96,7 @@ export default function StaffOpportunities() {
       ),
     },
     { key: 'status', label: 'Status', render: (o) => <StatusPill status={o.status} label={STATUS_LABEL[o.status]} /> },
+    { key: 'stage', label: 'Stage', render: (o) => (o.stage ? <StatusPill status={o.stage} /> : '—') },
   ];
   const actions = (o) => (
     <>
@@ -105,6 +110,16 @@ export default function StaffOpportunities() {
           Edit
         </Link>
       )}
+      {o.canComplete && (
+        <button type="button" className="adm-act" onClick={() => setCompleting(o)}>
+          Mark completed
+        </button>
+      )}
+      {o.stage === 'completed' && ['hackathon', 'competition'].includes(o.type) && (
+        <Link to="/app/staff/results" className="adm-act">
+          Results
+        </Link>
+      )}
       {o.status === 'published' && (
         <Link to="/opportunities" target="_blank" className="adm-act">
           Public page
@@ -115,7 +130,7 @@ export default function StaffOpportunities() {
 
   return (
     <AdminPage title="Opportunities" meta={rows ? `${filtered.length} shown` : null}>
-      <Messages error={error} />
+      <Messages notice={notice} error={error} />
       <ListLayout
         toolbar={
           <>
@@ -139,25 +154,38 @@ export default function StaffOpportunities() {
       >
         {!rows ? <Loading /> : <DataTable columns={columns} rows={shown} actions={actions} empty={rows.length ? 'No opportunities match.' : 'No opportunities yet.'} />}
       </ListLayout>
+      <ReasonDialog
+        open={Boolean(completing)}
+        reason="none"
+        title={`Mark ${completing?.title} Completed?`}
+        description="Confirms the event is over. Results can then be recorded for the selected participants. This is recorded in the audit log."
+        confirmLabel="Mark completed"
+        onClose={() => setCompleting(null)}
+        onConfirm={async () => {
+          await api.post(`/staff/opportunities/${completing.id}/complete`);
+          setNotice(`${completing.title} is Completed.`);
+          load();
+        }}
+      />
     </AdminPage>
   );
 }
 
-// "Applicant selection" in the sidebar: jump straight to the opportunity with
+// "Applications" in the sidebar: jump straight to the opportunity with
 // the most applications awaiting a decision, or list the reviewable ones.
 export function StaffSelectionHome() {
   const [rows, setRows] = useState(null);
   const [error, setError] = useState('');
   useEffect(() => {
-    document.title = 'Applicant selection · ALU Ventures';
+    document.title = 'Applications · ALU Ventures';
     api.get('/staff/opportunities').then((d) => setRows(d.opportunities.filter((o) => o.status !== 'pending_review'))).catch((e) => setError(e.message));
   }, []);
-  if (error) return <AdminPage title="Applicant selection"><Messages error={error} /></AdminPage>;
-  if (!rows) return <AdminPage title="Applicant selection"><Loading /></AdminPage>;
+  if (error) return <AdminPage title="Applications"><Messages error={error} /></AdminPage>;
+  if (!rows) return <AdminPage title="Applications"><Loading /></AdminPage>;
   const pending = [...rows].sort((a, b) => b.tally.submitted - a.tally.submitted).find((o) => o.tally.submitted > 0);
   if (pending) return <Navigate to={`/app/staff/${pending.id}`} replace />;
   return (
-    <AdminPage title="Applicant selection" meta="No applications awaiting a decision">
+    <AdminPage title="Applications" meta="No applications awaiting a decision">
       <DataTable
         columns={[
           { key: 'title', label: 'Opportunity', render: (o) => <span className="font-medium">{o.title}</span> },

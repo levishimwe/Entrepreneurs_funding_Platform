@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { ExternalLink, FileWarning, Minus, Plus } from 'lucide-react';
 import { Spinner } from './ui';
 
 // Inline preview of a private document for review. The file is fetched with
@@ -66,7 +65,7 @@ function PdfPages({ data, zoom }) {
   if (error) {
     return (
       <p className="flex items-center gap-2 p-4 text-sm text-red-600">
-        <FileWarning className="h-4 w-4" aria-hidden="true" /> {error}
+        {error}
       </p>
     );
   }
@@ -112,16 +111,16 @@ export default function DocumentViewer({ src, mimeType, name, height = 'h-[32rem
           {isPdf && (
             <>
               <button type="button" className="rounded p-1 text-muted hover:bg-subtle" onClick={() => setZoom((z) => Math.max(0.6, z - 0.2))} aria-label="Zoom out">
-                <Minus className="h-3.5 w-3.5" />
+                −
               </button>
               <span className="w-10 text-center text-xs tabular-nums text-muted">{Math.round(zoom * 100)}%</span>
               <button type="button" className="rounded p-1 text-muted hover:bg-subtle" onClick={() => setZoom((z) => Math.min(2.4, z + 0.2))} aria-label="Zoom in">
-                <Plus className="h-3.5 w-3.5" />
+                +
               </button>
             </>
           )}
           <a href={src} target="_blank" rel="noreferrer" className="ml-1 inline-flex items-center gap-1 rounded px-1.5 py-1 text-xs text-accent hover:bg-subtle">
-            Open in new tab <ExternalLink className="h-3 w-3" aria-hidden="true" />
+            Open in new tab
           </a>
         </div>
       </div>
@@ -129,7 +128,7 @@ export default function DocumentViewer({ src, mimeType, name, height = 'h-[32rem
         {state.loading && <Spinner label="Loading document…" />}
         {state.error && (
           <p className="flex items-center gap-2 text-sm text-red-600">
-            <FileWarning className="h-4 w-4" aria-hidden="true" /> {state.error}
+            {state.error}
           </p>
         )}
         {state.data && (isPdf ? <PdfPages data={state.data} zoom={zoom} /> : <img src={state.url} alt={name} className="mx-auto max-w-full bg-white shadow-sm ring-1 ring-line" style={{ width: `${zoom * 100}%` }} />)}

@@ -90,6 +90,7 @@ export default function AdminOpportunities() {
     },
     { key: 'type', label: 'Type', render: (o) => <span className="capitalize">{o.type}</span> },
     { key: 'status', label: 'Status', render: (o) => <StatusPill status={o.status} /> },
+    { key: 'stage', label: 'Stage', render: (o) => (o.stage ? <StatusPill status={o.stage} /> : '—') },
     { key: 'deadline', label: 'Deadline', render: (o) => formatDate(o.deadline) },
     { key: 'apps', label: 'Applications', num: true, render: (o) => o.applicationCount },
     { key: 'by', label: 'Proposed by', render: (o) => o.createdBy?.name },

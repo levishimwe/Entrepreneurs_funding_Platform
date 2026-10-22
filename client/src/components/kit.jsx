@@ -1,20 +1,21 @@
-// Shared Figma building blocks used across dashboard screens.
+// Shared building blocks in the one design system (admin console style).
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, FileText, UploadCloud, X } from 'lucide-react';
+import { Pill } from './ui';
 
+// "Projects / ALU-2026-XXXX" trail, as on the admin project page.
 export function Breadcrumb({ items }) {
   return (
-    <nav aria-label="Breadcrumb" className="mb-2 flex flex-wrap items-center gap-1 text-xs text-muted">
+    <nav aria-label="Breadcrumb" className="adm-hint">
       {items.map(([label, to], i) => (
-        <span key={`${label}-${i}`} className="inline-flex items-center gap-1">
-          {i > 0 && <ChevronRight className="h-3 w-3" aria-hidden="true" />}
+        <span key={`${label}-${i}`}>
+          {i > 0 && ' / '}
           {to ? (
-            <Link to={to} className="hover:text-accent hover:underline">
+            <Link to={to} className="adm-a">
               {label}
             </Link>
           ) : (
-            <span className="font-medium text-ink">{label}</span>
+            <span>{label}</span>
           )}
         </span>
       ))}
@@ -22,35 +23,35 @@ export function Breadcrumb({ items }) {
   );
 }
 
-// Uppercase label, icon top-right, large value with unit, coloured status line.
-export function StatTile({ label, icon: Icon, value, unit, status, statusTone = 'text-muted', badge, children, valueTone = '' }) {
-  return (
-    <div className="card p-4">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">{label}</p>
-        {Icon && <Icon className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />}
-      </div>
-      <p className={`mt-2 text-2xl font-semibold tabular-nums ${valueTone}`}>
+// Compact tile: number large, label small (icons are ignored).
+export function StatTile({ label, value, unit, status, children, to }) {
+  const body = (
+    <>
+      <span className="block text-[24px] font-semibold leading-8 tabular-nums">
         {value}
-        {unit && <span className="ml-1 text-xs font-normal text-muted">{unit}</span>}
-      </p>
+        {unit && <span className="adm-muted ml-1 text-[12px] font-normal">{unit}</span>}
+      </span>
+      <span className="adm-muted block text-[12px]">{label}</span>
+      {status && <span className="adm-muted block text-[12px]">{status}</span>}
       {children}
-      {badge && <div className="mt-1.5">{badge}</div>}
-      {status && <p className={`mt-1 text-xs ${statusTone}`}>{status}</p>}
-    </div>
+    </>
+  );
+  return to ? (
+    <Link to={to} className="card block p-4 hover:border-accent">
+      {body}
+    </Link>
+  ) : (
+    <div className="card p-4">{body}</div>
   );
 }
 
-// Card with a tinted header bar: icon + title on the left, meta on the right.
-export function SectionCard({ icon: Icon, title, meta, children, className = '', bodyClass = 'p-5', id }) {
+// Plain card with a title row (meta on the right).
+export function SectionCard({ title, meta, children, className = '', bodyClass = 'p-4', id }) {
   return (
     <section id={id} className={`card overflow-hidden ${className}`}>
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-subtle px-5 py-3">
-        <h2 className="flex items-center gap-2 text-sm font-semibold">
-          {Icon && <Icon className="h-4 w-4 text-accent" aria-hidden="true" />}
-          {title}
-        </h2>
-        {meta && <div className="text-xs text-muted">{meta}</div>}
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
+        <h2 className="!m-0 text-[14px] font-semibold">{title}</h2>
+        {meta && <div className="adm-muted text-[12px]">{meta}</div>}
       </header>
       <div className={bodyClass}>{children}</div>
     </section>
@@ -59,7 +60,7 @@ export function SectionCard({ icon: Icon, title, meta, children, className = '',
 
 export function CountTabs({ tabs, value, onChange, label = 'Filter' }) {
   return (
-    <div className="flex min-w-max gap-1" role="tablist" aria-label={label}>
+    <div className="flex min-w-max gap-4" role="tablist" aria-label={label}>
       {tabs.map(([key, text, count]) => (
         <button
           key={key}
@@ -67,12 +68,10 @@ export function CountTabs({ tabs, value, onChange, label = 'Filter' }) {
           role="tab"
           aria-selected={value === key}
           onClick={() => onChange(key)}
-          className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm ${
-            value === key ? 'bg-surface font-semibold text-ink shadow-sm ring-1 ring-line' : 'text-muted hover:text-ink'
-          }`}
+          className={`border-b-2 py-1.5 text-[13px] ${value === key ? 'border-accent font-semibold text-ink' : 'border-transparent text-muted hover:text-ink'}`}
         >
           {text}
-          {count !== undefined && <span className="rounded-full bg-subtle px-1.5 text-xs tabular-nums text-muted ring-1 ring-line">{count}</span>}
+          {count !== undefined && <span className="adm-muted ml-1 tabular-nums">{count}</span>}
         </button>
       ))}
     </div>
@@ -87,24 +86,13 @@ export const initials = (name = '') =>
     .map((p) => p[0].toUpperCase())
     .join('') || '—';
 
-export function InitialsBox({ name, className = 'h-9 w-9 text-xs' }) {
-  return (
-    <span className={`flex shrink-0 items-center justify-center rounded-md border border-line bg-accent-soft font-semibold text-accent ${className}`} aria-hidden="true">
-      {initials(name)}
-    </span>
-  );
+export function InitialsBox() {
+  return null;
 }
 
-// Small uppercase category tag (GRANT, HACKATHON…).
+// Category tag (Grant, Hackathon…) as a soft pill.
 export function Tag({ children, tone = 'slate' }) {
-  const tones = {
-    slate: 'bg-slate-100 text-slate-700 ring-slate-500/25 dark:bg-slate-500/20 dark:text-slate-300',
-    blue: 'bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-500/15 dark:text-blue-300',
-    amber: 'bg-amber-50 text-amber-800 ring-amber-600/25 dark:bg-amber-500/15 dark:text-amber-300',
-    green: 'bg-green-50 text-green-700 ring-green-600/25 dark:bg-green-500/15 dark:text-green-300',
-    purple: 'bg-purple-50 text-purple-700 ring-purple-600/25 dark:bg-purple-500/15 dark:text-purple-300',
-  };
-  return <span className={`inline-flex shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${tones[tone]}`}>{children}</span>;
+  return <Pill tone={tone}>{children}</Pill>;
 }
 
 export const relativeTime = (value) => {
@@ -141,16 +129,13 @@ export function DropZone({ id, files, onChange, multiple = false, max = 3, accep
       {list.length > 0 && (
         <ul className="mb-2 space-y-1.5">
           {list.map((f, i) => (
-            <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 rounded-md border border-line bg-surface px-3 py-2 text-sm">
-              <span className="flex min-w-0 items-center gap-2">
-                <FileText className="h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
-                <span className="min-w-0">
-                  <span className="block truncate font-medium">{f.name}</span>
-                  <span className="text-xs text-muted">{(f.size / 1024 / 1024).toFixed(1)} MB · ready to upload</span>
-                </span>
+            <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 rounded-md border border-line bg-surface px-3 py-2 text-[13px]">
+              <span className="min-w-0">
+                <span className="block truncate font-medium">{f.name}</span>
+                <span className="adm-muted text-[12px]">{(f.size / 1024 / 1024).toFixed(1)} MB · ready to upload</span>
               </span>
-              <button type="button" className="rounded p-1 text-muted hover:text-red-600" aria-label={`Remove ${f.name}`} onClick={() => onChange(multiple ? list.filter((_, j) => j !== i) : null)}>
-                <X className="h-4 w-4" />
+              <button type="button" className="adm-act adm-act-danger" aria-label={`Remove ${f.name}`} onClick={() => onChange(multiple ? list.filter((_, j) => j !== i) : null)}>
+                Remove
               </button>
             </li>
           ))}
@@ -169,11 +154,10 @@ export function DropZone({ id, files, onChange, multiple = false, max = 3, accep
             setOver(false);
             take(e.dataTransfer.files);
           }}
-          className={`flex cursor-pointer flex-col items-center justify-center rounded-md border border-dashed px-4 py-6 text-center text-sm ${
+          className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed px-4 py-5 text-center text-[13px] ${
             over ? 'border-accent bg-accent-soft' : error ? 'border-red-400 bg-red-50/40 dark:bg-red-500/5' : 'border-line bg-subtle hover:border-accent'
           }`}
         >
-          <UploadCloud className="mb-2 h-6 w-6 text-muted" aria-hidden="true" />
           <span>
             <span className="font-medium text-accent">{title || (list.length ? 'Click to replace file' : 'Click to upload')}</span> or drag and drop
           </span>

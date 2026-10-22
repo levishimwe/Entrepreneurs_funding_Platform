@@ -56,6 +56,10 @@ export const STATUS = {
   in_progress: { label: 'In progress', tone: T.blue },
   resolved: { label: 'Resolved', tone: T.green },
 
+  // Opportunity stages (open / in_progress share the request labels)
+  selection: { label: 'Selection', tone: T.purple },
+  completed: { label: 'Completed', tone: T.slate },
+
   // Similarity
   flagged: { label: 'Flagged', tone: T.purple },
   clarified: { label: 'Clarified', tone: T.blue },

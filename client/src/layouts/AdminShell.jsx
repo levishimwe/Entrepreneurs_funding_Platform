@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, Menu, X } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, homePathFor } from '../context/AuthContext';
 
-// Admin and staff console: a navy top bar with the ALU logo and the user menu,
-// a navy sidebar grouped Review / Manage / Settings (a drawer on narrow
-// screens), and the page on a light canvas.
+// The one app shell for every role: a navy top bar with the ALU logo and the
+// user menu, a navy sidebar of text links under small group headings (a
+// drawer on narrow screens), and the page on a light canvas.
 const NAV = {
   admin: [
     ['Review', [['/app/admin/projects', 'Projects'], ['/app/admin/graduates', 'Graduates'], ['/app/admin/investors', 'Investors'], ['/app/admin/results', 'Competition results'], ['/app/admin/requests', 'Requests']]],
@@ -13,11 +13,22 @@ const NAV = {
     ['Settings', [['/app/admin/config', 'Rules & thresholds'], ['/app/settings', 'Account']]],
   ],
   staff: [
-    ['Review', [['/app/staff/selection', 'Applicant selection']]],
+    ['Review', [['/app/staff/selection', 'Applications'], ['/app/staff/results', 'Results']]],
     ['Manage', [['/app/staff', 'Opportunities', true], ['/app/staff/new', 'Submit opportunity']]],
     ['Settings', [['/app/settings', 'Account']]],
   ],
+  graduate: [
+    ['Workspace', [['/app', 'Dashboard', true], ['/app/projects', 'My projects'], ['/app/opportunities', 'Opportunities'], ['/app/introductions', 'Introductions']]],
+    ['Settings', [['/app/settings', 'Account'], ['/app/contact', 'Contact admin']]],
+  ],
+  investor: [
+    ['Explore', [['/app/discover', 'Browse projects'], ['/app/introductions', 'Introductions']]],
+    ['Account', [['/app/billing', 'Billing & plans']]],
+    ['Settings', [['/app/settings', 'Account'], ['/app/contact', 'Contact admin']]],
+  ],
 };
+const ROLE_LABEL = { admin: 'Administrator', staff: 'ALU staff', graduate: 'Graduate founder', investor: 'Investor / sponsor' };
+const PRODUCT = { admin: 'Ventures Admin', staff: 'Ventures Staff' };
 
 function UserMenu({ user, onSignOut }) {
   const [open, setOpen] = useState(false);
@@ -33,6 +44,7 @@ function UserMenu({ user, onSignOut }) {
       document.removeEventListener('keydown', esc);
     };
   }, [open]);
+  const member = ['graduate', 'investor'].includes(user.role);
   return (
     <div className="relative" ref={ref}>
       <button
@@ -46,11 +58,19 @@ function UserMenu({ user, onSignOut }) {
         <ChevronDown className="h-4 w-4" aria-hidden="true" />
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 z-50 mt-1 w-48 overflow-hidden rounded-lg border border-[var(--adm-border)] bg-[var(--adm-card)] py-1 text-[13px] text-[var(--adm-text)] shadow-lg">
-          <p className="adm-muted truncate px-4 py-2 text-[12px]">{user.role === 'admin' ? 'Administrator' : 'ALU staff'}</p>
+        <div role="menu" className="absolute right-0 z-50 mt-1 w-52 overflow-hidden rounded-lg border border-[var(--adm-border)] bg-[var(--adm-card)] py-1 text-[13px] text-[var(--adm-text)] shadow-lg">
+          <p className="adm-muted truncate px-4 py-2 text-[12px]">
+            {ROLE_LABEL[user.role]}
+            {member && !user.approved ? ' · pending review' : ''}
+          </p>
           <Link role="menuitem" to="/app/settings" className="block px-4 py-2 hover:bg-[var(--adm-accent-soft)]" onClick={() => setOpen(false)}>
             Account settings
           </Link>
+          {member && (
+            <Link role="menuitem" to="/app/contact" className="block px-4 py-2 hover:bg-[var(--adm-accent-soft)]" onClick={() => setOpen(false)}>
+              Contact admin
+            </Link>
+          )}
           <button role="menuitem" type="button" className="block w-full px-4 py-2 text-left hover:bg-[var(--adm-accent-soft)]" onClick={onSignOut}>
             Sign out
           </button>
@@ -73,8 +93,8 @@ export default function AdminShell() {
   };
 
   const nav = (
-    <nav aria-label="Administration" className="px-2 py-4">
-      {NAV[user.role].map(([group, links]) => (
+    <nav aria-label="Main" className="px-2 py-4">
+      {(NAV[user.role] || []).map(([group, links]) => (
         <div key={group} className="mb-6">
           <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-white/50">{group}</p>
           <ul>
@@ -113,10 +133,10 @@ export default function AdminShell() {
         >
           {drawer ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
-        <Link to={user.role === 'admin' ? '/app/admin' : '/app/staff'} className="flex shrink-0 items-center gap-3" aria-label="ALU Ventures console home">
+        <Link to={homePathFor(user)} className="flex shrink-0 items-center gap-3" aria-label="ALU Ventures home">
           {/* The institutionally approved logo, used as-is. */}
           <img src="/alu-logo.png" alt="African Leadership University" className="h-8 w-auto max-w-none rounded-[3px]" />
-          <span className="hidden border-l border-white/20 pl-3 text-[14px] font-semibold sm:inline">Ventures {user.role === 'admin' ? 'Admin' : 'Staff'}</span>
+          <span className="hidden border-l border-white/20 pl-3 text-[14px] font-semibold sm:inline">{PRODUCT[user.role] || 'Ventures'}</span>
         </Link>
         <div className="ml-auto">
           <UserMenu user={user} onSignOut={signOut} />
@@ -130,7 +150,7 @@ export default function AdminShell() {
             <aside className="relative h-full w-64 overflow-y-auto bg-[var(--adm-navy)]">{nav}</aside>
           </div>
         )}
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main className="adm min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <Outlet />
         </main>
       </div>

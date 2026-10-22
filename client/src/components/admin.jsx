@@ -320,10 +320,11 @@ export function StatusPill({ status, label }) {
 // Kept for shared components that show a status inline.
 export const StatusText = StatusPill;
 
-export function KeyValue({ rows }) {
+// `compact` for narrow side columns (shorter label column, values wrap).
+export function KeyValue({ rows, compact = false }) {
   return (
     <div className="adm-table-wrap">
-      <table className="adm-table adm-kv">
+      <table className={`adm-table adm-kv ${compact ? 'adm-kv-compact' : ''}`}>
         <tbody>
           {rows.map(([k, v]) => (
             <tr key={k}>

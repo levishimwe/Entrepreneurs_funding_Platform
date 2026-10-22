@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
 import { Alert, Field } from './ui';
 
 // Accessible modal used for every recorded decision. `reason` is 'required',
@@ -62,7 +61,7 @@ export default function ReasonDialog({
     }
   };
 
-  const btn = { primary: 'btn-primary', danger: 'btn border-transparent bg-red-600 text-white hover:bg-red-700', success: 'btn-cta' }[tone];
+  const btn = { primary: 'btn-primary', danger: 'btn-danger', success: 'btn-primary' }[tone];
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center" role="presentation" onMouseDown={(e) => e.target === e.currentTarget && !busy && onClose()}>
@@ -72,17 +71,14 @@ export default function ReasonDialog({
         aria-modal="true"
         aria-labelledby="dialog-title"
         onSubmit={submit}
-        className="card w-full max-w-lg p-5 shadow-xl"
+        className="card w-full max-w-lg p-5 text-[13px] shadow-xl"
       >
         <div className="flex items-start justify-between gap-3">
-          <h2 id="dialog-title" className="text-lg font-semibold">
+          <h2 id="dialog-title" className="!m-0 text-[16px] font-semibold">
             {title}
           </h2>
-          <button type="button" className="rounded p-1 text-muted hover:bg-subtle" onClick={onClose} aria-label="Close" disabled={busy}>
-            <X className="h-4 w-4" />
-          </button>
         </div>
-        {description && <p className="mt-1 text-sm text-muted">{description}</p>}
+        {description && <p className="mt-1 text-muted">{description}</p>}
         <div className="mt-4 space-y-4">
           {warning && <Alert type="warning">{warning}</Alert>}
           {error && <Alert type="error">{error}</Alert>}

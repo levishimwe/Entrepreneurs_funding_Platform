@@ -16,6 +16,7 @@ const EMPTY = {
   applicationInstructions: '',
   prize: '',
   deadline: '',
+  endsAt: '',
   criteria: { sectors: [], projectTypes: [], stages: [], minCohortYear: '', maxCohortYear: '', notes: '' },
 };
 
@@ -55,6 +56,7 @@ export default function OpportunityForm({ initial, submitLabel, onSubmit, onCanc
       applicationInstructions: initial.applicationInstructions || '',
       prize: initial.prize || '',
       deadline: toLocalInput(initial.deadline),
+      endsAt: initial.endsAt ? toLocalInput(initial.endsAt) : '',
       criteria: { ...EMPTY.criteria, ...initial.criteria, minCohortYear: initial.criteria?.minCohortYear || '', maxCohortYear: initial.criteria?.maxCohortYear || '' },
     };
   });
@@ -73,6 +75,7 @@ export default function OpportunityForm({ initial, submitLabel, onSubmit, onCanc
       await onSubmit({
         ...v,
         deadline: v.deadline ? new Date(v.deadline).toISOString() : '',
+        endsAt: v.endsAt ? new Date(v.endsAt).toISOString() : '',
         criteria: {
           ...v.criteria,
           minCohortYear: v.criteria.minCohortYear ? Number(v.criteria.minCohortYear) : null,
@@ -111,6 +114,9 @@ export default function OpportunityForm({ initial, submitLabel, onSubmit, onCanc
           <input id="o-deadline" type="datetime-local" className="input" value={v.deadline} onChange={set('deadline')} />
         </Field>
       </div>
+      <Field label="Event end date (optional)" htmlFor="o-ends" error={errors.endsAt} help="Staff can mark it Completed and record results after this date.">
+        <input id="o-ends" type="datetime-local" className="input sm:max-w-xs" value={v.endsAt} onChange={set('endsAt')} />
+      </Field>
       <Field label="Description" htmlFor="o-desc" required error={errors.description}>
         <textarea id="o-desc" rows={4} className="input" value={v.description} onChange={set('description')} />
       </Field>

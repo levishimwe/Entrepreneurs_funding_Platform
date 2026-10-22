@@ -215,6 +215,10 @@ const Opportunity = sequelize.define(
     },
     statusBeforeArchive: { type: DataTypes.ENUM('pending_review', 'published', 'closed'), field: 'status_before_archive' },
     publishedAt: { type: DataTypes.DATE, field: 'published_at' },
+    // Optional event end date; Completed is set by staff after the event.
+    endsAt: { type: DataTypes.DATE, field: 'ends_at' },
+    completedAt: { type: DataTypes.DATE, field: 'completed_at' },
+    completedBy: { ...REF, field: 'completed_by' },
   },
   { tableName: 'opportunities' }
 );

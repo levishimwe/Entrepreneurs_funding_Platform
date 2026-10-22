@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Paperclip, Plus } from 'lucide-react';
 import { api } from '../lib/api';
-import { Alert, EmptyState, Field, PageHeader, PageLoader, StatusPill, formatDate } from '../components/ui';
+import { Alert, EmptyState, Field, StatusPill, formatDate } from '../components/ui';
+import { AdminPage, Loading, Messages } from '../components/admin';
 
 // Contact admin: requests to the ALU Ventures administrator as threads with
 // replies from both sides. Users only ever see their own threads.
@@ -58,8 +58,8 @@ function NewRequest({ categories, initialCategory, onCreated, onCancel }) {
   };
 
   return (
-    <form className="card space-y-4 p-5" onSubmit={submit} noValidate>
-      <h2 className="font-semibold">New request</h2>
+    <form className="card space-y-4 p-4" onSubmit={submit} noValidate>
+      <h2 className="!m-0">New request</h2>
       {error && <Alert type="error">{error}</Alert>}
       <Field label="Category" htmlFor="c-category" error={fields.category} required>
         <select id="c-category" className="input" value={form.category} onChange={set('category')} required>
@@ -139,12 +139,12 @@ function Thread({ id, onChanged }) {
   };
 
   if (error && !thread) return <Alert type="error">{error}</Alert>;
-  if (!thread) return <PageLoader />;
+  if (!thread) return <Loading />;
   return (
     <section className="card overflow-hidden">
-      <header className="border-b border-line bg-subtle px-5 py-3">
+      <header className="border-b border-line px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="font-semibold">{thread.subject}</h2>
+          <h2 className="!m-0">{thread.subject}</h2>
           <StatusPill status={thread.status} />
         </div>
         <p className="mt-0.5 text-xs text-muted">
@@ -152,9 +152,9 @@ function Thread({ id, onChanged }) {
           {thread.requestedName && ` · requested name: ${thread.requestedName}${thread.nameAppliedAt ? ' (applied)' : ''}`}
         </p>
       </header>
-      <ol className="space-y-3 p-5" aria-label="Messages">
+      <ol className="space-y-3 p-4" aria-label="Messages">
         {thread.messages.map((m) => (
-          <li key={m.id} className={`rounded-lg p-3 text-sm ring-1 ring-line ${m.authorRole === 'admin' ? 'bg-accent-soft/60' : 'bg-surface'}`}>
+          <li key={m.id} className={`rounded-lg border border-line p-3 ${m.authorRole === 'admin' ? 'bg-accent-soft' : 'bg-surface'}`}>
             <p className="text-xs text-muted">
               <span className="font-semibold text-ink">{m.authorRole === 'admin' ? m.authorName : 'You'}</span> · {formatDate(m.createdAt, true)}
             </p>
@@ -168,16 +168,15 @@ function Thread({ id, onChanged }) {
         ))}
       </ol>
       {thread.archived ? (
-        <p className="border-t border-line px-5 py-3 text-sm text-muted">This request is archived. Start a new request if you need more help.</p>
+        <p className="adm-muted border-t border-line px-4 py-3">This request is archived. Start a new request if you need more help.</p>
       ) : (
-        <form className="space-y-3 border-t border-line p-5" onSubmit={send}>
+        <form className="space-y-3 border-t border-line p-4" onSubmit={send}>
           {error && <Alert type="error">{error}</Alert>}
           <Field label="Reply" htmlFor="c-reply" error={fieldError}>
             <textarea id="c-reply" rows={3} className="input" value={reply} onChange={(e) => setReply(e.target.value)} maxLength={5000} required />
           </Field>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <label className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-muted hover:text-ink">
-              <Paperclip className="h-4 w-4" aria-hidden="true" />
+            <label className="adm-a inline-flex cursor-pointer items-center">
               <span>{file ? file.name : 'Attach a screenshot'}</span>
               <input key={fileKey} type="file" accept="image/jpeg,image/png" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] || null)} />
             </label>
@@ -216,26 +215,22 @@ export default function Contact() {
       .catch(() => {});
   }, [load]);
 
-  if (error) return <Alert type="error">{error}</Alert>;
-  if (!threads) return <PageLoader />;
+  if (error) return <AdminPage title="Contact admin"><Messages error={error} /></AdminPage>;
+  if (!threads) return <AdminPage title="Contact admin"><Loading /></AdminPage>;
 
   return (
-    <>
-      <PageHeader
-        title="Contact admin"
-        description="Ask for help or a change to your profile. Replies arrive here and by email."
-        actions={
-          !composing && (
-            <button type="button" className="btn-primary" onClick={() => setParams({ new: '1' })}>
-              <Plus className="h-4 w-4" aria-hidden="true" /> New request
-            </button>
-          )
-        }
-      />
+    <AdminPage title="Contact admin" meta={`${threads.length} request${threads.length === 1 ? '' : 's'}`}>
+      {!composing && (
+        <div className="mb-4">
+          <button type="button" className="adm-primary" onClick={() => setParams({ new: '1' })}>
+            New request
+          </button>
+        </div>
+      )}
       <div className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
         <nav className="card h-fit overflow-hidden" aria-label="Your requests">
           {threads.length === 0 ? (
-            <p className="p-4 text-sm text-muted">No requests yet.</p>
+            <p className="adm-muted p-4">No requests yet.</p>
           ) : (
             <ul className="divide-y divide-line">
               {threads.map((t) => (
@@ -244,10 +239,10 @@ export default function Contact() {
                     type="button"
                     onClick={() => setParams({ thread: String(t.id) })}
                     aria-current={String(t.id) === selected ? 'true' : undefined}
-                    className={`block w-full px-4 py-3 text-left hover:bg-subtle ${String(t.id) === selected ? 'bg-accent-soft' : ''}`}
+                    className={`block w-full px-4 py-3 text-left hover:bg-accent-soft ${String(t.id) === selected ? 'bg-accent-soft' : ''}`}
                   >
                     <span className="flex items-start justify-between gap-2">
-                      <span className="min-w-0 truncate text-sm font-medium">{t.subject}</span>
+                      <span className="min-w-0 truncate font-medium">{t.subject}</span>
                       <StatusPill status={t.status} />
                     </span>
                     <span className="mt-0.5 block text-xs text-muted">
@@ -282,6 +277,6 @@ export default function Contact() {
           )}
         </div>
       </div>
-    </>
+    </AdminPage>
   );
 }

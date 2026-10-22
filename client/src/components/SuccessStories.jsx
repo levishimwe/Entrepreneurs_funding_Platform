@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BadgeCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../lib/api';
 
 // Home-page slider of Fully Funded ventures the administrator chose to show.
@@ -50,7 +50,7 @@ export default function SuccessStories() {
 
   return (
     <section
-      className="border-t border-white/10 bg-[#0d1117]"
+      className="border-b border-line bg-canvas"
       aria-roledescription="carousel"
       aria-label="Success stories"
       onMouseEnter={() => setHovered(true)}
@@ -58,18 +58,17 @@ export default function SuccessStories() {
       onFocus={() => setFocused(true)}
       onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setFocused(false)}
     >
-      <div className="mx-auto max-w-6xl px-4 py-14">
+      <div className="mx-auto max-w-6xl px-4 py-10">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-white">Success stories</h2>
-            <p className="mt-1 text-sm text-[#9198a1]">ALU graduate ventures that reached full funding.</p>
+            <h2 className="!m-0 text-[20px] font-semibold">Success stories</h2>
           </div>
           {count > 1 && (
             <div className="flex shrink-0 gap-2">
-              <button type="button" onClick={() => go(index - 1)} className="rounded-md border border-white/15 p-2 text-white hover:bg-white/10" aria-label="Previous story">
+              <button type="button" onClick={() => go(index - 1)} className="btn-secondary px-2" aria-label="Previous story">
                 <ChevronLeft className="h-4 w-4" aria-hidden="true" />
               </button>
-              <button type="button" onClick={() => go(index + 1)} className="rounded-md border border-white/15 p-2 text-white hover:bg-white/10" aria-label="Next story">
+              <button type="button" onClick={() => go(index + 1)} className="btn-secondary px-2" aria-label="Next story">
                 <ChevronRight className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
@@ -102,22 +101,20 @@ export default function SuccessStories() {
                 aria-hidden={i !== index}
                 inert={i !== index ? true : undefined}
               >
-                <article className="rounded-lg border border-white/10 bg-[#161b22] p-6 sm:p-8">
+                <article className="adm-card p-6">
                   <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className="rounded-full bg-[#238636]/20 px-2 py-0.5 font-medium text-[#3fb950]">Fully Funded</span>
-                    {s.fundingSource && <span className="rounded-full border border-white/15 px-2 py-0.5 text-[#c9d1d9]">{s.fundingSource}</span>}
-                    <span className="text-[#9198a1]">{s.sector}</span>
+                    <span className="adm-pill adm-pill-success">Fully Funded</span>
+                    {s.fundingSource && <span className="adm-pill adm-pill-info">{s.fundingSource}</span>}
+                    <span className="adm-muted">{s.sector}</span>
                   </div>
-                  <h3 className="mt-4 text-xl font-semibold text-white">{s.title}</h3>
-                  <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[#9198a1]">{s.summary}</p>
-                  <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-[#9198a1]">
-                    <span className="inline-flex items-center gap-1.5">
-                      <BadgeCheck className="h-3.5 w-3.5 text-[#3fb950]" aria-hidden="true" /> {s.founder}
-                    </span>
-                    <Link to={`/verify?code=${s.projectCode}`} className="font-mono text-[#58a6ff] hover:underline">
+                  <h3 className="mt-3 text-[18px] font-semibold">{s.title}</h3>
+                  <p className="adm-muted mt-1 max-w-3xl">{s.summary}</p>
+                  <div className="adm-muted mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px]">
+                    <span>{s.founder}</span>
+                    <Link to={`/verify?code=${s.projectCode}`} className="adm-a adm-mono">
                       {s.projectCode}
                     </Link>
-                    {s.amount && <span className="font-semibold text-white">{money(s.amount)}</span>}
+                    {s.amount && <span className="font-semibold text-ink">{money(s.amount)}</span>}
                   </div>
                 </article>
               </li>
@@ -134,7 +131,7 @@ export default function SuccessStories() {
                 onClick={() => go(i)}
                 aria-label={`Show story ${i + 1}`}
                 aria-current={i === index ? 'true' : undefined}
-                className={`h-2 rounded-full ${reduced ? '' : 'transition-all'} ${i === index ? 'w-6 bg-[#58a6ff]' : 'w-2 bg-white/25 hover:bg-white/50'}`}
+                className={`h-2 rounded-full ${reduced ? '' : 'transition-all'} ${i === index ? 'w-6 bg-accent' : 'w-2 bg-line hover:bg-muted'}`}
               />
             ))}
           </div>

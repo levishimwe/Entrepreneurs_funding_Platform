@@ -2,16 +2,16 @@
    8px spacing grid, 8px card radius, one font, a small fixed type scale:
    12 / 13 / 14 / 20 px. Components live in components/admin.jsx. */
 :root {
-  --adm-navy: #0b1f3a;
-  --adm-navy-2: #132c4f;
-  --adm-page: #f4f6f9;
-  --adm-card: #ffffff;
-  --adm-border: #e3e8ef;
-  --adm-text: #111827;
-  --adm-muted: #5b6676;
-  --adm-zebra: #f9fafb;
-  --adm-accent: #2563eb;
-  --adm-accent-soft: #e8efff;
+  --adm-navy: var(--navy);
+  --adm-navy-2: var(--navy-2);
+  --adm-page: var(--canvas);
+  --adm-card: var(--surface);
+  --adm-border: var(--line);
+  --adm-text: var(--ink);
+  --adm-muted: var(--muted);
+  --adm-zebra: var(--subtle);
+  --adm-accent: var(--accent);
+  --adm-accent-soft: var(--accent-soft);
   --adm-success: #15803d;
   --adm-success-soft: #e7f6ec;
   --adm-warning: #b45309;
@@ -21,14 +21,6 @@
   --adm-neutral-soft: #eef1f5;
 }
 [data-theme='dark'] {
-  --adm-page: #0f1623;
-  --adm-card: #161f2e;
-  --adm-border: #263246;
-  --adm-text: #e6eaf0;
-  --adm-muted: #93a0b4;
-  --adm-zebra: #1a2435;
-  --adm-accent: #4f8cff;
-  --adm-accent-soft: #1b2b4a;
   --adm-success: #4ade80;
   --adm-success-soft: #13301f;
   --adm-warning: #f5a95a;
@@ -177,6 +169,12 @@
   .adm-kv tbody tr:hover td,
   .adm-kv tbody tr:nth-child(even) td {
     background: transparent;
+  }
+  .adm-kv-compact th {
+    width: 104px;
+  }
+  .adm-kv-compact td {
+    overflow-wrap: anywhere;
   }
   .adm-kv td {
     height: auto;
@@ -369,6 +367,12 @@
     border-left: 3px solid var(--adm-success);
     border-radius: 8px;
     background: var(--adm-card);
+  }
+  .adm-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 13px;
+    font-weight: 600;
   }
   .adm-message-error {
     border-left-color: var(--adm-danger);

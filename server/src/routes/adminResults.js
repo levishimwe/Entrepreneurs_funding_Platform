@@ -89,22 +89,33 @@ module.exports = function registerResultRoutes(router) {
     });
   }
 
-  // Fully Funded by a competition: the existing "funded" status with funding_source = competition.
+  // Fully Funded by a competition: the existing "funded" status with
+  // funding_source = competition. Only an approved Won result with a prize
+  // amount qualifies; the amount and currency come from that result.
   router.post('/results/:id/mark-funded', async (req, res) => {
-    const data = z.object({ name: z.string().trim().max(200).optional(), amount: money, currency }).parse(req.body || {});
+    const data = z.object({ name: z.string().trim().max(200).optional() }).parse(req.body || {});
     const result = await findResult(req.params.id);
     if (result.status !== 'approved') throw badRequest('Only an approved result can fund a project.');
+    if (result.outcome !== 'won' || result.amount === null) throw badRequest('Only an approved Won result with a prize amount can mark the project Fully Funded.');
     const project = await Project.findByPk(result.projectId, { include: [{ model: User, as: 'owner', attributes: ['id', 'fullName', 'email'] }] });
-    if (!FUNDABLE.includes(project.status)) throw badRequest(`This project is ${project.status.replace(/_/g, ' ')}; only approved projects can be marked Fully Funded.`);
+    // A project marked Fully Funded before funding sources were recorded has no
+    // source yet; the competition can be recorded as its source.
+    const unsourcedFunded = project.status === 'funded' && !project.fundingSource;
+    if (!FUNDABLE.includes(project.status) && !unsourcedFunded) {
+      throw badRequest(
+        project.status === 'funded'
+          ? `This project is already Fully Funded (${project.fundingSource === 'investor' ? 'investor' : 'competition'}).`
+          : `This project is ${project.status.replace(/_/g, ' ')}; only approved projects can be marked Fully Funded.`
+      );
+    }
     const changes = {
       status: 'funded',
-      closedAt: new Date(),
+      closedAt: unsourcedFunded ? project.closedAt || new Date() : new Date(),
       fundingSource: 'competition',
       fundingName: data.name || result.awardTitle || result.opportunity.title,
-      fundingAmount: data.amount ?? result.amount ?? null,
-      fundingCurrency: data.currency || result.currency || null,
+      fundingAmount: result.amount,
+      fundingCurrency: result.currency,
     };
-    if (changes.fundingAmount !== null && !changes.fundingCurrency) throw badRequest('Give the currency for the amount.');
     const from = project.status;
     await sequelize.transaction(async (transaction) => {
       await project.update(changes, { transaction });

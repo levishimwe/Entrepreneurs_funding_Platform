@@ -26,7 +26,7 @@ const { badRequest, notFound, HttpError } = require('../middleware/errors');
 const { recordDecision, confirmedInvestorCount } = require('../services/decisions');
 const { enqueueEmail, retryNotification } = require('../services/mailer');
 const { getDashboardStats } = require('../services/dashboard');
-const { opportunitySchema, serializeOpportunity } = require('../services/opportunities');
+const { opportunitySchema, serializeOpportunity, stageOf } = require('../services/opportunities');
 const { documentSummary } = require('../services/projectView');
 const audit = require('../services/audit');
 const { sendStoredFile } = require('../services/fileDelivery');
@@ -671,7 +671,9 @@ router.get('/opportunities', async (req, res) => {
     order: [['deadline', 'ASC']],
   });
   res.json({
-    opportunities: rows.map((o) => serializeOpportunity(o, { applicationCount: o.applications.length })),
+    opportunities: rows.map((o) =>
+      serializeOpportunity(o, { applicationCount: o.applications.length, stage: stageOf(o, o.applications.filter((a) => a.status === 'selected').length) })
+    ),
   });
 });
 

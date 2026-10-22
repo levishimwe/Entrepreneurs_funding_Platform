@@ -8,7 +8,7 @@ const env = require('../config/env');
 const { sequelize, User, GraduateProfile, Opportunity, Application, Project, AuditLog, CompetitionResult } = require('../models');
 const { requireRole } = require('../middleware/auth');
 const { badRequest, forbidden, notFound } = require('../middleware/errors');
-const { opportunitySchema, serializeOpportunity, checkEligibility } = require('../services/opportunities');
+const { opportunitySchema, serializeOpportunity, checkEligibility, stageOf, canComplete } = require('../services/opportunities');
 const { enqueueEmail } = require('../services/mailer');
 const audit = require('../services/audit');
 const storage = require('../services/storage');
@@ -31,7 +31,7 @@ router.get('/opportunities', async (req, res) => {
     opportunities: rows.map((o) => {
       const tally = { submitted: 0, shortlisted: 0, selected: 0, not_selected: 0 };
       o.applications.forEach((a) => (tally[a.status] += 1));
-      return serializeOpportunity(o, { applicationCount: o.applications.length, tally, mine: o.createdBy === req.user.id });
+      return serializeOpportunity(o, { applicationCount: o.applications.length, tally, stage: stageOf(o, tally.selected), mine: o.createdBy === req.user.id });
     }),
   });
 });
@@ -71,7 +71,7 @@ router.get('/opportunities/:id', async (req, res) => {
     order: [['submittedAt', 'ASC']],
   });
   res.json({
-    opportunity: serializeOpportunity(opportunity),
+    opportunity: serializeOpportunity(opportunity, { stage: stageOf(opportunity, applications.filter((a) => a.status === 'selected').length) }),
     resultsEnabled: RESULT_TYPES.includes(opportunity.type),
     applications: applications.map((a) => ({
       id: a.id,
@@ -206,14 +206,21 @@ const resultSchema = z
   })
   .refine((d) => d.amount === null || d.currency, { message: 'Give the currency for the amount.', path: ['currency'] });
 
+function assertCanRecord(application) {
+  if (!RESULT_TYPES.includes(application.opportunity.type)) throw badRequest('Results are recorded for hackathons and competitions only.');
+  if (application.status !== 'selected') throw badRequest('Record a result only for a selected participant.');
+  if (!application.opportunity.completedAt) throw badRequest('Mark the opportunity Completed before recording results.');
+}
+
 router.post('/applications/:id/result', uploadLimiter, upload.single('proof'), async (req, res) => {
   const data = resultSchema.parse(req.body || {});
   const application = await Application.findByPk(req.params.id, { include: [{ model: Opportunity, as: 'opportunity' }] });
   if (!application) throw notFound('Application not found.');
-  if (!RESULT_TYPES.includes(application.opportunity.type)) throw badRequest('Results are recorded for hackathons and competitions only.');
-  if (application.status !== 'selected') throw badRequest('Record a result only for a selected participant.');
-  const open = await CompetitionResult.count({ where: { applicationId: application.id, status: { [Op.in]: ['pending', 'approved'] } } });
-  if (open) throw badRequest('A result for this participant is already awaiting approval or approved.');
+  assertCanRecord(application);
+  const existing = await CompetitionResult.findOne({ where: { applicationId: application.id }, order: [['id', 'DESC']] });
+  if (existing) {
+    throw badRequest(existing.status === 'rejected' ? 'A rejected result exists for this participant: edit and resubmit it.' : 'A result for this participant is already awaiting approval or approved.');
+  }
 
   const proof = req.file ? await validateDocument(req.file, 'Proof') : null;
   const proofKey = proof ? await storage.put(proof.buffer, { prefix: 'results', mimeType: proof.mimeType }) : null;
@@ -243,6 +250,99 @@ router.post('/applications/:id/result', uploadLimiter, upload.single('proof'), a
     if (proofKey) await storage.remove(proofKey).catch(() => {});
     throw err;
   }
+});
+
+// A rejected result is corrected and sent back for administrator approval.
+router.put('/results/:id', uploadLimiter, upload.single('proof'), async (req, res) => {
+  const data = resultSchema.parse(req.body || {});
+  const result = await CompetitionResult.findByPk(req.params.id, { include: [{ model: Application, as: 'application', include: [{ model: Opportunity, as: 'opportunity' }] }] });
+  if (!result) throw notFound('Result not found.');
+  if (result.status !== 'rejected') throw badRequest('Only a rejected result can be edited and resubmitted.');
+  assertCanRecord(result.application);
+
+  const proof = req.file ? await validateDocument(req.file, 'Proof') : null;
+  const proofKey = proof ? await storage.put(proof.buffer, { prefix: 'results', mimeType: proof.mimeType }) : null;
+  const oldKey = proof ? result.proofKey : null;
+  try {
+    await sequelize.transaction(async (transaction) => {
+      await result.update(
+        {
+          ...data,
+          status: 'pending',
+          submittedBy: req.user.id,
+          decidedBy: null,
+          decidedAt: null,
+          decisionReason: null,
+          ...(proof ? { proofKey, proofMime: proof.mimeType, proofName: proof.originalName } : {}),
+        },
+        { transaction }
+      );
+      await audit.record(
+        { actorId: req.user.id, action: 'result.resubmitted', entityType: 'competition_result', entityId: result.id, metadata: { applicationId: result.applicationId, outcome: data.outcome } },
+        { transaction }
+      );
+    });
+  } catch (err) {
+    if (proofKey) await storage.remove(proofKey).catch(() => {});
+    throw err;
+  }
+  if (oldKey) await storage.remove(oldKey).catch(() => {});
+  res.json({ result: serializeResult(result) });
+});
+
+// Results page: hackathons and competitions that are Completed, or whose
+// event has ended and can be marked Completed, with their selected participants.
+router.get('/results', async (req, res) => {
+  const rows = await Opportunity.findAll({
+    where: { type: { [Op.in]: RESULT_TYPES }, status: { [Op.in]: ['published', 'closed'] } },
+    include: [
+      {
+        model: Application,
+        as: 'applications',
+        required: false,
+        where: { status: 'selected' },
+        include: [
+          { model: Project, as: 'project', attributes: ['id', 'title', 'projectCode', 'status'] },
+          { model: User, as: 'applicant', attributes: ['id', 'fullName'] },
+          { model: CompetitionResult, as: 'results' },
+        ],
+      },
+    ],
+    order: [['deadline', 'DESC']],
+  });
+  const relevant = rows.filter((o) => o.completedAt || canComplete(o));
+  res.json({
+    opportunities: relevant.map((o) =>
+      serializeOpportunity(o, {
+        stage: stageOf(o, o.applications.length),
+        participants: o.applications.map((a) => ({
+          applicationId: a.id,
+          applicant: { name: a.applicant.fullName },
+          project: { id: a.project.id, title: a.project.title, projectCode: a.project.projectCode },
+          result: a.results?.length ? serializeResult([...a.results].sort((x, y) => y.id - x.id)[0]) : null,
+        })),
+      })
+    ),
+  });
+});
+
+// Staff mark an opportunity Completed after its event; results can then be recorded.
+router.post('/opportunities/:id/complete', async (req, res) => {
+  const opportunity = await Opportunity.findByPk(req.params.id);
+  if (!opportunity) throw notFound('Opportunity not found.');
+  if (opportunity.completedAt) throw badRequest('This opportunity is already Completed.');
+  if (!canComplete(opportunity)) {
+    throw badRequest(
+      opportunity.endsAt && new Date(opportunity.endsAt) > new Date()
+        ? 'It can be marked Completed after its end date.'
+        : 'It can be marked Completed once applications have closed (deadline passed or closed by the administrator).'
+    );
+  }
+  await sequelize.transaction(async (transaction) => {
+    await opportunity.update({ completedAt: new Date(), completedBy: req.user.id }, { transaction });
+    await audit.record({ actorId: req.user.id, action: 'opportunity.completed', entityType: 'opportunity', entityId: opportunity.id }, { transaction });
+  });
+  res.json({ opportunity: serializeOpportunity(opportunity, { stage: 'completed' }) });
 });
 
 // Audit entries for an opportunity and its applications (FR10), newest first.

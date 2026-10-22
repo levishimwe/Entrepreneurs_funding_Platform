@@ -13,6 +13,11 @@ const opportunitySchema = z
     applicationInstructions: z.string().trim().max(4000).optional().or(z.literal('')).transform((v) => v || null),
     prize: z.string().trim().max(150).optional().or(z.literal('')).transform((v) => v || null),
     deadline: z.coerce.date({ message: 'Choose a valid deadline.' }),
+    // When the event itself ends (optional). Completed is possible after it.
+    endsAt: z
+      .union([z.literal(''), z.null(), z.coerce.date({ message: 'Choose a valid end date.' })])
+      .optional()
+      .transform((v) => (v === '' || v === undefined ? null : v)),
     criteria: z
       .object({
         sectors: optionalList,
@@ -26,6 +31,7 @@ const opportunitySchema = z
   })
   .superRefine((d, ctx) => {
     if (d.deadline <= new Date()) ctx.addIssue({ code: 'custom', path: ['deadline'], message: 'The deadline must be in the future.' });
+    if (d.endsAt && d.endsAt < d.deadline) ctx.addIssue({ code: 'custom', path: ['endsAt'], message: 'The event cannot end before applications close.' });
     const { minCohortYear: min, maxCohortYear: max } = d.criteria;
     if (min && max && min > max) {
       ctx.addIssue({ code: 'custom', path: ['criteria', 'maxCohortYear'], message: 'Latest cohort must be after the earliest cohort.' });
@@ -61,6 +67,27 @@ function checkEligibility(opportunity, project, graduate) {
   return reasons;
 }
 
+// Stages: Open (taking applications) → Selection (applications closed, staff
+// deciding who is admitted) → In progress (participants admitted, event
+// running) → Completed (marked by staff after the event; results recorded).
+const STAGE_LABEL = { open: 'Open', selection: 'Selection', in_progress: 'In progress', completed: 'Completed' };
+
+/** Applications have closed: the administrator closed it, or the deadline passed. */
+const applicationsClosed = (o, now = new Date()) => o.status === 'closed' || new Date(o.deadline) <= now;
+
+/** Staff may mark it Completed once applications closed and the event end date (if set) has passed. */
+function canComplete(o, now = new Date()) {
+  if (o.completedAt || !['published', 'closed'].includes(o.status)) return false;
+  return applicationsClosed(o, now) && (!o.endsAt || new Date(o.endsAt) <= now);
+}
+
+function stageOf(o, selectedCount = 0, now = new Date()) {
+  if (o.completedAt) return 'completed';
+  if (!['published', 'closed'].includes(o.status)) return null;
+  if (!applicationsClosed(o, now)) return 'open';
+  return selectedCount > 0 ? 'in_progress' : 'selection';
+}
+
 function serializeOpportunity(o, extra = {}) {
   return {
     id: o.id,
@@ -72,6 +99,9 @@ function serializeOpportunity(o, extra = {}) {
     prize: o.prize,
     criteria: o.criteria || {},
     deadline: o.deadline,
+    endsAt: o.endsAt || null,
+    completedAt: o.completedAt || null,
+    canComplete: canComplete(o),
     status: o.status,
     statusBeforeArchive: o.statusBeforeArchive || null,
     publishedAt: o.publishedAt,
@@ -81,4 +111,4 @@ function serializeOpportunity(o, extra = {}) {
   };
 }
 
-module.exports = { opportunitySchema, checkEligibility, serializeOpportunity, APPROVED_PROJECT_STATUSES };
+module.exports = { opportunitySchema, checkEligibility, serializeOpportunity, stageOf, canComplete, STAGE_LABEL, APPROVED_PROJECT_STATUSES };

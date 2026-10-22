@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Building2, CheckCircle2, GraduationCap, KeyRound, LifeBuoy, MailCheck, Upload } from 'lucide-react';
 import { api, ApiError } from '../lib/api';
 import { useAuth, homePathFor } from '../context/AuthContext';
 import { Alert, Field } from '../components/ui';
@@ -38,48 +37,33 @@ export function useFormState(initial) {
   return { values, set, setValues, errors, error, setError, busy, run };
 }
 
-// Card on the dark public background (sign in / sign up) or a light page
-// (forgot / reset / updated), following the Figma screens.
-function AuthCard({ title, subtitle, icon: Icon, children, footer, light = false, wide = false }) {
+// Every sign-in, register, code and password screen: one white card on the
+// light canvas, with the same labels and inputs as the admin forms.
+function AuthCard({ title, subtitle, children, footer, wide = false }) {
   return (
-    <div className={`flex min-h-[calc(100vh-8rem)] items-start justify-center px-4 py-10 sm:items-center ${light ? 'bg-canvas text-ink' : ''}`}>
+    <div className="flex min-h-[calc(100vh-8rem)] items-start justify-center px-4 py-10 sm:items-center">
       <div className={`w-full ${wide ? 'max-w-2xl' : 'max-w-md'}`}>
-        <div
-          className={`rounded-lg border p-6 shadow-sm sm:p-8 ${
-            light ? 'border-line bg-surface' : 'border-white/10 bg-[#161b22] text-[#e6edf3]'
-          }`}
-        >
-          <div className="mb-6 text-center">
-            {Icon && (
-              <div className={`mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full ${light ? 'bg-accent-soft text-accent' : 'bg-[#1f6feb]/20 text-[#58a6ff]'}`}>
-                <Icon className="h-5 w-5" aria-hidden="true" />
-              </div>
-            )}
-            <h1 className="text-xl font-semibold">{title}</h1>
-            {subtitle && <p className={`mt-1 text-sm ${light ? 'text-muted' : 'text-[#9198a1]'}`}>{subtitle}</p>}
+        <div className="adm-card p-6 sm:p-8">
+          <div className="mb-6">
+            <h1 className="text-[20px] font-semibold">{title}</h1>
+            {subtitle && <p className="adm-muted mt-1">{subtitle}</p>}
           </div>
           {children}
         </div>
-        {footer && <div className={`mt-4 text-center text-sm ${light ? 'text-muted' : 'text-[#9198a1]'}`}>{footer}</div>}
+        {footer && <div className="adm-muted mt-4 text-center">{footer}</div>}
       </div>
     </div>
   );
 }
 
-// Inputs on the dark card need dark styling.
-const darkInput =
-  'w-full rounded-md border border-white/15 bg-[#0d1117] px-3 py-2 text-sm text-white placeholder:text-[#6e7681] focus:border-[#58a6ff] focus:outline-none focus:ring-2 focus:ring-[#58a6ff]/30';
-const darkLabel = 'mb-1 block text-sm font-medium text-[#e6edf3]';
+const darkInput = 'input';
+const darkLabel = 'label';
 
 function DarkField({ id, label, error, help, children }) {
   return (
-    <div>
-      <label htmlFor={id} className={darkLabel}>
-        {label}
-      </label>
+    <Field label={label} htmlFor={id} error={error} help={help}>
       {children}
-      {error ? <p className="mt-1 text-xs text-[#ff7b72]">{error}</p> : help && <p className="mt-1 text-xs text-[#9198a1]">{help}</p>}
-    </div>
+    </Field>
   );
 }
 
@@ -109,13 +93,13 @@ export function SignIn() {
 
   return (
     <AuthCard
-      title="Sign in to ALU Ventures"
+      title="Sign in"
       subtitle="Graduates, investors, sponsors and ALU staff"
-      icon={KeyRound}
+     
       footer={
         <>
           New here?{' '}
-          <Link to="/register" className="font-medium text-[#58a6ff] hover:underline">
+          <Link to="/register" className="adm-a font-medium">
             Create a free account
           </Link>
         </>
@@ -129,11 +113,11 @@ export function SignIn() {
         </DarkField>
         <div>
           <div className="mb-1 flex items-center justify-between">
-            <label htmlFor="password" className="text-sm font-medium text-[#e6edf3]">
+            <label htmlFor="password" className="label !mb-0">
               Password
             </label>
-            <Link to="/forgot-password" className="text-xs text-[#58a6ff] hover:underline">
-              Forgot Password?
+            <Link to="/forgot-password" className="adm-a text-[12px]">
+              Forgot password?
             </Link>
           </div>
           <input
@@ -145,9 +129,9 @@ export function SignIn() {
             onChange={f.set('password')}
             required
           />
-          {f.errors.password && <p className="mt-1 text-xs text-[#ff7b72]">{f.errors.password}</p>}
+          {f.errors.password && <p className="mt-1 text-xs text-red-600">{f.errors.password}</p>}
         </div>
-        <button type="submit" className="btn-cta w-full py-2" disabled={f.busy}>
+        <button type="submit" className="btn-primary w-full" disabled={f.busy}>
           {f.busy ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
@@ -180,17 +164,17 @@ function PhoneAndPhoto({ f, prefix }) {
       <DarkField id={`${prefix}-photo`} label="Profile photo (optional)" error={photoError || f.errors.profilePhoto} help="JPEG or PNG, up to 5 MB.">
         <div className="flex items-center gap-3">
           {preview ? (
-            <img src={preview} alt="Selected profile photo" className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-white/20" />
+            <img src={preview} alt="Selected profile photo" className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-line" />
           ) : (
-            <span className="h-10 w-10 shrink-0 rounded-full bg-white/10" aria-hidden="true" />
+            <span className="h-10 w-10 shrink-0 rounded-full bg-subtle ring-1 ring-line" aria-hidden="true" />
           )}
-          <label htmlFor={`${prefix}-photo`} className="cursor-pointer rounded-md border border-white/15 px-3 py-2 text-sm text-[#c9d1d9] hover:border-[#58a6ff]">
+          <label htmlFor={`${prefix}-photo`} className="btn-secondary cursor-pointer">
             {f.values.photo ? 'Change photo' : 'Choose photo'}
           </label>
           {f.values.photo && (
             <button
               type="button"
-              className="text-xs text-[#9198a1] hover:text-white"
+              className="adm-act adm-act-danger"
               onClick={() => {
                 f.set('photo')(null);
                 setPreview(null);
@@ -269,9 +253,8 @@ function GraduateForm() {
       <DarkField id="g-file" label="ALU degree certificate" help="PDF, PNG or JPEG, up to 10 MB. Stored privately and reviewed by an administrator.">
         <label
           htmlFor="g-file"
-          className="flex cursor-pointer items-center gap-3 rounded-md border border-dashed border-white/20 bg-[#0d1117] px-3 py-3 text-sm text-[#9198a1] hover:border-[#58a6ff]"
+          className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-line bg-subtle px-3 py-3 hover:border-accent"
         >
-          <Upload className="h-4 w-4 shrink-0" aria-hidden="true" />
           <span className="truncate">{f.values.file ? f.values.file.name : 'Choose your degree certificate…'}</span>
         </label>
         <input
@@ -282,14 +265,8 @@ function GraduateForm() {
           onChange={(e) => f.set('file')(e.target.files?.[0] || null)}
         />
       </DarkField>
-      <p className="flex gap-2 rounded-md border border-white/10 bg-white/5 p-3 text-xs text-[#9198a1]">
-        <LifeBuoy className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-        <span>
-          No access to your ALU alumni email? Contact ALU IT account support to restore it before registering — graduate
-          accounts require the official alumni address.
-        </span>
-      </p>
-      <button type="submit" className="btn-cta w-full py-2" disabled={f.busy}>
+      <p className="adm-hint">No access to your ALU alumni email? Ask ALU IT support to restore it first; graduate accounts need the official address.</p>
+      <button type="submit" className="btn-primary w-full" disabled={f.busy}>
         {f.busy ? 'Creating account…' : 'Create graduate account'}
       </button>
     </form>
@@ -337,8 +314,8 @@ function InvestorForm() {
           ].map(([value, label]) => (
             <label
               key={value}
-              className={`cursor-pointer rounded-md border px-3 py-2 text-center text-sm ${
-                f.values.investorType === value ? 'border-[#58a6ff] bg-[#1f6feb]/15 text-white' : 'border-white/15 text-[#9198a1]'
+              className={`cursor-pointer rounded-md border px-3 py-1.5 text-center ${
+                f.values.investorType === value ? 'border-accent bg-accent-soft font-semibold text-accent' : 'border-line text-muted'
               }`}
             >
               <input
@@ -383,7 +360,7 @@ function InvestorForm() {
                 key={s}
                 aria-pressed={on}
                 onClick={() => toggleSector(s)}
-                className={`rounded-full border px-3 py-1 text-xs ${on ? 'border-[#58a6ff] bg-[#1f6feb]/20 text-white' : 'border-white/15 text-[#9198a1] hover:text-white'}`}
+                className={`rounded-full border px-3 py-1 text-[12px] ${on ? 'border-accent bg-accent-soft text-accent' : 'border-line text-muted hover:text-ink'}`}
               >
                 {s}
               </button>
@@ -394,7 +371,7 @@ function InvestorForm() {
       <DarkField id="i-bio" label="About you (optional)" error={f.errors.bio}>
         <textarea id="i-bio" rows={3} className={darkInput} value={f.values.bio} onChange={f.set('bio')} />
       </DarkField>
-      <button type="submit" className="btn-cta w-full py-2" disabled={f.busy}>
+      <button type="submit" className="btn-primary w-full" disabled={f.busy}>
         {f.busy ? 'Creating account…' : 'Request investor access'}
       </button>
     </form>
@@ -407,33 +384,30 @@ export function Register() {
   return (
     <AuthCard
       wide
-      title="Create your free account"
-      subtitle="Every account is reviewed by an ALU Ventures administrator before full access."
+      title="Create an account"
+      subtitle="An administrator reviews every account before full access."
       footer={
         <>
           Already registered?{' '}
-          <Link to="/signin" className="font-medium text-[#58a6ff] hover:underline">
+          <Link to="/signin" className="adm-a font-medium">
             Sign in
           </Link>
         </>
       }
     >
-      <div role="tablist" aria-label="Account type" className="mb-6 grid grid-cols-2 gap-1 rounded-lg bg-[#0d1117] p-1">
+      <div role="tablist" aria-label="Account type" className="mb-6 flex gap-6 border-b border-line">
         {[
-          ['graduate', 'ALU Graduate', GraduationCap],
-          ['investor', 'Investor / Sponsor', Building2],
-        ].map(([value, label, Icon]) => (
+          ['graduate', 'ALU graduate'],
+          ['investor', 'Investor / sponsor'],
+        ].map(([value, label]) => (
           <button
             key={value}
             role="tab"
             type="button"
             aria-selected={role === value}
             onClick={() => setParams(value === 'investor' ? { role: 'investor' } : {})}
-            className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${
-              role === value ? 'bg-[#21262d] text-white shadow' : 'text-[#9198a1] hover:text-white'
-            }`}
+            className={`-mb-px border-b-2 py-2 text-[13px] ${role === value ? 'border-accent font-semibold text-ink' : 'border-transparent text-muted hover:text-ink'}`}
           >
-            <Icon className="h-4 w-4" aria-hidden="true" />
             {label}
           </button>
         ))}
@@ -470,7 +444,7 @@ export function VerifyEmail() {
     });
 
   return (
-    <AuthCard title="Check your email" subtitle={`We sent a 6-digit code to ${email || 'your email address'}.`} icon={MailCheck}>
+    <AuthCard title="Check your email" subtitle={`We sent a 6-digit code to ${email || 'your email address'}.`}>
       <form onSubmit={submit} className="space-y-4" noValidate>
         {f.error && <Alert type="error">{f.error}</Alert>}
         {notice && !f.error && <Alert type="info">{notice}</Alert>}
@@ -480,15 +454,15 @@ export function VerifyEmail() {
             inputMode="numeric"
             autoComplete="one-time-code"
             maxLength={6}
-            className={`${darkInput} text-center font-mono text-lg tracking-[0.5em]`}
+            className="input text-center font-mono text-lg tracking-[0.5em]"
             value={f.values.code}
             onChange={(e) => f.set('code')(e.target.value.replace(/\D/g, ''))}
           />
         </DarkField>
-        <button type="submit" className="btn-cta w-full py-2" disabled={f.busy || f.values.code.length !== 6}>
+        <button type="submit" className="btn-primary w-full" disabled={f.busy || f.values.code.length !== 6}>
           Verify email
         </button>
-        <button type="button" onClick={resend} className="w-full text-center text-sm text-[#58a6ff] hover:underline" disabled={f.busy}>
+        <button type="button" onClick={resend} className="adm-a w-full text-center" disabled={f.busy}>
           Send a new code
         </button>
       </form>
@@ -512,20 +486,20 @@ export function ForgotPassword() {
 
   return (
     <AuthCard
-      light
-      icon={KeyRound}
+     
+     
       title="Reset your password"
       subtitle="Enter the email address on your account and we will send you a one-time reset code."
       footer={
-        <Link to="/signin" className="inline-flex items-center gap-1 text-accent hover:underline">
-          <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" /> Back to sign in
+        <Link to="/signin" className="adm-a">
+          Back to sign in
         </Link>
       }
     >
       {sent ? (
         <div className="space-y-4">
           <Alert type="success">{sent}</Alert>
-          <button type="button" className="btn-primary w-full py-2" onClick={() => navigate(`/reset-password?email=${encodeURIComponent(f.values.email)}`)}>
+          <button type="button" className="btn-primary w-full" onClick={() => navigate(`/reset-password?email=${encodeURIComponent(f.values.email)}`)}>
             I have a code
           </button>
         </div>
@@ -535,10 +509,10 @@ export function ForgotPassword() {
           <Field label="Email address" htmlFor="fp-email" error={f.errors.email}>
             <input id="fp-email" type="email" autoComplete="email" className="input" value={f.values.email} onChange={f.set('email')} />
           </Field>
-          <button type="submit" className="btn-primary w-full py-2" disabled={f.busy}>
+          <button type="submit" className="btn-primary w-full" disabled={f.busy}>
             {f.busy ? 'Sending…' : 'Send reset code'}
           </button>
-          <p className="text-center text-xs text-muted">Codes expire after 10 minutes and allow five attempts.</p>
+          <p className="adm-hint text-center">Codes expire after 10 minutes and allow five attempts.</p>
         </form>
       )}
     </AuthCard>
@@ -566,7 +540,7 @@ export function ResetPassword() {
   };
 
   return (
-    <AuthCard light icon={KeyRound} title="Set a new password" subtitle="Choose a password you have not used on this account before.">
+    <AuthCard title="Set a new password" subtitle="Choose a password you have not used on this account before.">
       <form onSubmit={submit} className="space-y-4" noValidate>
         {f.error && <Alert type="error">{f.error}</Alert>}
         <Field label="Email address" htmlFor="rp-email" error={f.errors.email}>
@@ -589,10 +563,10 @@ export function ResetPassword() {
         <Field label="Confirm new password" htmlFor="rp-confirm" error={f.errors.confirmPassword}>
           <input id="rp-confirm" type="password" autoComplete="new-password" className="input" value={f.values.confirmPassword} onChange={f.set('confirmPassword')} />
         </Field>
-        <button type="submit" className="btn-primary w-full py-2" disabled={f.busy}>
+        <button type="submit" className="btn-primary w-full" disabled={f.busy}>
           {f.busy ? 'Updating…' : 'Update password'}
         </button>
-        <p className="text-center text-xs text-muted">Updating your password signs you out on every device.</p>
+        <p className="adm-hint text-center">Updating your password signs you out on every device.</p>
       </form>
     </AuthCard>
   );
@@ -603,8 +577,8 @@ export function PasswordUpdated() {
     document.title = 'Password updated · ALU Ventures';
   }, []);
   return (
-    <AuthCard light icon={CheckCircle2} title="Password updated successfully" subtitle="For your security, all existing sessions have been signed out.">
-      <Link to="/signin" className="btn-primary w-full py-2">
+    <AuthCard title="Password updated successfully" subtitle="For your security, all existing sessions have been signed out.">
+      <Link to="/signin" className="btn-primary w-full">
         Sign in with your new password
       </Link>
     </AuthCard>

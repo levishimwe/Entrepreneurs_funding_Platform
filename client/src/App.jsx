@@ -29,11 +29,12 @@ import AdminResults from './pages/admin/AdminResults';
 import { Outbox, RulesConfig } from './pages/admin/PlatformAdmin';
 import StaffOpportunities, { StaffOpportunityForm, StaffSelectionHome } from './pages/staff/StaffOpportunities';
 import StaffSelection from './pages/staff/StaffSelection';
+import StaffResults from './pages/staff/StaffResults';
 
 function NotFound() {
   return (
     <div className="mx-auto max-w-xl px-4 py-24">
-      <EmptyState title="Page not found" action={<Link to="/" className="btn-cta">Go home</Link>}>
+      <EmptyState title="Page not found" action={<Link to="/" className="btn-primary">Go home</Link>}>
         The page you are looking for does not exist or has moved.
       </EmptyState>
     </div>
@@ -95,6 +96,7 @@ export default function App() {
               <Route index element={<StaffOpportunities />} />
               <Route path="new" element={<StaffOpportunityForm />} />
               <Route path="selection" element={<StaffSelectionHome />} />
+              <Route path="results" element={<StaffResults />} />
               <Route path=":id" element={<StaffSelection />} />
               <Route path=":id/edit" element={<StaffOpportunityForm />} />
             </Route>

@@ -1,9 +1,11 @@
 @import 'tailwindcss';
 @import './admin.css';
 
-/* Theme tokens taken from the Figma screens: a Primer-like light dashboard,
-   a near-black public site, blue primary actions and green CTAs. The
-   account-wide theme preference sets data-theme on <html>. */
+/* One design system for every role and the public site (the admin console
+   is the reference): navy bars, light page, white cards with a 1px border and
+   8px radius, one blue accent. The account-wide theme preference sets
+   data-theme on <html>; the same tokens drive Tailwind utilities (card, btn,
+   input, text-muted …) and the admin classes in admin.css. */
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 @theme {
@@ -19,35 +21,39 @@
   --color-accent: var(--accent);
   --color-accent-strong: var(--accent-strong);
   --color-accent-soft: var(--accent-soft);
-  --color-cta: #1f883d;
-  --color-cta-strong: #1a7f37;
-  --color-alu-navy: #002b5c;
+  --color-navy: var(--navy);
+  /* Former green call-to-action: now the single accent. */
+  --color-cta: var(--accent);
+  --color-cta-strong: var(--accent-strong);
+  --color-alu-navy: var(--navy);
   --color-alu-red: #d71d38;
 }
 
 :root {
-  --canvas: #f6f8fa;
+  --navy: #0b1f3a;
+  --navy-2: #132c4f;
+  --canvas: #f4f6f9;
   --surface: #ffffff;
-  --subtle: #f6f8fa;
-  --line: #d0d7de;
-  --ink: #1f2328;
-  --muted: #59636e;
-  --accent: #0969da;
-  --accent-strong: #0550ae;
-  --accent-soft: #ddf4ff;
+  --subtle: #f9fafb;
+  --line: #e3e8ef;
+  --ink: #111827;
+  --muted: #5b6676;
+  --accent: #2563eb;
+  --accent-strong: #1d4ed8;
+  --accent-soft: #e8efff;
   color-scheme: light;
 }
 
 [data-theme='dark'] {
-  --canvas: #0d1117;
-  --surface: #151b23;
-  --subtle: #1c232c;
-  --line: #3d444d;
-  --ink: #e6edf3;
-  --muted: #9198a1;
-  --accent: #4493f8;
-  --accent-strong: #79b8ff;
-  --accent-soft: #1b2e4a;
+  --canvas: #0f1623;
+  --surface: #161f2e;
+  --subtle: #1a2435;
+  --line: #263246;
+  --ink: #e6eaf0;
+  --muted: #93a0b4;
+  --accent: #4f8cff;
+  --accent-strong: #7aa7ff;
+  --accent-soft: #1b2b4a;
   color-scheme: dark;
 }
 
@@ -71,38 +77,47 @@ body {
 }
 
 @utility card {
-  @apply rounded-md border border-line bg-surface;
+  @apply rounded-lg border border-line bg-surface;
 }
 
 @utility btn {
-  @apply inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+  @apply inline-flex h-8 items-center justify-center gap-1.5 rounded-md border px-4 text-[13px] font-semibold whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-55;
 }
 
 @utility btn-primary {
-  @apply btn border-transparent bg-accent text-white hover:bg-accent-strong;
+  @apply btn border-accent bg-accent text-white hover:bg-accent-strong;
 }
 
 @utility btn-cta {
-  @apply btn border-transparent bg-cta text-white hover:bg-cta-strong;
+  @apply btn-primary;
 }
 
 @utility btn-secondary {
-  @apply btn border-line bg-subtle text-ink hover:bg-canvas;
+  @apply btn border-line bg-surface text-ink hover:border-accent;
 }
 
 @utility btn-danger {
-  @apply btn border-line bg-subtle text-red-600 hover:bg-red-600 hover:text-white dark:text-red-400;
+  @apply btn border-red-600 bg-red-600 text-white hover:bg-red-700;
 }
 
 @utility input {
-  @apply w-full rounded-md border border-line bg-surface px-3 py-1.5 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30;
+  @apply h-8 w-full rounded-md border border-line bg-surface px-2 text-[13px] text-ink placeholder:text-muted focus:outline-2 focus:-outline-offset-1 focus:outline-accent;
 }
 
 @utility label {
-  @apply mb-1 block text-sm font-semibold text-ink;
+  @apply mb-1 block text-[13px] font-semibold text-ink;
 }
 
 @utility help {
   @apply mt-1 text-xs text-muted;
 }
 
+/* Textareas and multi-line inputs grow with their rows. */
+textarea.input {
+  height: auto;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+select.input {
+  padding-right: 28px;
+}

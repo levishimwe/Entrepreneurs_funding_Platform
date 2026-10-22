@@ -16,14 +16,16 @@ const STATUSES = [
 const PILL = { pending: ['warning', 'Pending Admin Approval'], approved: ['success', 'Approved'], rejected: ['danger', 'Rejected'] };
 const ResultPill = ({ status }) => <Pill tone={PILL[status]?.[0]}>{PILL[status]?.[1] || status}</Pill>;
 const money = (amount, currency) => (amount === null || amount === undefined ? '—' : `${currency || ''} ${Number(amount).toLocaleString('en-GB')}`.trim());
-const FUNDABLE = ['approved', 'investor_limit_reached'];
+const FUNDABLE = ['approved', 'investor_limit_reached']; // or Fully Funded with no recorded source
 
 function ResultPanel({ result, onClose, onChanged }) {
   const { user } = useAuth();
   const [dialog, setDialog] = useState(null); // 'approve' | 'reject' | 'fund'
-  const [fund, setFund] = useState({ name: result.awardTitle || result.opportunity?.title || '', amount: result.amount ?? '', currency: result.currency || '' });
+  const [fund, setFund] = useState({ name: result.awardTitle || result.opportunity?.title || '' });
   const own = result.submittedBy?.id === user.id;
-  const canFund = result.status === 'approved' && FUNDABLE.includes(result.project?.status);
+  // Only an approved Won result with a prize amount funds the project.
+  const wonWithAmount = result.status === 'approved' && result.outcome === 'won' && result.amount !== null;
+  const canFund = wonWithAmount && (FUNDABLE.includes(result.project?.status) || (result.project?.status === 'funded' && !result.project?.fundingSource));
 
   return (
     <SidePanel title={`${result.outcomeLabel}${result.awardTitle ? ` · ${result.awardTitle}` : ''}`} onClose={onClose}>
@@ -69,6 +71,7 @@ function ResultPanel({ result, onClose, onChanged }) {
             Mark project Fully Funded
           </button>
         )}
+        {result.status === 'approved' && !wonWithAmount && <p className="adm-hint">Only a Won result with a prize amount can mark the project Fully Funded.</p>}
       </div>
 
       <h2 className="mt-6">Proof</h2>
@@ -103,21 +106,14 @@ function ResultPanel({ result, onClose, onChanged }) {
         confirmLabel="Mark Fully Funded"
         onClose={() => setDialog(null)}
         onConfirm={async () => {
-          await api.post(`/admin/results/${result.id}/mark-funded`, fund);
+          await api.post(`/admin/results/${result.id}/mark-funded`, { name: fund.name });
           onChanged('Project marked Fully Funded by competition.', { ...result, project: { ...result.project, status: 'funded', fundingSource: 'competition' } });
         }}
       >
         <Field label="Competition or award name" htmlFor="f-name">
           <input id="f-name" className="input" value={fund.name} onChange={(e) => setFund({ ...fund, name: e.target.value })} maxLength={200} />
         </Field>
-        <div className="grid grid-cols-[1fr_7rem] gap-3">
-          <Field label="Amount (optional)" htmlFor="f-amount">
-            <input id="f-amount" type="number" min="0" step="any" className="input" value={fund.amount} onChange={(e) => setFund({ ...fund, amount: e.target.value })} />
-          </Field>
-          <Field label="Currency" htmlFor="f-cur">
-            <input id="f-cur" className="input uppercase" value={fund.currency} onChange={(e) => setFund({ ...fund, currency: e.target.value })} maxLength={3} placeholder="RWF" />
-          </Field>
-        </div>
+        <p>Amount: {money(result.amount, result.currency)} (from the approved result)</p>
       </ReasonDialog>
     </SidePanel>
   );
