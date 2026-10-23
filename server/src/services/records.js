@@ -24,6 +24,7 @@ const {
   AuthToken,
   SupportThread,
   SupportMessage,
+  Testimonial,
 } = require('../models');
 const storage = require('./storage');
 const audit = require('./audit');
@@ -101,11 +102,12 @@ async function accountDeletePlan(user) {
     attributes: ['id', 'storageKey'],
   });
   const documentIds = documents.map((d) => d.id);
-  const [reviews, emails, tokens, threads] = await Promise.all([
+  const [reviews, emails, tokens, threads, testimonies] = await Promise.all([
     Review.count({ where: reviewTargets(user.id, projectIds, documentIds) }),
     Notification.count({ where: { recipientId: user.id } }),
     AuthToken.count({ where: { userId: user.id } }),
     SupportThread.findAll({ where: { userId: user.id }, attributes: ['id'] }),
+    Testimonial.count({ where: { userId: user.id } }),
   ]);
   const threadIds = threads.map((t) => t.id);
   const attachments = threadIds.length
@@ -124,6 +126,7 @@ async function accountDeletePlan(user) {
       emails,
       codes: tokens,
       requests: threadIds.length,
+      testimonies,
     },
     _ids: { projectIds, documentIds, threadIds, keys: [...documents.map((d) => d.storageKey), ...(user.photoKey ? [user.photoKey] : []), ...attachmentKeys] },
   };
@@ -190,6 +193,7 @@ async function deleteAccount(user, actorId) {
       await SupportMessage.destroy({ where: { threadId: { [Op.in]: threadIds } }, ...t });
       await SupportThread.destroy({ where: { id: { [Op.in]: threadIds } }, ...t });
     }
+    await Testimonial.destroy({ where: { userId: user.id }, ...t });
     await Review.destroy({ where: reviewTargets(user.id, projectIds, documentIds), ...t });
     await Notification.destroy({ where: { recipientId: user.id }, ...t });
     await AuthToken.destroy({ where: { userId: user.id }, ...t });

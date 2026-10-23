@@ -66,6 +66,78 @@ function Appearance() {
   );
 }
 
+const TESTIMONY_STATUS = { pending: 'Waiting for administrator approval', approved: 'Approved — shown on the home page', rejected: 'Not approved' };
+
+// A short testimony for the home page; public only after administrator approval.
+function Testimony() {
+  const { user } = useAuth();
+  const [current, setCurrent] = useState(undefined);
+  const [body, setBody] = useState('');
+  const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api
+      .get('/testimonials/mine')
+      .then((d) => {
+        setCurrent(d.testimonial);
+        setBody(d.testimonial?.body || '');
+      })
+      .catch((e) => setError(e.message));
+  }, []);
+
+  const save = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const d = await api.put('/testimonials/mine', { body });
+      setCurrent(d.testimonial);
+      setNotice('Sent for approval. It appears on the home page once an administrator approves it.');
+    } catch (err) {
+      setError(err.fields?.body || err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const withdraw = async () => {
+    await api.delete('/testimonials/mine');
+    setCurrent(null);
+    setBody('');
+    setNotice('Testimony withdrawn.');
+  };
+
+  if (current === undefined && !error) return null;
+  return (
+    <>
+      <Messages notice={notice} error={error} />
+      {current && (
+        <p className="adm-hint">
+          Status: {TESTIMONY_STATUS[current.status]}
+          {current.status === 'rejected' && current.decisionReason ? ` (${current.decisionReason})` : ''}
+        </p>
+      )}
+      <form className="adm-card max-w-xl space-y-4 p-4" onSubmit={save}>
+        <Field label="Your testimony" htmlFor="testimony" help={`${body.trim().length} / 600. Shown with your name and ${user.role === 'investor' ? 'organisation' : 'cohort'}. Editing sends it back for approval.`}>
+          <textarea id="testimony" rows={5} className="input" value={body} onChange={(e) => setBody(e.target.value)} maxLength={600} />
+        </Field>
+        <div className="flex gap-2">
+          <button type="submit" className="adm-primary" disabled={busy || body.trim().length < 20 || user.status !== 'active'}>
+            {busy ? 'Sending…' : current ? 'Update and resubmit' : 'Send for approval'}
+          </button>
+          {current && (
+            <button type="button" className="adm-act adm-act-danger" onClick={withdraw}>
+              Withdraw
+            </button>
+          )}
+        </div>
+        {user.status !== 'active' && <p className="adm-hint !mb-0">Available once your account is approved.</p>}
+      </form>
+    </>
+  );
+}
+
 function Profile() {
   const { user, setUser } = useAuth();
   const canContact = ['graduate', 'investor'].includes(user.role);
@@ -183,10 +255,11 @@ function Profile() {
 export default function Settings() {
   const { section } = useParams();
   const { user } = useAuth();
-  const current = section === 'appearance' ? 'appearance' : 'profile';
+  const member = ['graduate', 'investor'].includes(user.role);
+  const current = section === 'appearance' ? 'appearance' : section === 'testimony' && member ? 'testimony' : 'profile';
 
   useEffect(() => {
-    document.title = `${current === 'appearance' ? 'Appearance' : 'Profile'} · Settings · ALU Ventures`;
+    document.title = `${{ appearance: 'Appearance', testimony: 'Testimony', profile: 'Profile' }[current]} · Settings · ALU Ventures`;
   }, [current]);
 
   const tab = ({ isActive }) => `border-b-2 py-2 text-[13px] ${isActive ? 'border-[var(--adm-accent)] font-semibold' : 'adm-muted border-transparent hover:text-[var(--adm-text)]'}`;
@@ -199,13 +272,18 @@ export default function Settings() {
         <NavLink to="/app/settings/appearance" className={tab}>
           Appearance
         </NavLink>
-        {['graduate', 'investor'].includes(user.role) && (
+        {member && (
+          <NavLink to="/app/settings/testimony" className={tab}>
+            Testimony
+          </NavLink>
+        )}
+        {member && (
           <Link to="/app/contact" className="adm-muted border-b-2 border-transparent py-2 text-[13px] hover:text-[var(--adm-text)]">
             Contact admin
           </Link>
         )}
       </nav>
-      {current === 'appearance' ? <Appearance /> : <Profile />}
+      {current === 'appearance' ? <Appearance /> : current === 'testimony' ? <Testimony /> : <Profile />}
     </AdminPage>
   );
 }

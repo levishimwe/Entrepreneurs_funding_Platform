@@ -121,18 +121,20 @@ describe('end to end: admitted → Completed → Won → approved → Fully Fund
 
     // Home page: off until the administrator ticks it.
     const stories = async () => (await graduate.client.get('/api/public/success-stories')).body.stories;
-    expect((await stories()).some((s) => s.projectCode === project.projectCode)).toBe(false);
+    expect((await stories()).some((s) => s.id === project.id)).toBe(false);
     expect((await admin.patch(`/api/admin/projects/${project.id}/funding`).send({ showOnHome: true, showAmount: true })).status).toBe(200);
-    const story = (await stories()).find((s) => s.projectCode === project.projectCode);
+    const story = (await stories()).find((s) => s.id === project.id);
     expect(story).toEqual({
       title: project.title,
       sector: 'Agriculture',
-      projectCode: project.projectCode,
+      id: project.id,
       summary: 'A test venture used to record competition results in the test suite.',
       fundingSource: 'Competition',
       amount: { value: 5000000, currency: 'RWF' },
-      founder: 'Verified ALU graduate',
+      founder: { name: 'Amina Uwase', cohortYear: 2024, program: 'BSc Software Engineering', label: 'Verified ALU graduate' },
     });
+    // The home page never receives the project code.
+    expect(JSON.stringify(story)).not.toContain(project.projectCode);
   });
 });
 
@@ -252,10 +254,10 @@ describe('competition results rules', () => {
     expect((await staff.patch(`/api/admin/projects/${project.id}/funding`).send({ showOnHome: true })).status).toBe(403);
     await admin.patch(`/api/admin/projects/${project.id}/funding`).send({ showOnHome: true });
     const stories = async () => (await graduate.client.get('/api/public/success-stories')).body.stories;
-    const story = (await stories()).find((s) => s.projectCode === project.projectCode);
+    const story = (await stories()).find((s) => s.id === project.id);
     expect(story.amount).toBeNull();
     expect(JSON.stringify(story)).not.toContain(graduate.email);
     await Project.update({ publicationConsent: false }, { where: { id: project.id } });
-    expect((await stories()).some((s) => s.projectCode === project.projectCode)).toBe(false);
+    expect((await stories()).some((s) => s.id === project.id)).toBe(false);
   });
 });

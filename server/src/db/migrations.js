@@ -28,6 +28,8 @@ function createMigrator(sequelize, { logger } = {}) {
 // Columns the running code depends on, newest first. If one is missing after
 // migrating, the server must not start.
 const REQUIRED_COLUMNS = [
+  ['testimonials', 'status'],
+  ['investor_profiles', 'show_on_home'],
   ['opportunities', 'completed_at'],
   ['opportunities', 'ends_at'],
   ['competition_results', 'status'],

@@ -62,6 +62,8 @@ const InvestorProfile = sequelize.define(
     website: DataTypes.STRING(255),
     sectors: DataTypes.JSON,
     bio: DataTypes.TEXT,
+    // Shown on the public home page only when the administrator ticks it.
+    showOnHome: { type: DataTypes.BOOLEAN, defaultValue: false, field: 'show_on_home' },
   },
   { tableName: 'investor_profiles' }
 );
@@ -301,6 +303,22 @@ const SupportMessage = sequelize.define(
   { tableName: 'support_messages', updatedAt: false }
 );
 
+// A graduate or investor testimony; public only after administrator approval.
+const Testimonial = sequelize.define(
+  'Testimonial',
+  {
+    id: ID,
+    userId: { ...REF, allowNull: false, field: 'user_id' },
+    authorRole: { type: DataTypes.ENUM('graduate', 'investor'), allowNull: false, field: 'author_role' },
+    body: { type: DataTypes.TEXT, allowNull: false },
+    status: { type: DataTypes.ENUM('pending', 'approved', 'rejected'), defaultValue: 'pending' },
+    decidedBy: { ...REF, field: 'decided_by' },
+    decidedAt: { type: DataTypes.DATE, field: 'decided_at' },
+    decisionReason: { type: DataTypes.TEXT, field: 'decision_reason' },
+  },
+  { tableName: 'testimonials' }
+);
+
 // A participant's outcome in a hackathon or competition, recorded by staff and
 // approved or rejected by the administrator.
 const CompetitionResult = sequelize.define(
@@ -417,6 +435,8 @@ CompetitionResult.belongsTo(Project, { foreignKey: 'projectId', as: 'project' })
 CompetitionResult.belongsTo(User, { foreignKey: 'graduateId', as: 'graduate' });
 CompetitionResult.belongsTo(User, { foreignKey: 'submittedBy', as: 'submitter' });
 CompetitionResult.belongsTo(User, { foreignKey: 'decidedBy', as: 'decider' });
+Testimonial.belongsTo(User, { foreignKey: 'userId', as: 'author' });
+Testimonial.belongsTo(User, { foreignKey: 'decidedBy', as: 'decider' });
 Application.hasMany(CompetitionResult, { foreignKey: 'applicationId', as: 'results' });
 Project.hasMany(CompetitionResult, { foreignKey: 'projectId', as: 'competitionResults' });
 
@@ -436,6 +456,7 @@ module.exports = {
   SupportThread,
   SupportMessage,
   CompetitionResult,
+  Testimonial,
   AuthToken,
   SectorKeyword,
   Setting,

@@ -176,6 +176,7 @@ router.get('/investors', async (req, res) => {
       website: u.investorProfile?.website,
       sectors: u.investorProfile?.sectors || [],
       bio: u.investorProfile?.bio,
+      showOnHome: Boolean(u.investorProfile?.showOnHome),
     })),
   });
 });
@@ -860,5 +861,6 @@ router.put('/config/sectors/:id', async (req, res) => {
 
 require('./adminRequests')(router);
 require('./adminResults')(router);
+require('./adminHome')(router);
 
 module.exports = router;

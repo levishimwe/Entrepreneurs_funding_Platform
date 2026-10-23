@@ -14,6 +14,8 @@ import { PublicOpportunities, PublicProject, Ventures, VerifyProject } from './p
 import Opportunities from './pages/graduate/Opportunities';
 import Settings from './pages/Settings';
 import Contact from './pages/Contact';
+import GoTo from './components/GoTo';
+import AdminTestimonials from './pages/admin/AdminTestimonials';
 import Introductions from './pages/Introductions';
 import Discover from './pages/investor/Discover';
 import InvestorProject from './pages/investor/InvestorProject';
@@ -89,6 +91,7 @@ export default function App() {
               <Route path="opportunities" element={<AdminOpportunities />} />
               <Route path="requests" element={<AdminRequests />} />
               <Route path="results" element={<AdminResults />} />
+              <Route path="testimonials" element={<AdminTestimonials />} />
               <Route path="outbox" element={<Outbox />} />
               <Route path="config" element={<RulesConfig />} />
             </Route>
@@ -100,6 +103,7 @@ export default function App() {
               <Route path=":id" element={<StaffSelection />} />
               <Route path=":id/edit" element={<StaffOpportunityForm />} />
             </Route>
+            <Route path="go/:target" element={<GoTo />} />
             <Route path="settings" element={<Settings />} />
             <Route path="settings/:section" element={<Settings />} />
             <Route path="*" element={<NotFound />} />

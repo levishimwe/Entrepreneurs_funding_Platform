@@ -121,3 +121,67 @@ textarea.input {
 select.input {
   padding-right: 28px;
 }
+
+/* Home page: moving rows (components/home/Marquee.jsx). */
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.marquee {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 4%, #000 96%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 4%, #000 96%, transparent);
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll var(--marquee-duration, 40s) linear infinite;
+}
+.marquee-reverse {
+  animation-direction: reverse;
+}
+.marquee-group {
+  display: flex;
+  gap: 16px;
+  margin: 0;
+  padding: 4px 8px 4px 8px;
+  list-style: none;
+}
+.marquee:hover .marquee-track,
+.marquee:focus-within .marquee-track {
+  animation-play-state: paused;
+}
+/* Paused by the control: stop, show one copy, and allow swiping. */
+.marquee[data-paused='true'] {
+  overflow-x: auto;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+.marquee[data-paused='true'] .marquee-track {
+  animation: none;
+}
+.marquee[data-paused='true'] .marquee-copy,
+.marquee[data-paused='true'] .marquee-repeat {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee {
+    overflow-x: auto;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .marquee-track {
+    animation: none;
+  }
+  .marquee-copy,
+  .marquee-repeat {
+    display: none;
+  }
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+}

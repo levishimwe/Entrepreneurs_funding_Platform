@@ -430,6 +430,7 @@ const REMOVES = {
   codes: 'sign-in code',
   applications: 'application',
   requests: 'help request',
+  testimonies: 'testimonial',
 };
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 

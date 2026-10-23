@@ -3,7 +3,7 @@
 const express = require('express');
 const { Op } = require('sequelize');
 const { z } = require('zod');
-const { Project, User, GraduateProfile, SectorKeyword, Opportunity, Introduction } = require('../models');
+const { Project, User, GraduateProfile, InvestorProfile, SectorKeyword, Opportunity, Introduction, Testimonial } = require('../models');
 const { HttpError } = require('../middleware/errors');
 const { lookupLimiter } = require('../middleware/rateLimits');
 const { CODE_PATTERN, normalizeCode, COMPARABLE_STATUSES } = require('../services/categorization');
@@ -21,27 +21,89 @@ const withFounder = [
   },
 ];
 
+const clip = (text, n) => (!text ? null : text.length > n ? `${text.slice(0, n - 1).trimEnd()}…` : text);
+
 // Success stories for the home page: Fully Funded projects the administrator
-// chose to show (and whose founder consented to publication). Public-safe
-// fields only: no names, emails, phones, documents or ids beyond the public code.
+// chose to show, whose founder consented to publication (which covers the
+// founder's name on the public profile). Never the project code, emails,
+// phones, photos or documents.
 const FUNDING_LABEL = { investor: 'Investor', competition: 'Competition' };
 router.get('/success-stories', async (req, res) => {
   const projects = await Project.findAll({
     where: { status: 'funded', showOnHome: true, publicationConsent: true },
-    attributes: ['title', 'sector', 'projectCode', 'summary', 'fundingSource', 'fundingAmount', 'fundingCurrency', 'showAmount', 'closedAt'],
+    attributes: ['id', 'title', 'sector', 'summary', 'fundingSource', 'fundingAmount', 'fundingCurrency', 'showAmount', 'closedAt'],
+    include: [{ model: User, as: 'owner', attributes: ['fullName'], include: [{ model: GraduateProfile, as: 'graduateProfile', attributes: ['cohortYear', 'program'] }] }],
     order: [['closedAt', 'DESC']],
     limit: 12,
   });
   res.json({
     stories: projects.map((p) => ({
+      id: p.id,
       title: p.title,
       sector: p.sector,
-      projectCode: p.projectCode,
-      summary: p.summary.length > 220 ? `${p.summary.slice(0, 217).trimEnd()}…` : p.summary,
+      summary: clip(p.summary, 220),
       fundingSource: FUNDING_LABEL[p.fundingSource] || null,
       // Only when the administrator ticked "Show amount publicly".
       amount: p.showAmount && p.fundingAmount !== null ? { value: Number(p.fundingAmount), currency: p.fundingCurrency } : null,
-      founder: 'Verified ALU graduate',
+      founder: {
+        name: p.owner?.fullName || null,
+        cohortYear: p.owner?.graduateProfile?.cohortYear || null,
+        program: p.owner?.graduateProfile?.program || null,
+        label: 'Verified ALU graduate',
+      },
+    })),
+  });
+});
+
+// Investors the administrator chose to show on the home page (off by default).
+const INVESTOR_TYPE = { investor: 'Investor', sponsor: 'Sponsor' };
+router.get('/investors', async (req, res) => {
+  const rows = await User.findAll({
+    where: { role: 'investor', status: 'active' },
+    attributes: ['id', 'fullName'],
+    include: [{ model: InvestorProfile, as: 'investorProfile', required: true, where: { showOnHome: true }, attributes: ['investorType', 'organisation', 'sectors', 'bio'] }],
+    order: [['id', 'DESC']],
+    limit: 12,
+  });
+  res.json({
+    investors: rows.map((u) => ({
+      id: u.id,
+      name: u.fullName,
+      type: INVESTOR_TYPE[u.investorProfile.investorType] || 'Investor',
+      organisation: u.investorProfile.organisation,
+      sectors: (u.investorProfile.sectors || []).slice(0, 3),
+      bio: clip(u.investorProfile.bio, 180),
+    })),
+  });
+});
+
+// Testimonies approved by the administrator, from accounts that are still active.
+router.get('/testimonials', async (req, res) => {
+  const rows = await Testimonial.findAll({
+    where: { status: 'approved' },
+    include: [
+      {
+        model: User,
+        as: 'author',
+        required: true,
+        where: { status: 'active' },
+        attributes: ['fullName', 'role'],
+        include: [
+          { model: GraduateProfile, as: 'graduateProfile', attributes: ['cohortYear'] },
+          { model: InvestorProfile, as: 'investorProfile', attributes: ['organisation'] },
+        ],
+      },
+    ],
+    order: [['decidedAt', 'DESC']],
+    limit: 24,
+  });
+  res.json({
+    testimonials: rows.map((t) => ({
+      id: t.id,
+      body: t.body,
+      name: t.author.fullName,
+      role: t.authorRole === 'investor' ? 'Investor' : 'Graduate founder',
+      detail: t.authorRole === 'investor' ? t.author.investorProfile?.organisation || null : t.author.graduateProfile?.cohortYear ? `Class of ${t.author.graduateProfile.cohortYear}` : null,
     })),
   });
 });

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { useAuth, homePathFor } from '../context/AuthContext';
 
@@ -14,6 +14,7 @@ const LINKS = [
 export default function PublicLayout() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
 
   const actions = (mobile) =>
     user ? (
@@ -30,6 +31,9 @@ export default function PublicLayout() {
         </Link>
       </>
     );
+
+  // The home page draws its own dark top bar and footer.
+  if (pathname === '/') return <Outlet />;
 
   return (
     <div className="adm-root flex min-h-screen flex-col">

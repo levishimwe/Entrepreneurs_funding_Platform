@@ -158,6 +158,29 @@ export default function AccountQueue({ role }) {
                     ['Website', viewing.website ? <a key="w" className="adm-a" href={viewing.website} target="_blank" rel="noreferrer">{viewing.website}</a> : null],
                     ['Sectors', viewing.sectors?.length ? viewing.sectors.join(', ') : null],
                     ['About', viewing.bio],
+                    [
+                      'Home page',
+                      <label key="h" className="inline-flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(viewing.showOnHome)}
+                          disabled={viewing.status !== 'active'}
+                          onChange={async (e) => {
+                            const showOnHome = e.target.checked;
+                            setError('');
+                            try {
+                              await api.patch(`/admin/investors/${viewing.id}/home`, { showOnHome });
+                              setViewing({ ...viewing, showOnHome });
+                              setRows((rs) => rs?.map((r) => (r.id === viewing.id ? { ...r, showOnHome } : r)));
+                              setNotice(showOnHome ? `${viewing.fullName} now shows on the home page (name, organisation, sectors, bio).` : `${viewing.fullName} no longer shows on the home page.`);
+                            } catch (err) {
+                              setError(err.message);
+                            }
+                          }}
+                        />
+                        Show on home page
+                      </label>,
+                    ],
                   ]),
             ]}
           />

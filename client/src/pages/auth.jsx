@@ -5,6 +5,11 @@ import { useAuth, homePathFor } from '../context/AuthContext';
 import { Alert, Field } from '../components/ui';
 import { PROGRAMS, SECTORS } from '../lib/constants';
 
+// Where to go after signing in or verifying: an internal path from ?next=
+// (home-page tiles send visitors here), never an external URL.
+export const safeNext = (value) => (typeof value === 'string' && /^\/(?!\/)[\w\-/?=&.]*$/.test(value) ? value : null);
+const withNext = (path, next) => (next ? `${path}${path.includes('?') ? '&' : '?'}next=${encodeURIComponent(next)}` : path);
+
 // Shared form state + server-side validation errors.
 export function useFormState(initial) {
   const [values, setValues] = useState(initial);
@@ -71,6 +76,8 @@ function DarkField({ id, label, error, help, children }) {
 export function SignIn() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const next = safeNext(searchParams.get('next'));
   const { setUser } = useAuth();
   const f = useFormState({ email: '', password: '' });
 
@@ -80,10 +87,10 @@ export function SignIn() {
       try {
         const { user } = await api.post('/auth/login', f.values);
         setUser(user);
-        navigate(location.state?.from || homePathFor(user), { replace: true });
+        navigate(location.state?.from || next || homePathFor(user), { replace: true });
       } catch (err) {
         if (err.details?.code === 'EMAIL_NOT_VERIFIED') {
-          navigate(`/verify-email?email=${encodeURIComponent(err.details.email)}`, { state: { resent: true } });
+          navigate(withNext(`/verify-email?email=${encodeURIComponent(err.details.email)}`, next), { state: { resent: true } });
           return;
         }
         throw err;
@@ -99,7 +106,7 @@ export function SignIn() {
       footer={
         <>
           New here?{' '}
-          <Link to="/register" className="adm-a font-medium">
+          <Link to={withNext('/register', next)} className="adm-a font-medium">
             Create a free account
           </Link>
         </>
@@ -200,7 +207,7 @@ function PhoneAndPhoto({ f, prefix }) {
 }
 
 // ---------------------------------------------------------------------------
-function GraduateForm() {
+function GraduateForm({ next }) {
   const navigate = useNavigate();
   const f = useFormState({ fullName: '', email: '', password: '', phone: '', cohortYear: '', program: '', file: null, photo: null });
 
@@ -211,7 +218,7 @@ function GraduateForm() {
       ['fullName', 'email', 'password', 'cohortYear', 'program'].forEach((k) => data.append(k, f.values[k]));
       if (f.values.file) data.append('degreeCertificate', f.values.file);
       const res = await api.upload('/auth/register/graduate', data);
-      navigate(`/verify-email?email=${encodeURIComponent(res.email)}`);
+      navigate(withNext(`/verify-email?email=${encodeURIComponent(res.email)}`, next));
     });
   };
 
@@ -273,7 +280,7 @@ function GraduateForm() {
   );
 }
 
-function InvestorForm() {
+function InvestorForm({ next }) {
   const navigate = useNavigate();
   const f = useFormState({
     fullName: '',
@@ -298,7 +305,7 @@ function InvestorForm() {
       });
       if (f.values.photo) data.append('profilePhoto', f.values.photo);
       const res = await api.upload('/auth/register/investor', data);
-      navigate(`/verify-email?email=${encodeURIComponent(res.email)}`);
+      navigate(withNext(`/verify-email?email=${encodeURIComponent(res.email)}`, next));
     });
   };
 
@@ -380,6 +387,7 @@ function InvestorForm() {
 
 export function Register() {
   const [params, setParams] = useSearchParams();
+  const next = safeNext(params.get('next'));
   const role = params.get('role') === 'investor' ? 'investor' : 'graduate';
   return (
     <AuthCard
@@ -389,7 +397,7 @@ export function Register() {
       footer={
         <>
           Already registered?{' '}
-          <Link to="/signin" className="adm-a font-medium">
+          <Link to={withNext('/signin', next)} className="adm-a font-medium">
             Sign in
           </Link>
         </>
@@ -405,14 +413,14 @@ export function Register() {
             role="tab"
             type="button"
             aria-selected={role === value}
-            onClick={() => setParams(value === 'investor' ? { role: 'investor' } : {})}
+            onClick={() => setParams({ ...(value === 'investor' ? { role: 'investor' } : {}), ...(next ? { next } : {}) })}
             className={`-mb-px border-b-2 py-2 text-[13px] ${role === value ? 'border-accent font-semibold text-ink' : 'border-transparent text-muted hover:text-ink'}`}
           >
             {label}
           </button>
         ))}
       </div>
-      {role === 'graduate' ? <GraduateForm /> : <InvestorForm />}
+      {role === 'graduate' ? <GraduateForm next={next} /> : <InvestorForm next={next} />}
     </AuthCard>
   );
 }
@@ -420,6 +428,7 @@ export function Register() {
 // ---------------------------------------------------------------------------
 export function VerifyEmail() {
   const [params] = useSearchParams();
+  const next = safeNext(params.get('next'));
   const location = useLocation();
   const navigate = useNavigate();
   const { setUser } = useAuth();
@@ -434,7 +443,7 @@ export function VerifyEmail() {
     f.run(async () => {
       const { user } = await api.post('/auth/verify-email', { email, code: f.values.code });
       setUser(user);
-      navigate(homePathFor(user), { replace: true });
+      navigate(next || homePathFor(user), { replace: true });
     });
   };
   const resend = () =>
