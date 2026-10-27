@@ -1,10 +1,13 @@
 // Response shapes for projects. Public responses carry only the approved,
-// consented summary — never documents, flags or review notes (FR06, FR14).
+// consented summary — never documents, flags, review notes or the project
+// code (FR06, FR14). The code is the founder's to share: the public reaches a
+// venture by its id, and only someone who already holds the code can look it
+// up on the Verify page.
 const { serializeResult } = require('./results');
 
 function publicProject(p) {
   return {
-    projectCode: p.projectCode,
+    id: p.id,
     title: p.title,
     type: p.type,
     sector: p.sector,
@@ -21,6 +24,8 @@ function publicProject(p) {
           name: p.owner.fullName,
           cohortYear: p.owner.graduateProfile?.cohortYear ?? null,
           program: p.owner.graduateProfile?.program ?? null,
+          // Served by /api/public/projects/:id/photo, only while the venture is public.
+          photoUrl: p.owner.photoKey ? `/api/public/projects/${p.id}/photo` : null,
         }
       : null,
   };
@@ -60,8 +65,8 @@ function ownerProject(p) {
     publicationConsent: p.publicationConsent,
     status: p.status,
     similarityStatus: p.similarityStatus,
-    similarityMatches: (p.similarityMatches || []).map(({ projectCode, title, sector, score }) => ({
-      projectCode,
+    // Other founders' codes are theirs to share, so matches carry no code.
+    similarityMatches: (p.similarityMatches || []).map(({ title, sector, score }) => ({
       title,
       sector,
       score,

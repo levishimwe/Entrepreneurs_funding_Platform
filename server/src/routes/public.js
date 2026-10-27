@@ -1,5 +1,7 @@
 // Unauthenticated endpoints. Only approved projects whose owners consented to
 // publication are ever returned; private evidence never is (FR06, FR14).
+// No response carries a project code: the code belongs to the founder, and
+// /verify/:code only confirms a code the visitor already has.
 const express = require('express');
 const { Op } = require('sequelize');
 const { z } = require('zod');
@@ -8,6 +10,7 @@ const { HttpError } = require('../middleware/errors');
 const { lookupLimiter } = require('../middleware/rateLimits');
 const { CODE_PATTERN, normalizeCode, COMPARABLE_STATUSES } = require('../services/categorization');
 const { publicProject } = require('../services/projectView');
+const { sendStoredFile } = require('../services/fileDelivery');
 
 const router = express.Router();
 
@@ -16,7 +19,7 @@ const withFounder = [
   {
     model: User,
     as: 'owner',
-    attributes: ['fullName'],
+    attributes: ['fullName', 'photoKey'],
     include: [{ model: GraduateProfile, as: 'graduateProfile', attributes: ['cohortYear', 'program'] }],
   },
 ];
@@ -149,6 +152,18 @@ router.get('/verify/:code', lookupLimiter, async (req, res) => {
   });
 });
 
+const SORTS = {
+  newest: [['approvedAt', 'DESC'], ['id', 'DESC']],
+  oldest: [['approvedAt', 'ASC'], ['id', 'ASC']],
+  title: [['title', 'ASC'], ['id', 'ASC']],
+};
+
+// Counts of public ventures per value of `column`, under the other filters.
+async function facet(column, where) {
+  const rows = await Project.findAll({ where, attributes: [column, [Project.sequelize.fn('COUNT', Project.sequelize.col('id')), 'n']], group: [column], raw: true });
+  return Object.fromEntries(rows.filter((r) => r[column]).map((r) => [r[column], Number(r.n)]));
+}
+
 router.get('/projects', async (req, res) => {
   const q = z
     .object({
@@ -157,30 +172,62 @@ router.get('/projects', async (req, res) => {
       stage: z.string().max(60).optional(),
       country: z.string().max(60).optional(),
       q: z.string().max(100).optional(),
+      sort: z.enum(['newest', 'oldest', 'title']).default('newest'),
       page: z.coerce.number().int().min(1).default(1),
     })
     .parse(req.query);
-  const where = { ...PUBLIC_WHERE };
-  if (q.sector) where.sector = q.sector;
-  if (q.type) where.type = q.type;
-  if (q.stage) where.stage = q.stage;
-  if (q.country) where.country = q.country;
+  const base = { ...PUBLIC_WHERE };
+  if (q.country) base.country = q.country;
   if (q.q) {
-    where[Op.or] = [
+    base[Op.or] = [
       { title: { [Op.like]: `%${q.q}%` } },
       { summary: { [Op.like]: `%${q.q}%` } },
       { companyName: { [Op.like]: `%${q.q}%` } },
+      { sector: { [Op.like]: `%${q.q}%` } },
+      { country: { [Op.like]: `%${q.q}%` } },
     ];
   }
+  const only = (keys) => ({ ...base, ...Object.fromEntries(keys.filter((k) => q[k]).map((k) => [k, q[k]])) });
+  const where = only(['sector', 'type', 'stage']);
   const pageSize = 12;
-  const { rows, count } = await Project.findAndCountAll({
-    where,
-    include: withFounder,
-    order: [['approvedAt', 'DESC']],
-    limit: pageSize,
-    offset: (q.page - 1) * pageSize,
+  const [{ rows, count }, type, stage, sector] = await Promise.all([
+    Project.findAndCountAll({ where, include: withFounder, order: SORTS[q.sort], limit: pageSize, offset: (q.page - 1) * pageSize }),
+    // Each filter's counts respect the other filters, so the numbers beside an option are what choosing it would show.
+    facet('type', only(['sector', 'stage'])),
+    facet('stage', only(['sector', 'type'])),
+    facet('sector', only(['type', 'stage'])),
+  ]);
+  res.json({ projects: rows.map(publicProject), total: count, page: q.page, pageSize, sort: q.sort, facets: { type, stage, sector } });
+});
+
+// One public venture by id (the Browse page links here; the code is never in the URL).
+const idParam = z.coerce.number().int().positive();
+const NOT_PUBLIC = 'This venture is not available.';
+router.get('/projects/:id', async (req, res) => {
+  const id = idParam.safeParse(req.params.id);
+  if (!id.success) throw new HttpError(404, NOT_PUBLIC);
+  const project = await Project.findOne({ where: { ...PUBLIC_WHERE, id: id.data }, include: withFounder });
+  if (!project) throw new HttpError(404, NOT_PUBLIC);
+  res.json({
+    project: publicProject(project),
+    disclaimer:
+      'This is an approved record on the ALU Ventures platform. It is not proof of legal registration, investment quality or ALU endorsement.',
   });
-  res.json({ projects: rows.map(publicProject), total: count, page: q.page, pageSize });
+});
+
+// The founder's profile photo, only while their venture is public. Other
+// profile photos stay private (owner and administrators only).
+router.get('/projects/:id/photo', async (req, res) => {
+  const id = idParam.safeParse(req.params.id);
+  if (!id.success) throw new HttpError(404, 'No photo.');
+  const project = await Project.findOne({
+    where: { ...PUBLIC_WHERE, id: id.data },
+    attributes: ['id'],
+    include: [{ model: User, as: 'owner', attributes: ['photoKey', 'status'] }],
+  });
+  const key = project?.owner?.status === 'active' ? project.owner.photoKey : null;
+  if (!key) throw new HttpError(404, 'No photo.');
+  await sendStoredFile(res, { storageKey: key, mimeType: key.endsWith('.png') ? 'image/png' : 'image/jpeg', filename: 'founder-photo' });
 });
 
 router.get('/opportunities', async (req, res) => {

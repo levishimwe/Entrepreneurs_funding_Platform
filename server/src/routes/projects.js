@@ -129,7 +129,7 @@ router.post('/similarity-check', requireRole('graduate'), async (req, res) => {
   const result = await findSimilarProjects({ ...data, excludeId: data.projectId || null });
   res.json({
     threshold: result.threshold,
-    matches: result.matches.map(({ projectCode, title, sector, score }) => ({ projectCode, title, sector, score })),
+    matches: result.matches.map(({ title, sector, score }) => ({ title, sector, score })),
   });
 });
 
@@ -156,7 +156,7 @@ router.post('/', requireApprovedGraduate, uploadLimiter, uploadFields, async (re
     return res.status(409).json({
       error: 'Your project looks similar to existing approved projects. Review the matches before submitting.',
       code: 'SIMILARITY_WARNING',
-      matches: similarity.matches.map(({ projectCode, title, sector, score }) => ({ projectCode, title, sector, score })),
+      matches: similarity.matches.map(({ title, sector, score }) => ({ title, sector, score })),
     });
   }
 
@@ -259,16 +259,19 @@ router.get('/mine', requireRole('graduate'), async (req, res) => {
 });
 
 router.get('/:id', requireRole('graduate'), async (req, res) => {
-  const project = ownerProject(await loadOwnedProject(req));
+  const record = await loadOwnedProject(req);
+  const project = ownerProject(record);
   // For the clarification comparison: the matched project's summary is shown
-  // only when it is an approved, publication-consented record.
-  if (project.similarityMatches.length) {
+  // only when it is an approved, publication-consented record. Matches are
+  // looked up by the stored code here; the response never carries it.
+  const stored = record.similarityMatches || [];
+  if (stored.length) {
     const matched = await Project.findAll({
-      where: { projectCode: project.similarityMatches.map((m) => m.projectCode), publicationConsent: true },
+      where: { projectCode: stored.map((m) => m.projectCode), publicationConsent: true },
       attributes: ['projectCode', 'summary', 'status'],
     });
     const byCode = Object.fromEntries(matched.filter((m) => m.status !== 'archived').map((m) => [m.projectCode, m.summary]));
-    project.similarityMatches = project.similarityMatches.map((m) => ({ ...m, summary: byCode[m.projectCode] || null }));
+    project.similarityMatches = project.similarityMatches.map((m, i) => ({ ...m, summary: byCode[stored[i].projectCode] || null }));
   }
   res.json({ project });
 });
@@ -307,7 +310,7 @@ router.patch('/:id', requireApprovedGraduate, uploadLimiter, uploadFields, async
     return res.status(409).json({
       error: 'Your revised project looks similar to existing approved projects. Review the matches before resubmitting.',
       code: 'SIMILARITY_WARNING',
-      matches: similarity.matches.map(({ projectCode, title, sector, score }) => ({ projectCode, title, sector, score })),
+      matches: similarity.matches.map(({ title, sector, score }) => ({ title, sector, score })),
     });
   }
 

@@ -57,7 +57,7 @@ export default function App() {
             <Route path="reset-password" element={<ResetPassword />} />
             <Route path="password-updated" element={<PasswordUpdated />} />
             <Route path="ventures" element={<Ventures />} />
-            <Route path="ventures/:code" element={<PublicProject />} />
+            <Route path="ventures/:id" element={<PublicProject />} />
             <Route path="verify" element={<VerifyProject />} />
             <Route path="opportunities" element={<PublicOpportunities />} />
             <Route path="*" element={<NotFound />} />

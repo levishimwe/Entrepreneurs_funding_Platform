@@ -287,15 +287,15 @@ export default function ProjectForm() {
                     <thead>
                       <tr>
                         <th>Project</th>
-                        <th>Code</th>
+                        <th>Sector</th>
                         <th className="adm-num">Similarity</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {matches.map((m) => (
-                        <tr key={m.projectCode}>
+                      {matches.map((m, i) => (
+                        <tr key={i}>
                           <td>{m.title}</td>
-                          <td className="adm-mono">{m.projectCode}</td>
+                          <td>{m.sector}</td>
                           <td className="adm-num">{Math.round(m.score * 100)}%</td>
                         </tr>
                       ))}

@@ -97,16 +97,16 @@ function ClarificationView({ project, onSaved }) {
           <thead>
             <tr>
               <th>Project</th>
-              <th>Code</th>
+              <th>Sector</th>
               <th>Summary</th>
               <th className="adm-num">Score</th>
             </tr>
           </thead>
           <tbody>
-            {project.similarityMatches.map((m) => (
-              <tr key={m.projectCode}>
+            {project.similarityMatches.map((m, i) => (
+              <tr key={i}>
                 <td className="font-medium">{m.title}</td>
-                <td className="adm-mono">{m.projectCode}</td>
+                <td>{m.sector}</td>
                 <td className="adm-muted">{m.summary || 'Not public.'}</td>
                 <td className="adm-num">{Math.round(m.score * 100)}%</td>
               </tr>

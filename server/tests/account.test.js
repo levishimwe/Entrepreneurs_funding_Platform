@@ -79,8 +79,8 @@ describe('project operating country', () => {
     await Project.update({ status: 'approved', approvedAt: new Date() }, { where: { id: res.body.project.id } });
 
     const kenya = await agent().get('/api/public/projects?country=Kenya');
-    expect(kenya.body.projects.some((p) => p.projectCode === res.body.project.projectCode)).toBe(true);
+    expect(kenya.body.projects.some((p) => p.id === res.body.project.id)).toBe(true);
     const rwanda = await agent().get('/api/public/projects?country=Rwanda');
-    expect(rwanda.body.projects.some((p) => p.projectCode === res.body.project.projectCode)).toBe(false);
+    expect(rwanda.body.projects.some((p) => p.id === res.body.project.id)).toBe(false);
   });
 });
