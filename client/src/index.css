@@ -122,63 +122,160 @@ select.input {
   padding-right: 28px;
 }
 
-/* Home page: moving rows (components/home/Marquee.jsx). */
-@keyframes marquee-scroll {
+/* ---- Landing page motion (pages/Home.jsx) ----------------------------------
+   Everything here is decoration: with reduced motion it is switched off and
+   the content shows in its final place. */
+.reveal {
+  opacity: 0;
+  transform: translate3d(0, 28px, 0);
+  transition:
+    opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.reveal-left {
+  transform: translate3d(-36px, 0, 0);
+}
+.reveal-right {
+  transform: translate3d(36px, 0, 0);
+}
+.reveal-scale {
+  transform: translate3d(0, 20px, 0) scale(0.96);
+}
+.reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+@keyframes land-word {
   from {
-    transform: translateX(0);
+    opacity: 0;
+    transform: translate3d(0, 0.5em, 0);
+    filter: blur(8px);
   }
   to {
-    transform: translateX(-50%);
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
   }
 }
-.marquee {
+.land-word {
+  display: inline-block;
+  animation: land-word 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes land-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.land-rise {
+  animation: land-rise 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes land-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.75;
+  }
+  80%,
+  100% {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+.land-ping {
+  animation: land-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes land-drift {
+  0%,
+  100% {
+    transform: translate3d(-50%, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-50%, 24px, 0) scale(1.08);
+  }
+}
+.land-glow {
+  animation: land-drift 12s ease-in-out infinite;
+}
+@keyframes land-kenburns {
+  from {
+    transform: scale(1.02);
+  }
+  to {
+    transform: scale(1.12);
+  }
+}
+.land-kenburns {
+  animation: land-kenburns 9s ease-out both;
+}
+@keyframes land-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.land-progress {
+  transform-origin: left center;
+  animation: land-progress var(--slide-ms, 7000ms) linear both;
+}
+@keyframes land-flip {
+  0%,
+  70% {
+    transform: rotate(0);
+  }
+  85%,
+  100% {
+    transform: rotate(180deg);
+  }
+}
+.land-flip {
+  animation: land-flip 3s ease-in-out infinite;
+}
+/* Light sweep across the primary buttons on hover. */
+.land-shine {
+  position: relative;
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 4%, #000 96%, transparent);
-  mask-image: linear-gradient(to right, transparent, #000 4%, #000 96%, transparent);
+  isolation: isolate;
 }
-.marquee-track {
-  display: flex;
-  width: max-content;
-  animation: marquee-scroll var(--marquee-duration, 40s) linear infinite;
+.land-shine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.28) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.7s ease;
 }
-.marquee-reverse {
-  animation-direction: reverse;
-}
-.marquee-group {
-  display: flex;
-  gap: 16px;
-  margin: 0;
-  padding: 4px 8px 4px 8px;
-  list-style: none;
-}
-.marquee:hover .marquee-track,
-.marquee:focus-within .marquee-track {
-  animation-play-state: paused;
-}
-/* Paused by the control: stop, show one copy, and allow swiping. */
-.marquee[data-paused='true'] {
-  overflow-x: auto;
-  -webkit-mask-image: none;
-  mask-image: none;
-}
-.marquee[data-paused='true'] .marquee-track {
-  animation: none;
-}
-.marquee[data-paused='true'] .marquee-copy,
-.marquee[data-paused='true'] .marquee-repeat {
-  display: none;
+.land-shine:hover::after,
+.land-shine:focus-visible::after {
+  transform: translateX(120%);
 }
 @media (prefers-reduced-motion: reduce) {
-  .marquee {
-    overflow-x: auto;
-    -webkit-mask-image: none;
-    mask-image: none;
+  .reveal,
+  .reveal-left,
+  .reveal-right,
+  .reveal-scale {
+    opacity: 1;
+    transform: none;
+    transition: none;
   }
-  .marquee-track {
+  .land-word,
+  .land-rise,
+  .land-ping,
+  .land-glow,
+  .land-kenburns,
+  .land-flip {
     animation: none;
   }
-  .marquee-copy,
-  .marquee-repeat {
+  .land-shine::after {
     display: none;
   }
   html:focus-within {

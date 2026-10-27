@@ -1,538 +1,60 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { BadgeCheck, FolderKanban, GraduationCap, Handshake, Mail, Medal, Menu, MessageSquareQuote, Pause, Play, Search, Trophy, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  ArrowRight,
+  BadgeCheck,
+  Briefcase,
+  CalendarCheck,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  CircleCheck,
+  Compass,
+  DoorOpen,
+  FileSearch,
+  Gift,
+  GraduationCap,
+  Handshake,
+  Hourglass,
+  ListChecks,
+  Mail,
+  MailCheck,
+  Menu,
+  Pause,
+  Play,
+  Rocket,
+  ScrollText,
+  Search,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Timer,
+  Trophy,
+  UserCheck,
+  X,
+  Zap,
+} from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth, homePathFor } from '../context/AuthContext';
-import Marquee from '../components/home/Marquee';
 
-// Public home page. Layout follows the supervisor's reference (dark, centred
-// hero, moving rows, large rounded panels); every word and number is about
-// ALU Ventures and comes from the platform. Project codes never appear here.
+// Public landing page, built from the "Landing — polished" design (dark
+// theme). Live numbers come from /public/banner-stats; the product panels
+// (venture list, opportunity card, introduction) are labelled examples.
+// Motion is decoration only and switches off with reduced motion.
 
-const GREEN = 'inline-flex h-10 items-center justify-center rounded-md bg-[#1f883d] px-5 text-[14px] font-semibold text-white hover:bg-[#1a7f37] disabled:cursor-not-allowed disabled:opacity-50';
-const GREEN_OUTLINE = 'inline-flex h-10 items-center justify-center rounded-md border border-[#2ea043] px-5 text-[14px] font-semibold text-[#3fb950] hover:bg-[#2ea043]/10 disabled:cursor-not-allowed disabled:opacity-50';
-const PANEL = 'rounded-2xl border border-white/10 bg-[#111a2b]';
-const MUTED = 'text-[#a3adbd]';
+const PRIMARY =
+  'land-shine group inline-flex items-center justify-center gap-2.5 rounded-full bg-[#2563eb] font-semibold text-white transition-[background-color,transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:bg-[#1d4ed8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#60a5fa]';
+const GHOST =
+  'group inline-flex items-center justify-center gap-2 rounded-full border border-white/[0.16] bg-white/[0.06] font-semibold text-white transition-[background-color,border-color,transform] duration-300 hover:-translate-y-0.5 hover:border-white/30 hover:bg-white/[0.1] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#60a5fa]';
+const CARD = 'rounded-2xl border border-white/[0.08] bg-white/[0.03]';
+const EYEBROW = 'text-[12px] font-semibold uppercase tracking-[1.6px] text-[#60a5fa]';
+const H2 = 'text-[36px] font-medium leading-[1.08] tracking-[-1.2px] text-white sm:text-[44px] lg:text-[52px] lg:tracking-[-1.6px]';
+const ARROW = 'h-4 w-4 transition-transform duration-300 group-hover:translate-x-1';
 
-const initials = (name = '') =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0].toUpperCase())
-    .join('');
-const money = (a) => `${a.currency || ''} ${Number(a.value).toLocaleString('en-GB')}`.trim();
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-function useHomeData() {
-  const [data, setData] = useState({ stats: null, stories: [], investors: [], testimonials: [] });
-  useEffect(() => {
-    const get = (url, key) =>
-      api
-        .get(url)
-        .then((d) => setData((s) => ({ ...s, [key]: key === 'stats' ? d : d[key] || [] })))
-        .catch(() => {});
-    get('/public/stats', 'stats');
-    get('/public/success-stories', 'stories');
-    get('/public/investors', 'investors');
-    get('/public/testimonials', 'testimonials');
-  }, []);
-  return data;
-}
-
-function SectionTitle({ eyebrow, title, children }) {
-  return (
-    <div className="mx-auto mb-10 max-w-2xl text-center">
-      {eyebrow && <p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#3fb950]">{eyebrow}</p>}
-      <h2 className="text-[28px] font-semibold leading-tight tracking-tight text-white sm:text-[34px]">{title}</h2>
-      {children && <p className={`mt-3 text-[15px] ${MUTED}`}>{children}</p>}
-    </div>
-  );
-}
-
-// ---- 1. Hero with the top bar ------------------------------------------------------
-
-function TopBar() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [q, setQ] = useState('');
-  const [open, setOpen] = useState(false);
-  const links = [
-    ['/ventures', 'Browse'],
-    ['/verify', 'Verify a project'],
-    ['/opportunities', 'Opportunities'],
-  ];
-  const search = (
-    <form
-      role="search"
-      className="relative w-full"
-      onSubmit={(e) => {
-        e.preventDefault();
-        navigate(`/ventures${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`);
-      }}
-    >
-      <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-[#7d8899]" aria-hidden="true" />
-      <input
-        type="search"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Search ventures, sectors or countries"
-        aria-label="Search ventures"
-        className="h-9 w-full rounded-lg border border-white/10 bg-white/5 pl-9 pr-3 text-[13px] text-white placeholder:text-[#7d8899] focus:border-[#2ea043] focus:outline-none"
-      />
-    </form>
-  );
-  const account = user ? (
-    <Link to={homePathFor(user)} className={`${GREEN} h-9 px-4 text-[13px]`}>
-      Open dashboard
-    </Link>
-  ) : (
-    <>
-      <Link to="/signin" className="text-[13px] font-semibold text-white hover:text-[#3fb950]">
-        Sign in
-      </Link>
-      <Link to="/register" className={`${GREEN} h-9 px-4 text-[13px]`}>
-        Get started
-      </Link>
-    </>
-  );
-  return (
-    <header className="relative z-20">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
-        <Link to="/" className="shrink-0" aria-label="ALU Ventures home">
-          <img src="/alu-logo.png" alt="African Leadership University" className="h-8 w-auto max-w-none rounded-[3px]" />
-        </Link>
-        <div className="hidden w-72 lg:block">{search}</div>
-        <nav aria-label="Main" className="mx-auto hidden items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-1 md:flex">
-          {links.map(([to, label]) => (
-            <Link key={to} to={to} className="rounded-md px-3 py-1.5 text-[13px] text-[#c9d1d9] hover:bg-white/10 hover:text-white">
-              {label}
-            </Link>
-          ))}
-        </nav>
-        <div className="ml-auto hidden items-center gap-4 md:flex">{account}</div>
-        <button type="button" className="ml-auto rounded-md p-2 text-white hover:bg-white/10 md:hidden" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
-      </div>
-      {open && (
-        <div className="space-y-3 border-t border-white/10 bg-[#0a1220] px-4 py-4 md:hidden">
-          {search}
-          <nav aria-label="Mobile" className="flex flex-col">
-            {links.map(([to, label]) => (
-              <Link key={to} to={to} className="py-2 text-[14px] text-[#c9d1d9]" onClick={() => setOpen(false)}>
-                {label}
-              </Link>
-            ))}
-          </nav>
-          <div className="flex items-center gap-4">{account}</div>
-        </div>
-      )}
-    </header>
-  );
-}
-
-function Hero({ stats }) {
-  return (
-    <section className="relative overflow-hidden bg-[#0B1F3A]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(46,160,67,0.18),transparent_60%)]" aria-hidden="true" />
-      <TopBar />
-      <div className="relative mx-auto max-w-4xl px-4 pb-20 pt-14 text-center sm:pt-20">
-        <p className="mx-auto inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[12px] text-[#c9d1d9]">
-          <BadgeCheck className="h-3.5 w-3.5 text-[#3fb950]" aria-hidden="true" />
-          {stats ? `${stats.approvedGraduates} verified graduates · ${stats.approvedProjects} approved ventures` : 'Built for ALU graduate entrepreneurs in Kigali'}
-        </p>
-        <h1 className="mt-6 text-[36px] font-semibold leading-[1.1] tracking-tight text-white sm:text-[52px]">Where verified ALU graduate ventures meet investors</h1>
-        <p className={`mx-auto mt-5 max-w-2xl text-[16px] ${MUTED}`}>
-          Present reviewed ventures, reach investors and sponsors through consent-based introductions, and apply to hackathons and funding calls.
-        </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link to="/register" className={GREEN}>
-            Get started
-          </Link>
-          <Link to="/ventures" className={GREEN_OUTLINE}>
-            Browse ventures
-          </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ---- 2. Moving icon strip ------------------------------------------------------------------
-
-const TILES = [
-  { label: 'Email', icon: Mail, color: '#2563eb', to: '/app/contact' },
-  { label: 'Projects', icon: FolderKanban, color: '#1f883d', go: 'projects' },
-  { label: 'Opportunities', icon: Trophy, color: '#b45309', go: 'opportunities' },
-  { label: 'Investors', icon: Handshake, color: '#7c3aed', go: 'investors' },
-  { label: 'Graduate Entrepreneurs', icon: GraduationCap, color: '#0e7490', go: 'graduates' },
-  { label: 'Success Projects', icon: BadgeCheck, color: '#15803d', scroll: 'success' },
-  { label: 'Testimonies', icon: MessageSquareQuote, color: '#be185d', scroll: 'testimonies' },
-  { label: 'Competition Winners', icon: Medal, color: '#ca8a04', scroll: 'success' },
-];
-
-function IconStrip({ paused }) {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const open = (t) => {
-    if (t.scroll) {
-      const el = document.getElementById(t.scroll) || document.getElementById('community');
-      el?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-      return;
-    }
-    if (t.to) return navigate(t.to);
-    // Sign-in first; a visitor without an account creates one, then continues here.
-    const target = `/app/go/${t.go}`;
-    navigate(user ? target : `/register?next=${encodeURIComponent(target)}`);
-  };
-  const tile = (t) => (
-    <li key={t.label}>
-      <button type="button" onClick={() => open(t)} className="group flex w-28 flex-col items-center gap-2 text-center focus:outline-none">
-        <span
-          className="flex h-20 w-20 items-center justify-center rounded-[22px] text-white shadow-lg ring-1 ring-white/10 transition-transform group-hover:scale-105 group-focus-visible:ring-2 group-focus-visible:ring-[#3fb950]"
-          style={{ background: `linear-gradient(145deg, ${t.color}, ${t.color}cc)` }}
-        >
-          <t.icon className="h-9 w-9" aria-hidden="true" />
-        </span>
-        <span className="text-[12px] font-medium leading-tight text-[#c9d1d9]">{t.label}</span>
-      </button>
-    </li>
-  );
-  return (
-    <section aria-label="Explore the platform" className="space-y-5 bg-[#070d18] py-10">
-      <Marquee label="Explore the platform" paused={paused} seconds={60} minItems={24}>
-        {TILES.map(tile)}
-      </Marquee>
-      <Marquee label="Explore the platform, second row" paused={paused} reverse seconds={70} minItems={24}>
-        {[...TILES.slice(4), ...TILES.slice(0, 4)].map(tile)}
-      </Marquee>
-    </section>
-  );
-}
-
-// ---- 3. Why choose ----------------------------------------------------------------------
-
-const REASONS = [
-  {
-    title: 'Verified ALU graduates',
-    body: 'Every founder registers with an ALU alumni email and a degree certificate. An administrator reviews each account before it can submit ventures.',
-    visual: ['Alumni email confirmed', 'Degree certificate received', 'Administrator approved'],
-  },
-  {
-    title: 'Document checks with admin approval',
-    body: 'RDB certificates and supporting documents are pre-checked automatically, then an administrator approves, requests a revision or rejects with a reason.',
-    visual: ['RDB certificate · Likely valid', 'Similarity check · Clear', 'Decision recorded'],
-  },
-  {
-    title: 'Consent-based introductions',
-    body: 'Investors request an introduction. Contact details are shared only after the founder accepts, and every step is recorded.',
-    visual: ['Introduction requested', 'Founder accepted', 'Contact details shared'],
-  },
-  {
-    title: 'Free for graduates and investors',
-    body: 'Submitting ventures, applying to opportunities, browsing approved projects and requesting introductions cost nothing.',
-    visual: ['Graduates · Free', 'Investors · Free', 'Sponsors · Free'],
-  },
-];
-
-function Steps({ items }) {
-  return (
-    <ol className="w-full max-w-xs space-y-2" aria-hidden="true">
-      {items.map((s, i) => (
-        <li key={s} className="flex items-center gap-3 rounded-lg border border-white/10 bg-[#0B1F3A] px-3 py-2 text-[12px] text-[#c9d1d9]">
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1f883d] text-[10px] font-bold text-white">{i + 1}</span>
-          {s}
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function WhyChoose() {
-  return (
-    <section className="bg-[#070d18] px-4 py-20">
-      <SectionTitle title="Why choose ALU Ventures?" />
-      <div className="mx-auto max-w-5xl space-y-5">
-        {REASONS.map((r, i) => (
-          <article key={r.title} className={`${PANEL} grid items-center gap-8 p-8 md:grid-cols-2 md:p-10`}>
-            <div className={i % 2 ? 'md:order-2' : ''}>
-              <h3 className="text-[20px] font-semibold text-white">{r.title}</h3>
-              <p className={`mt-3 text-[14px] leading-relaxed ${MUTED}`}>{r.body}</p>
-            </div>
-            <div className="flex justify-center">
-              <Steps items={r.visual} />
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-// ---- 4. Developer -------------------------------------------------------------------------
-
-function Developer() {
-  const [photo, setPhoto] = useState(true);
-  return (
-    <section className="bg-[#070d18] px-4 pb-20">
-      <article className={`${PANEL} mx-auto grid max-w-5xl items-center gap-8 p-8 md:grid-cols-2 md:p-10`}>
-        <div className="flex justify-center">
-          {photo ? (
-            <img src="/images/developer.jpeg" alt="Levis Ishimwe" onError={() => setPhoto(false)} className="aspect-[4/5] w-full max-w-[260px] rounded-xl object-cover ring-1 ring-white/10" />
-          ) : (
-            <div className="flex aspect-[4/5] w-full max-w-[260px] items-center justify-center rounded-xl bg-[#0B1F3A] text-[40px] font-semibold text-white/60 ring-1 ring-white/10" aria-hidden="true">
-              LI
-            </div>
-          )}
-        </div>
-        <div>
-          <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#3fb950]">The developer</p>
-          <h3 className="mt-2 text-[22px] font-semibold text-white">Levis Ishimwe</h3>
-          <p className={`text-[13px] ${MUTED}`}>BSc Software Engineering · African Leadership University</p>
-          <p className={`mt-4 text-[14px] leading-relaxed ${MUTED}`}>
-            Levis designed and built ALU Ventures: graduate and investor registration with administrator review, project submission with document checks, investor
-            introductions, and the hackathon, grant and competition workflow.
-          </p>
-        </div>
-      </article>
-    </section>
-  );
-}
-
-// ---- 5. Feature cards ----------------------------------------------------------------------
-
-function Features() {
-  const mini = ['Sector', 'Stage', 'Country', 'Registered or idea'];
-  return (
-    <section className="bg-[#070d18] px-4 pb-20">
-      <SectionTitle title="Everything in one place" />
-      <div className="mx-auto max-w-5xl space-y-5">
-        <article className={`${PANEL} grid items-center gap-8 p-8 md:grid-cols-2 md:p-10`}>
-          <div>
-            <h3 className="text-[20px] font-semibold text-white">Search and filter ventures</h3>
-            <p className={`mt-3 text-[14px] leading-relaxed ${MUTED}`}>Approved investors find ventures by keyword, sector, stage, country and registration, then request an introduction.</p>
-          </div>
-          <div className="flex flex-wrap justify-center gap-2" aria-hidden="true">
-            {mini.map((m) => (
-              <span key={m} className="rounded-full border border-white/10 bg-[#0B1F3A] px-3 py-1.5 text-[12px] text-[#c9d1d9]">
-                {m}
-              </span>
-            ))}
-          </div>
-        </article>
-        <article className={`${PANEL} grid items-center gap-8 p-8 md:grid-cols-2 md:p-10`}>
-          <div className="md:order-2">
-            <h3 className="text-[20px] font-semibold text-white">Hackathons, grants and competitions</h3>
-            <p className={`mt-3 text-[14px] leading-relaxed ${MUTED}`}>
-              ALU staff publish opportunities, eligibility is checked when graduates apply, and competition results are confirmed by an administrator.
-            </p>
-          </div>
-          <div className="flex justify-center">
-            <Steps items={['Open', 'Selection', 'In progress', 'Completed']} />
-          </div>
-        </article>
-        <div className="grid gap-5 md:grid-cols-3">
-          {[
-            ['Verify a project', 'Anyone can confirm an approved venture on the Verify page.'],
-            ['Every decision recorded', 'Approvals, rejections and introductions are logged with a reason.'],
-            ['Emails at each step', 'Founders and investors are emailed every decision and reply.'],
-          ].map(([t, b]) => (
-            <article key={t} className={`${PANEL} p-6`}>
-              <h3 className="text-[16px] font-semibold text-white">{t}</h3>
-              <p className={`mt-2 text-[13px] leading-relaxed ${MUTED}`}>{b}</p>
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ---- 6. Success stories and investors -----------------------------------------------------------
-
-function Avatar({ name }) {
-  return (
-    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1f883d] text-[13px] font-semibold text-white" aria-hidden="true">
-      {initials(name)}
-    </span>
-  );
-}
-
-function StoryCard({ s }) {
-  const f = s.founder || {};
-  return (
-    <li className={`${PANEL} w-[300px] shrink-0 p-5`}>
-      <div className="flex items-center gap-3">
-        <Avatar name={f.name} />
-        <div className="min-w-0">
-          <p className="truncate text-[14px] font-semibold text-white">{f.name}</p>
-          <p className={`truncate text-[12px] ${MUTED}`}>{[f.label, f.cohortYear ? `Class of ${f.cohortYear}` : null].filter(Boolean).join(' · ')}</p>
-        </div>
-      </div>
-      <div className="mt-4 border-t border-white/10 pt-4">
-        <p className="flex flex-wrap gap-1.5 text-[11px]">
-          <span className="rounded-full bg-[#1f883d]/20 px-2 py-0.5 font-medium text-[#3fb950]">Fully funded</span>
-          {s.fundingSource && <span className="rounded-full border border-white/15 px-2 py-0.5 text-[#c9d1d9]">{s.fundingSource}</span>}
-          <span className="px-1 py-0.5 text-[#a3adbd]">{s.sector}</span>
-        </p>
-        <h3 className="mt-2 text-[15px] font-semibold text-white">{s.title}</h3>
-        <p className={`mt-1 line-clamp-3 text-[13px] ${MUTED}`}>{s.summary}</p>
-        {s.amount && <p className="mt-2 text-[13px] font-semibold text-white">{money(s.amount)}</p>}
-      </div>
-    </li>
-  );
-}
-
-function InvestorCard({ i }) {
-  return (
-    <li className={`${PANEL} w-[300px] shrink-0 p-5`}>
-      <div className="flex items-center gap-3">
-        <Avatar name={i.name} />
-        <div className="min-w-0">
-          <p className="truncate text-[14px] font-semibold text-white">{i.name}</p>
-          <p className={`truncate text-[12px] ${MUTED}`}>
-            {i.type} · {i.organisation}
-          </p>
-        </div>
-      </div>
-      <div className="mt-4 border-t border-white/10 pt-4">
-        {i.sectors?.length > 0 && <p className="text-[12px] text-[#3fb950]">{i.sectors.join(' · ')}</p>}
-        <p className={`mt-1 line-clamp-4 text-[13px] ${MUTED}`}>{i.bio || 'Approved investor on ALU Ventures.'}</p>
-      </div>
-    </li>
-  );
-}
-
-function PeopleRows({ stories, investors, paused }) {
-  if (!stories.length && !investors.length) return null;
-  return (
-    <section id="success" className="scroll-mt-4 bg-[#0B1F3A] py-20">
-      <SectionTitle title="Funded ventures and the investors behind them" />
-      <div className="space-y-6">
-        {stories.length > 0 && (
-          <Marquee label="Success stories" paused={paused} seconds={Math.max(30, stories.length * 10)}>
-            {stories.map((s) => (
-              <StoryCard key={s.id} s={s} />
-            ))}
-          </Marquee>
-        )}
-        {investors.length > 0 && (
-          <Marquee label="Investors" paused={paused} reverse seconds={Math.max(30, investors.length * 10)}>
-            {investors.map((i) => (
-              <InvestorCard key={i.id} i={i} />
-            ))}
-          </Marquee>
-        )}
-      </div>
-    </section>
-  );
-}
-
-// ---- 7. Testimonies ---------------------------------------------------------------------------
-
-function Testimonies({ items, paused }) {
-  if (!items.length) return null;
-  return (
-    <section id="testimonies" className="scroll-mt-4 bg-[#070d18] py-20">
-      <SectionTitle title="Trusted by graduates and investors" />
-      <Marquee label="Testimonies" paused={paused} seconds={Math.max(35, items.length * 9)}>
-        {items.map((t) => (
-          <li key={t.id} className={`${PANEL} flex w-[320px] shrink-0 flex-col justify-between p-5`}>
-            <p className="text-[14px] leading-relaxed text-white">“{t.body}”</p>
-            <div className="mt-4 flex items-center gap-3">
-              <Avatar name={t.name} />
-              <div className="min-w-0">
-                <p className="truncate text-[13px] font-semibold text-white">{t.name}</p>
-                <p className={`truncate text-[12px] ${MUTED}`}>{[t.role, t.detail].filter(Boolean).join(' · ')}</p>
-              </div>
-            </div>
-          </li>
-        ))}
-      </Marquee>
-    </section>
-  );
-}
-
-// ---- 8. Graduates and investors ---------------------------------------------------------------
-
-function TwoWays() {
-  const cols = [
-    {
-      eyebrow: 'For graduates',
-      title: 'Turn your venture into a verified record.',
-      items: [
-        ['Submit and verify projects', 'reviewed by an administrator'],
-        ['Apply for opportunities', 'hackathons, grants and competitions'],
-        ['Get introduced to investors', 'only when you accept'],
-      ],
-      cta: ['/register', 'Join as a graduate'],
-    },
-    {
-      eyebrow: 'For investors',
-      title: 'Back ALU graduate founders with confidence.',
-      items: [
-        ['Browse verified projects', 'filter by sector, stage and country'],
-        ['Invest', 'record confirmed investments with the founder'],
-        ['Track introductions', 'from request to meeting'],
-      ],
-      cta: ['/register?role=investor', 'Request investor access'],
-    },
-  ];
-  return (
-    <section id="community" className="scroll-mt-4 bg-[#070d18] px-4 py-20">
-      <SectionTitle eyebrow="Graduates and investors" title="Two ways to take part" />
-      <div className={`${PANEL} mx-auto grid max-w-4xl overflow-hidden md:grid-cols-2`}>
-        {cols.map((c, i) => (
-          <div key={c.eyebrow} className={`p-8 ${i ? 'border-t border-white/10 md:border-l md:border-t-0' : ''}`}>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#3fb950]">{c.eyebrow}</p>
-            <h3 className="mt-3 text-[18px] font-semibold leading-snug text-white">{c.title}</h3>
-            <ul className="mt-5 space-y-2.5 text-[13px]">
-              {c.items.map(([strong, rest]) => (
-                <li key={strong} className={MUTED}>
-                  <span className="mr-2 text-[#3fb950]">—</span>
-                  <span className="font-semibold text-white">{strong}</span> · {rest}
-                </li>
-              ))}
-            </ul>
-            <Link to={c.cta[0]} className={`${GREEN_OUTLINE} mt-6 h-9 rounded-full px-4 text-[13px]`}>
-              {c.cta[1]}
-            </Link>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-// ---- 8b. Rotating banner -------------------------------------------------------------------
-// Two full-width slides whose backgrounds cross-fade (1.2 s fade, new slide
-// every 7 s). Pauses on hover and keyboard focus; with reduced motion it stays
-// on slide 1 and the dots switch slides without fading. WebP copies are served
-// first; the original files remain the fallback.
-
-const SLIDES = [
-  {
-    image: '/images/Navigate',
-    original: '/images/Navigate.png',
-    alt: 'A desk and laptop on a grassy hilltop above a misty valley at sunrise, with a river winding into the distance.',
-    title: 'Dear Graduates, do not quit after graduation.',
-    body: 'Keep navigating real-world solutions: verify your project, meet investors through introductions, and apply to hackathons, grants and competitions.',
-  },
-  {
-    image: '/images/Shinning',
-    original: '/images/Shinning.jpg',
-    alt: 'A laptop glowing with golden light on a rooftop above a city at night.',
-    title: 'Let your ideas and projects shine in Africa and all over the world.',
-    body: 'Turn your venture into a verified public record that investors and sponsors can trust.',
-  },
-];
-const SLIDE_MS = 7000;
-const BANNER_STATS = [
-  ['verifiedGraduates', 'Verified graduates'],
-  ['approvedProjects', 'Approved projects'],
-  ['investors', 'Investors'],
-  ['introductions', 'Introductions made'],
-];
+// ---- Motion helpers -------------------------------------------------------------------------
 
 function useReducedMotion() {
   const [reduced, setReduced] = useState(() => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -545,219 +67,1386 @@ function useReducedMotion() {
   return reduced;
 }
 
-function RotatingBanner({ paused }) {
-  const reduced = useReducedMotion();
-  const [index, setIndex] = useState(0);
-  const [hold, setHold] = useState(false); // hover or keyboard focus
-  const [stats, setStats] = useState(null);
+// True once the element has scrolled into view (and stays true).
+function useInView(threshold = 0.15) {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    if (!('IntersectionObserver' in window)) {
+      setInView(true);
+      return undefined;
+    }
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
+          setInView(true);
+          io.disconnect();
+        }
+      },
+      { threshold, rootMargin: '0px 0px -6% 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [threshold]);
+  return [ref, inView];
+}
 
+// Like useInView, but also turns false again when the element leaves the screen.
+function useOnScreen() {
+  const ref = useRef(null);
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !('IntersectionObserver' in window)) {
+      setOn(true);
+      return undefined;
+    }
+    const io = new IntersectionObserver(([e]) => setOn(e.isIntersecting), { threshold: 0.25 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return [ref, on];
+}
+
+function Reveal({ as: Tag = 'div', from = 'up', delay = 0, className = '', style, children, ...rest }) {
+  const [ref, inView] = useInView();
+  const dir = from === 'up' ? '' : `reveal-${from}`;
+  return (
+    <Tag ref={ref} className={`reveal ${dir} ${inView ? 'is-in' : ''} ${className}`} style={{ '--reveal-delay': `${delay}ms`, ...style }} {...rest}>
+      {children}
+    </Tag>
+  );
+}
+
+// Counts up from 0 when it first scrolls into view.
+function CountUp({ value, prefix = '', suffix = '' }) {
+  const reduced = useReducedMotion();
+  const [ref, inView] = useInView(0.4);
+  const [shown, setShown] = useState(reduced ? value : 0);
+  useEffect(() => {
+    if (!inView || reduced || !value) {
+      setShown(value);
+      return undefined;
+    }
+    let raf;
+    const start = performance.now();
+    const tick = (t) => {
+      const p = Math.min(1, (t - start) / 1400);
+      setShown(Math.round(value * (1 - (1 - p) ** 3)));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [inView, reduced, value]);
+  return (
+    <span ref={ref} className="tabular-nums">
+      {prefix}
+      {shown.toLocaleString('en-GB')}
+      {suffix}
+    </span>
+  );
+}
+
+function useBannerStats() {
+  const [stats, setStats] = useState(null);
   useEffect(() => {
     api
       .get('/public/banner-stats')
-      .then((d) => setStats(BANNER_STATS.every(([k]) => Number.isFinite(d?.[k])) ? d : null))
+      .then((d) => setStats(['verifiedGraduates', 'approvedProjects', 'investors', 'introductions'].every((k) => Number.isFinite(d?.[k])) ? d : null))
       .catch(() => setStats(null));
   }, []);
+  return stats;
+}
 
-  const playing = !reduced && !hold && !paused;
+// Signed-in members go straight to their page; visitors create an account first.
+function useGated() {
+  const { user } = useAuth();
+  return (target) => (user ? target : `/register?next=${encodeURIComponent(target)}`);
+}
+
+function Brand({ className = '' }) {
+  return (
+    <span className={`flex items-center gap-3 ${className}`}>
+      <img src="/alu-logo.png" alt="African Leadership University" width="104" height="32" className="h-8 w-[104px] max-w-none rounded-[3px]" />
+      <span className="h-5 w-px bg-white/[0.16]" aria-hidden="true" />
+      <span className="text-[15px] font-semibold tracking-[-0.2px] text-white">Ventures</span>
+    </span>
+  );
+}
+
+// ---- Header -----------------------------------------------------------------------------------
+
+const NAV = [
+  ['/ventures', 'Browse ventures'],
+  ['/opportunities', 'Opportunities'],
+  ['/verify', 'Verify a project'],
+];
+
+function Header() {
+  const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
-    if (!playing) return undefined;
-    const t = setInterval(() => setIndex((i) => (i + 1) % SLIDES.length), SLIDE_MS);
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const actions = user ? (
+    <Link to={homePathFor(user)} className={`${PRIMARY} h-[38px] px-[18px] text-[14px]`} onClick={() => setOpen(false)}>
+      Open dashboard
+      <ArrowRight className="h-[15px] w-[15px] transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true" />
+    </Link>
+  ) : (
+    <>
+      <Link to="/signin" className="text-[14px] font-medium text-white transition-colors hover:text-[#60a5fa]" onClick={() => setOpen(false)}>
+        Sign in
+      </Link>
+      <Link to="/register" className={`${PRIMARY} h-[38px] px-[18px] text-[14px]`} onClick={() => setOpen(false)}>
+        Get started
+        <ArrowRight className="h-[15px] w-[15px] transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true" />
+      </Link>
+    </>
+  );
+
+  return (
+    <header
+      className={`sticky top-0 z-40 border-b transition-[background-color,border-color,backdrop-filter] duration-300 ${
+        scrolled || open ? 'border-white/[0.08] bg-[#070d18]/85 backdrop-blur-xl' : 'border-white/[0.08] bg-[#070d18]'
+      }`}
+    >
+      <div className="mx-auto flex h-[72px] max-w-[1440px] items-center justify-between px-4 sm:px-8 lg:px-16">
+        <div className="flex items-center gap-10">
+          <Link
+            to="/"
+            aria-label="ALU Ventures home"
+            className="rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#60a5fa]"
+          >
+            <Brand />
+          </Link>
+          <nav aria-label="Main" className="hidden items-center gap-7 md:flex">
+            {NAV.map(([to, label]) => (
+              <Link key={to} to={to} className="group relative text-[14px] font-medium text-white/70 transition-colors hover:text-white">
+                {label}
+                <span
+                  className="absolute -bottom-1.5 left-0 h-px w-full origin-left scale-x-0 bg-[#60a5fa] transition-transform duration-300 group-hover:scale-x-100"
+                  aria-hidden="true"
+                />
+              </Link>
+            ))}
+          </nav>
+        </div>
+        <div className="hidden items-center gap-5 md:flex">{actions}</div>
+        <button
+          type="button"
+          className="rounded-full p-2 text-white transition-colors hover:bg-white/10 md:hidden"
+          aria-label={open ? 'Close menu' : 'Open menu'}
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+        >
+          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+      </div>
+      {open && (
+        <div className="land-rise border-t border-white/[0.08] px-4 pb-5 pt-2 md:hidden">
+          <nav aria-label="Mobile" className="flex flex-col">
+            {NAV.map(([to, label]) => (
+              <Link key={to} to={to} onClick={() => setOpen(false)} className="border-b border-white/[0.06] py-3 text-[15px] text-white/80">
+                {label}
+              </Link>
+            ))}
+          </nav>
+          <div className="mt-4 flex items-center gap-5">{actions}</div>
+        </div>
+      )}
+    </header>
+  );
+}
+
+// ---- Hero -------------------------------------------------------------------------------------
+
+const QUICK_PATHS = [
+  { label: 'Submit a venture', icon: Rocket, gated: '/app/go/projects' },
+  { label: 'Apply to a hackathon', icon: Trophy, to: '/opportunities' },
+  { label: 'Find ventures to back', icon: Search, to: '/ventures' },
+  { label: 'Verify a project', icon: BadgeCheck, to: '/verify' },
+];
+
+const PROOF = [
+  { value: 100, suffix: '%', label: 'Ventures reviewed by an administrator' },
+  { value: 0, prefix: '$', label: 'Fees for graduates, investors and sponsors' },
+  { value: 3, suffix: ' checks', label: 'Before a graduate can submit a venture' },
+  { text: 'Opt-in', label: 'Contact shared only when founders accept' },
+];
+
+function LiveDot({ size = 8 }) {
+  return (
+    <span className="relative inline-flex shrink-0" style={{ width: size, height: size }} aria-hidden="true">
+      <span className="land-ping absolute inset-0 rounded-full bg-[#4ade80]" />
+      <span className="relative inline-flex h-full w-full rounded-full bg-[#4ade80] shadow-[0_0_8px_#4ade8099]" />
+    </span>
+  );
+}
+
+const HEADLINE = 'Where verified ALU graduate ventures meet investors';
+
+function Hero({ stats }) {
+  const gated = useGated();
+  return (
+    <section className="relative overflow-hidden bg-[#070d18] px-4 pb-24 pt-20 sm:px-8 lg:px-16 lg:pb-24 lg:pt-28">
+      <div
+        className="land-glow pointer-events-none absolute left-1/2 top-0 h-[120%] w-[130%] -translate-x-1/2"
+        style={{ background: 'radial-gradient(50% 50% at 50% 0%, rgba(37,99,235,0.22), rgba(37,99,235,0) 100%)' }}
+        aria-hidden="true"
+      />
+      <div className="relative mx-auto flex max-w-[1120px] flex-col items-center text-center">
+        <p
+          className={`inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] py-1.5 pl-2.5 pr-3.5 text-[13px] font-medium text-white/70 transition-opacity duration-700 ${
+            stats ? 'opacity-100' : 'opacity-0'
+          }`}
+          aria-hidden={!stats}
+        >
+          <LiveDot />
+          {stats ? `${plural(stats.verifiedGraduates, 'verified graduate')} · ${plural(stats.approvedProjects, 'approved venture')}` : 'Loading'}
+        </p>
+        <h1 className="mt-7 max-w-[1000px] text-[44px] font-medium leading-[1.04] tracking-[-1.4px] text-white sm:text-[60px] sm:tracking-[-2px] lg:text-[76px] lg:tracking-[-2.6px]">
+          {HEADLINE.split(' ').map((w, i) => (
+            <span key={i}>
+              <span className="land-word" style={{ '--d': `${120 + i * 70}ms` }}>
+                {w}
+              </span>{' '}
+            </span>
+          ))}
+        </h1>
+        <p className="land-rise mt-6 max-w-[700px] text-[17px] leading-[1.55] text-white/70 sm:text-[19px]" style={{ '--d': '650ms' }}>
+          Present reviewed ventures, reach investors and sponsors through consent-based introductions, and apply to hackathons and funding calls.
+        </p>
+        <div className="land-rise mt-10 flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center" style={{ '--d': '800ms' }}>
+          <Link to="/register" className={`${PRIMARY} h-[50px] px-[26px] text-[15px] shadow-[0_8px_24px_#2563eb55] hover:shadow-[0_12px_32px_#2563eb77]`}>
+            Get started — it&apos;s free
+            <ArrowRight className={ARROW} aria-hidden="true" />
+          </Link>
+          <Link to="/ventures" className={`${GHOST} h-[50px] px-6 text-[15px]`}>
+            Browse ventures
+          </Link>
+        </div>
+        <div className="land-rise mt-7 flex flex-wrap items-center justify-center gap-2.5" style={{ '--d': '950ms' }}>
+          <span className="text-[13px] text-white/50">I want to</span>
+          {QUICK_PATHS.map((q) => (
+            <Link
+              key={q.label}
+              to={q.gated ? gated(q.gated) : q.to}
+              className="group inline-flex h-[34px] items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 text-[13px] font-medium text-white/70 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#3b82f655] hover:bg-[#3b82f61f] hover:text-white"
+            >
+              <q.icon className="h-3.5 w-3.5 text-[#60a5fa] transition-transform duration-300 group-hover:scale-110" aria-hidden="true" />
+              {q.label}
+            </Link>
+          ))}
+        </div>
+
+        <dl className="mt-16 grid w-full grid-cols-2 border-t border-white/[0.08] py-7 text-left lg:mt-[88px] lg:grid-cols-4">
+          {PROOF.map((p, i) => (
+            <Reveal
+              key={p.label}
+              delay={i * 90}
+              className={`flex flex-col-reverse gap-2 px-4 py-3 sm:px-7 lg:py-0 ${i % 2 ? 'border-l border-white/[0.08]' : ''} ${i === 2 ? 'lg:border-l lg:border-white/[0.08]' : ''}`}
+            >
+              <dt className="text-[13px] leading-[1.45] text-white/50">{p.label}</dt>
+              <dd className="text-[32px] font-medium tracking-[-1.2px] text-white sm:text-[40px]">
+                {p.text || <CountUp value={p.value} prefix={p.prefix} suffix={p.suffix} />}
+              </dd>
+            </Reveal>
+          ))}
+        </dl>
+      </div>
+    </section>
+  );
+}
+
+// ---- Why ALU Ventures -------------------------------------------------------------------------
+
+const TRUST = [
+  {
+    icon: UserCheck,
+    eyebrow: 'Verified graduates',
+    title: 'Every founder is a real ALU graduate',
+    body: 'Each founder registers with an ALU alumni email and a degree certificate, and an administrator reviews the account.',
+    steps: ['Alumni email confirmed', 'Degree certificate received', 'Administrator approved'],
+  },
+  {
+    icon: FileSearch,
+    eyebrow: 'Document checks',
+    title: 'Documents checked before approval',
+    body: 'RDB certificates are pre-checked automatically, then an administrator approves, asks for a revision or rejects with a reason.',
+    steps: ['RDB certificate · Likely valid', 'Similarity check · Clear', 'Decision recorded'],
+  },
+  {
+    icon: Handshake,
+    eyebrow: 'Consent-based introductions',
+    title: 'Founders decide who gets their contact',
+    body: 'Investors request an introduction. Contact details are shared only after the founder accepts.',
+    steps: ['Introduction requested', 'Founder accepted', 'Contact details shared'],
+  },
+  {
+    icon: Gift,
+    eyebrow: 'Free for everyone',
+    title: 'No fees for graduates, investors or sponsors',
+    body: 'Submitting ventures, applying to opportunities, browsing projects and requesting introductions cost nothing.',
+    steps: ['Graduates · Free', 'Investors · Free', 'Sponsors · Free'],
+  },
+];
+
+function SectionHeading({ eyebrow, title, children, width = 620 }) {
+  return (
+    <Reveal className="flex flex-col items-center gap-4 text-center">
+      <p className={EYEBROW}>{eyebrow}</p>
+      <h2 className={H2}>{title}</h2>
+      {children && (
+        <p className="text-[17px] leading-[1.55] text-white/70" style={{ maxWidth: width }}>
+          {children}
+        </p>
+      )}
+    </Reveal>
+  );
+}
+
+function TrustCard({ c, index }) {
+  const [ref, inView] = useInView(0.3);
+  return (
+    <Reveal delay={index * 110} className="h-full">
+      <article
+        ref={ref}
+        className={`${CARD} group flex h-full flex-col justify-between gap-5 p-7 transition-[transform,border-color,box-shadow] duration-500 hover:-translate-y-1.5 hover:border-[#3b82f655] hover:shadow-[0_24px_60px_-20px_#2563eb55] lg:min-h-[410px]`}
+        style={{ backgroundImage: 'linear-gradient(180deg, #3b82f60f 0%, #3b82f600 60%)' }}
+      >
+        <div className="flex flex-col gap-4">
+          <span className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-[#3b82f633] bg-[#3b82f61f] transition-transform duration-500 group-hover:rotate-[-6deg] group-hover:scale-110">
+            <c.icon className="h-5 w-5 text-[#60a5fa]" aria-hidden="true" />
+          </span>
+          <p className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#60a5fa]">{c.eyebrow}</p>
+          <h3 className="text-[21px] font-medium leading-[1.25] tracking-[-0.4px] text-white">{c.title}</h3>
+          <p className="text-[14px] leading-[1.55] text-white/70">{c.body}</p>
+        </div>
+        <ul className="flex flex-col gap-2.5 border-t border-white/[0.08] pt-4">
+          {c.steps.map((s, i) => (
+            <li
+              key={s}
+              className={`flex items-center gap-2.5 text-[13px] text-white/70 transition-all duration-500 motion-reduce:transition-none ${inView ? 'translate-x-0 opacity-100' : '-translate-x-2 opacity-0'}`}
+              style={{ transitionDelay: `${index * 110 + 300 + i * 160}ms` }}
+            >
+              <CircleCheck className="h-[15px] w-[15px] shrink-0 text-[#4ade80]" aria-hidden="true" />
+              {s}
+            </li>
+          ))}
+        </ul>
+      </article>
+    </Reveal>
+  );
+}
+
+function WhyAluVentures() {
+  return (
+    <section id="why" className="scroll-mt-20 bg-[#070d18] px-4 py-20 sm:px-8 lg:px-16 lg:py-[120px]">
+      <div className="mx-auto flex max-w-[1312px] flex-col gap-14">
+        <SectionHeading eyebrow="Why ALU Ventures" title="Trust is built into every step">
+          Founders are verified, documents are checked and contact is shared only with consent, so investors can act with confidence.
+        </SectionHeading>
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          {TRUST.map((c, i) => (
+            <TrustCard key={c.eyebrow} c={c} index={i} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---- For investors ----------------------------------------------------------------------------
+
+const INVESTOR_POINTS = [
+  ['Search and filter', 'By sector, stage, country and registration.'],
+  ['Verified records', 'Every venture approved by an administrator.'],
+  ['One-click introductions', 'Founders accept before contact is shared.'],
+  ['Track every step', 'From request to meeting to investment.'],
+];
+
+const EXAMPLE_VENTURES = [
+  {
+    initials: 'AC',
+    color: '#16a34a',
+    name: 'Apple crops developed',
+    line: 'Affordable apples for every Rwandan household.',
+    tags: ['Agriculture', 'Idea'],
+    primary: true,
+  },
+  { initials: 'KC', color: '#0ea5e9', name: 'Kigali Cold Chain', line: 'Solar cold rooms for smallholder farmers.', tags: ['Logistics', 'Prototype / MVP'] },
+  { initials: 'LL', color: '#a855f7', name: 'LearnLoop', line: 'Offline-first lessons for rural schools.', tags: ['Education', 'Early revenue'] },
+];
+
+function Chip({ label, active }) {
+  return (
+    <span
+      className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-medium ${
+        active ? 'border-[#3b82f655] bg-[#3b82f61f] text-[#60a5fa]' : 'border-white/[0.08] bg-white/[0.03] text-white/70'
+      }`}
+    >
+      {label}
+      {active ? <X className="h-3 w-3" aria-hidden="true" /> : <ChevronDown className="h-3 w-3 text-white/50" aria-hidden="true" />}
+    </span>
+  );
+}
+
+function BrowseMockup() {
+  const [ref, inView] = useInView(0.25);
+  const [hovered, setHovered] = useState(0);
+  return (
+    <figure
+      ref={ref}
+      aria-label="Example: how investors browse verified ventures"
+      className="w-full overflow-hidden rounded-2xl border border-white/[0.16] bg-[#0b1424] shadow-[0_30px_80px_#00000080]"
+    >
+      <div className="flex items-center gap-3 border-b border-white/[0.08] px-5 py-4">
+        <span className="text-[14px] font-semibold text-white">Ventures</span>
+        <span className="rounded-full bg-[#3b82f61f] px-2 py-0.5 text-[11px] font-semibold text-[#60a5fa]">Verified</span>
+        <span className="flex h-[34px] min-w-0 flex-1 items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3">
+          <Search className="h-3.5 w-3.5 shrink-0 text-white/50" aria-hidden="true" />
+          <span className="truncate text-[13px] text-white/50">Search ventures, sectors or countries</span>
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-2 border-b border-white/[0.08] px-5 py-3.5">
+        {[
+          ['Agriculture', true],
+          ['Any stage', false],
+          ['Rwanda', true],
+          ['Registered or idea', false],
+        ].map(([l, a], i) => (
+          <span
+            key={l}
+            className={`transition-all duration-500 motion-reduce:transition-none ${inView ? 'scale-100 opacity-100' : 'scale-90 opacity-0'}`}
+            style={{ transitionDelay: `${200 + i * 80}ms` }}
+          >
+            <Chip label={l} active={a} />
+          </span>
+        ))}
+      </div>
+      <ul className="flex flex-col p-2" onMouseLeave={() => setHovered(0)}>
+        {EXAMPLE_VENTURES.map((v, i) => (
+          <li
+            key={v.name}
+            onMouseEnter={() => setHovered(i)}
+            className={`flex items-center gap-3.5 rounded-[10px] border p-3.5 transition-colors duration-300 ${
+              hovered === i ? 'border-white/[0.08] bg-white/[0.06]' : 'border-transparent'
+            } ${inView ? 'land-rise' : 'opacity-0'}`}
+            style={{ '--d': `${i * 120 + 450}ms` }}
+          >
+            <span
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border text-[13px] font-bold"
+              style={{ color: v.color, background: `${v.color}26`, borderColor: `${v.color}55` }}
+              aria-hidden="true"
+            >
+              {v.initials}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
+              <span className="flex items-center gap-2 text-[14px] font-semibold text-white">
+                <span className="truncate">{v.name}</span>
+                <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-[#60a5fa]" aria-label="Verified" />
+              </span>
+              <span className="truncate text-[13px] text-white/50">{v.line}</span>
+            </span>
+            <span className="hidden items-center gap-1.5 sm:flex">
+              {v.tags.map((t) => (
+                <span key={t} className="whitespace-nowrap rounded-md bg-white/[0.06] px-2 py-[3px] text-[12px] text-white/70">
+                  {t}
+                </span>
+              ))}
+            </span>
+            <span
+              className={`inline-flex h-[30px] shrink-0 items-center rounded-full border px-3 text-[12px] font-semibold transition-colors duration-300 ${
+                hovered === i ? 'border-[#2563eb] bg-[#2563eb] text-white' : 'border-white/[0.08] bg-white/[0.03] text-white/70'
+              }`}
+            >
+              {v.primary || hovered === i ? 'Request intro' : 'View'}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <figcaption className="flex items-center gap-2 border-t border-white/[0.08] px-5 py-3.5 text-[12px] text-white/50">
+        <ShieldCheck className="h-3.5 w-3.5 text-[#4ade80]" aria-hidden="true" />
+        Contact details stay private until the founder accepts.
+      </figcaption>
+    </figure>
+  );
+}
+
+function ForInvestors() {
+  return (
+    <section id="investors" className="scroll-mt-20 bg-[#070d18] px-4 py-20 sm:px-8 lg:px-16 lg:py-[120px]">
+      <div className="mx-auto flex max-w-[1312px] flex-col items-center gap-14 lg:flex-row lg:gap-20">
+        <Reveal from="left" className="flex w-full flex-col gap-6 lg:w-[480px] lg:shrink-0">
+          <p className={EYEBROW}>For investors and sponsors</p>
+          <h2 className={H2}>Find ventures worth backing</h2>
+          <p className="text-[17px] leading-[1.55] text-white/70">
+            Approved investors find ventures by keyword, sector, stage, country and registration, then request an introduction.
+          </p>
+          <ul className="flex flex-col gap-[18px] py-2">
+            {INVESTOR_POINTS.map(([b, r], i) => (
+              <Reveal as="li" key={b} delay={150 + i * 90} className="flex gap-3">
+                <span className="mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-[#3b82f61f]">
+                  <Check className="h-[13px] w-[13px] text-[#60a5fa]" aria-hidden="true" />
+                </span>
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-[15px] font-semibold text-white">{b}</span>
+                  <span className="text-[14px] text-white/50">{r}</span>
+                </span>
+              </Reveal>
+            ))}
+          </ul>
+          <Link to="/register?role=investor" className={`${GHOST} h-[46px] w-fit px-[22px] text-[15px]`}>
+            Request investor access
+            <ArrowRight className={ARROW} aria-hidden="true" />
+          </Link>
+        </Reveal>
+        <Reveal from="right" delay={150} className="w-full min-w-0 flex-1">
+          <BrowseMockup />
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+// ---- Opportunities ----------------------------------------------------------------------------
+
+const STAGES = [
+  { icon: DoorOpen, title: 'Open', badge: 'Applications open', body: 'Graduates apply with an approved venture before the deadline.' },
+  { icon: ListChecks, title: 'Selection', body: 'Applications close and eligible entries are reviewed.' },
+  { icon: Timer, title: 'In progress', body: 'Selected teams take part in the hackathon, grant or competition.' },
+  { icon: Trophy, title: 'Completed', body: 'An administrator confirms results and winners are announced.' },
+];
+
+function OpportunityStages() {
+  const reduced = useReducedMotion();
+  const [ref, inView] = useInView(0.3);
+  const [active, setActive] = useState(0);
+  const [hold, setHold] = useState(false);
+  // Walks through the stages once the panel is on screen; hovering a stage holds it.
+  useEffect(() => {
+    if (reduced || !inView || hold) return undefined;
+    const t = setInterval(() => setActive((a) => (a + 1) % STAGES.length), 2600);
     return () => clearInterval(t);
-  }, [playing]);
+  }, [reduced, inView, hold]);
+
+  return (
+    <div ref={ref} className={`${CARD} flex w-full flex-col gap-2.5 p-5`} onMouseLeave={() => setHold(false)}>
+      <p className="text-[11px] font-semibold uppercase tracking-[1.2px] text-white/50">Opportunity stages</p>
+      <ol className="flex flex-col gap-2.5">
+        {STAGES.map((s, i) => {
+          const on = i === active;
+          return (
+            <li
+              key={s.title}
+              onMouseEnter={() => {
+                setHold(true);
+                setActive(i);
+              }}
+              aria-current={on ? 'step' : undefined}
+              className={`flex items-center gap-4 rounded-xl p-4 transition-all duration-500 ${
+                on ? 'border-[1.5px] border-[#2563eb] bg-[#3b82f61a] shadow-[0_0_24px_#2563eb40]' : 'border-[1.5px] border-white/[0.08] bg-white/[0.03]'
+              }`}
+            >
+              <span
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors duration-500 ${on ? 'bg-[#2563eb]' : 'bg-white/[0.06]'}`}
+              >
+                <s.icon className={`h-[18px] w-[18px] transition-colors duration-500 ${on ? 'text-white' : 'text-white/70'}`} aria-hidden="true" />
+              </span>
+              <span className="flex min-w-0 flex-col gap-[3px]">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="text-[15px] font-semibold text-white">{s.title}</span>
+                  {s.badge && <span className="rounded-full bg-[#2563eb] px-2 py-0.5 text-[11px] font-semibold text-white">{s.badge}</span>}
+                </span>
+                <span className="text-[13px] text-white/50">{s.body}</span>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+function OpportunityCard() {
+  return (
+    <figure
+      aria-label="Example opportunity"
+      className="flex w-full flex-col gap-5 rounded-2xl border border-white/[0.16] bg-[#0b1424] p-7 shadow-[0_24px_60px_#00000066] transition-transform duration-500 hover:-translate-y-1.5 lg:w-[400px] lg:shrink-0"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#f59e0b40] bg-[#f59e0b1f] px-2.5 py-1 text-[12px] font-semibold text-[#fbbf24]">
+          <Zap className="h-3 w-3" aria-hidden="true" />
+          Hackathon
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#f87171]">
+          <Hourglass className="land-flip h-[13px] w-[13px]" aria-hidden="true" />
+          Closes in 3 days
+        </span>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <p className="text-[24px] font-medium tracking-[-0.5px] text-white">Seed prize</p>
+        <p className="text-[14px] text-white/50">UK sponsorship program</p>
+      </div>
+      <p className="text-[14px] leading-[1.55] text-white/70">Sponsorship for a graduate-led agriculture business with a strong community impact in Rwanda.</p>
+      <dl className="grid grid-cols-2 border-y border-white/[0.08] py-4">
+        {[
+          ['Prize', 'To be announced'],
+          ['Closes', '30 Oct 2026, 17:44'],
+        ].map(([l, v]) => (
+          <div key={l} className="flex flex-col-reverse gap-1">
+            <dd className="text-[14px] font-medium text-white">{v}</dd>
+            <dt className="text-[11px] font-semibold uppercase tracking-[1px] text-white/50">{l}</dt>
+          </div>
+        ))}
+      </dl>
+      <Link to="/opportunities" className={`${PRIMARY} h-11 w-full text-[14px]`}>
+        Apply with your venture
+        <ArrowRight className="h-[15px] w-[15px] transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true" />
+      </Link>
+      <figcaption className="text-[12px] text-white/50">Eligibility is checked when you apply.</figcaption>
+    </figure>
+  );
+}
+
+function Opportunities() {
+  return (
+    <section
+      id="opportunities"
+      className="scroll-mt-20 px-4 py-20 sm:px-8 lg:px-16 lg:py-[120px]"
+      style={{ background: 'radial-gradient(45% 40% at 50% 75%, rgba(37,99,235,0.12), rgba(37,99,235,0) 100%), #070d18' }}
+    >
+      <div className="mx-auto flex max-w-[1120px] flex-col gap-14">
+        <SectionHeading eyebrow="Hackathons, grants and competitions" title="From open call to confirmed result" width={640}>
+          ALU staff publish opportunities, eligibility is checked when graduates apply, and competition results are confirmed by an administrator.
+        </SectionHeading>
+        <div className="flex flex-col gap-6 lg:flex-row">
+          <Reveal from="left" className="min-w-0 flex-1">
+            <OpportunityStages />
+          </Reveal>
+          <Reveal from="right" delay={150}>
+            <OpportunityCard />
+          </Reveal>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---- Introductions ----------------------------------------------------------------------------
+
+const TIMELINE = [
+  { icon: Send, title: 'Introduction requested', body: 'Investor sent a request · 9 Oct 2026', done: true },
+  { icon: UserCheck, title: 'Founder accepted', body: 'Aziza reviewed the request and accepted · 9 Oct', done: true },
+  { icon: Mail, title: 'Contact details shared', body: "Both sides were emailed each other's details", done: true },
+  { icon: CalendarCheck, title: 'Meeting confirmed', body: 'Recorded by both sides after they meet' },
+];
+
+const RECORD_FEATURES = [
+  { icon: ScrollText, title: 'Every decision recorded', body: 'Approvals, rejections and introductions are logged with a reason.' },
+  { icon: MailCheck, title: 'Emails at each step', body: 'Founders and investors are emailed every decision and reply.' },
+  { icon: BadgeCheck, title: 'Verify a project', body: 'Anyone can confirm an approved venture on the Verify page.', to: '/verify' },
+];
+
+function IntroductionMockup() {
+  const [ref, inView] = useInView(0.3);
+  return (
+    <figure
+      ref={ref}
+      aria-label="Example: an introduction from request to meeting"
+      className="w-full overflow-hidden rounded-2xl border border-white/[0.16] bg-[#0b1424] shadow-[0_30px_80px_#00000080]"
+    >
+      <div className="flex items-center gap-3.5 border-b border-white/[0.08] p-5">
+        <span
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f472b655] bg-[#f472b626] text-[14px] font-bold text-[#f472b6]"
+          aria-hidden="true"
+        >
+          IM
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
+          <span className="text-[15px] font-semibold text-white">Ingabire Marie Claire</span>
+          <span className="truncate text-[13px] text-white/50">Investor · Rwanda Agriculture Board</span>
+        </span>
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full border border-[#4ade8040] bg-[#4ade801a] px-2.5 py-1 text-[12px] font-semibold text-[#4ade80] transition-all delay-[1400ms] duration-500 ${
+            inView ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+          }`}
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-[#4ade80]" aria-hidden="true" />
+          Introduced
+        </span>
+      </div>
+      <div className="flex flex-col gap-2 border-b border-white/[0.08] p-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[1px] text-white/50">Introduction request · Apple crops developed</p>
+        <blockquote className="text-[15px] leading-[1.55] text-white/70">
+          “We fund agriculture ventures that lower food costs in Rwanda. I&apos;d like to learn about your pilot and funding needs.”
+        </blockquote>
+      </div>
+      <ol className="flex flex-col px-5 pb-2 pt-5">
+        {TIMELINE.map((s, i) => {
+          const lit = s.done && inView;
+          const last = i === TIMELINE.length - 1;
+          return (
+            <li key={s.title} className="flex gap-3.5">
+              <span className="flex flex-col items-center gap-1">
+                <span
+                  className={`flex h-[30px] w-[30px] items-center justify-center rounded-full border transition-colors duration-500 ${
+                    lit ? 'border-[#4ade8055] bg-[#4ade801f]' : 'border-white/[0.16] bg-white/[0.03]'
+                  }`}
+                  style={{ transitionDelay: `${300 + i * 350}ms` }}
+                >
+                  <s.icon
+                    className={`h-3.5 w-3.5 transition-colors duration-500 ${lit ? 'text-[#4ade80]' : 'text-white/50'}`}
+                    style={{ transitionDelay: `${300 + i * 350}ms` }}
+                    aria-hidden="true"
+                  />
+                </span>
+                {!last && (
+                  <span className="relative h-[26px] w-[1.5px] overflow-hidden bg-white/[0.08]" aria-hidden="true">
+                    <span
+                      className={`absolute inset-0 origin-top bg-[#4ade8055] transition-transform duration-500 ${lit ? 'scale-y-100' : 'scale-y-0'}`}
+                      style={{ transitionDelay: `${450 + i * 350}ms` }}
+                    />
+                  </span>
+                )}
+              </span>
+              <span className="flex flex-col gap-0.5 pb-2 pt-[5px]">
+                <span className={`text-[14px] font-semibold ${s.done ? 'text-white' : 'text-white/50'}`}>{s.title}</span>
+                <span className="text-[13px] text-white/50">{s.body}</span>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </figure>
+  );
+}
+
+function Introductions() {
+  return (
+    <section id="introductions" className="scroll-mt-20 bg-[#070d18] px-4 py-20 sm:px-8 lg:px-16 lg:py-[120px]">
+      <div className="mx-auto flex max-w-[1312px] flex-col gap-[72px]">
+        <div className="flex flex-col-reverse items-center gap-14 lg:flex-row lg:gap-20">
+          <Reveal from="left" className="w-full min-w-0 flex-1">
+            <IntroductionMockup />
+          </Reveal>
+          <Reveal from="right" delay={120} className="flex w-full flex-col gap-6 lg:w-[480px] lg:shrink-0">
+            <p className={EYEBROW}>Consent-based introductions</p>
+            <h2 className={H2}>Introductions happen on the founder&apos;s terms</h2>
+            <p className="text-[17px] leading-[1.55] text-white/70">
+              Investors request an introduction. Contact details are shared only after the founder accepts, and every step is recorded.
+            </p>
+          </Reveal>
+        </div>
+        <div className="grid gap-8 border-t border-white/[0.08] pt-10 md:grid-cols-3 md:gap-5">
+          {RECORD_FEATURES.map((f, i) => {
+            const inner = (
+              <>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-white/[0.08] bg-white/[0.06] transition-[transform,border-color] duration-500 group-hover:-translate-y-0.5 group-hover:border-[#3b82f655]">
+                  <f.icon className="h-[18px] w-[18px] text-[#60a5fa]" aria-hidden="true" />
+                </span>
+                <span className="flex flex-col gap-1.5">
+                  <span className="text-[16px] font-semibold text-white">{f.title}</span>
+                  <span className="text-[14px] leading-[1.55] text-white/50">{f.body}</span>
+                </span>
+              </>
+            );
+            return (
+              <Reveal key={f.title} delay={i * 100}>
+                {f.to ? (
+                  <Link
+                    to={f.to}
+                    className="group flex gap-4 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#60a5fa]"
+                  >
+                    {inner}
+                  </Link>
+                ) : (
+                  <div className="group flex gap-4">{inner}</div>
+                )}
+              </Reveal>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---- Two ways to take part ---------------------------------------------------------------------
+
+function WayRow({ a, b }) {
+  return (
+    <li className="flex items-start gap-3 border-t border-white/[0.08] py-3.5 text-[15px] sm:items-center">
+      <Check className="mt-1 h-4 w-4 shrink-0 text-[#60a5fa] sm:mt-0" aria-hidden="true" />
+      <span>
+        <span className="font-semibold text-white">{a}</span> <span className="text-white/50">· {b}</span>
+      </span>
+    </li>
+  );
+}
+
+function TwoWays() {
+  return (
+    <section id="two-ways" className="scroll-mt-20 bg-[#070d18] px-4 py-20 sm:px-8 lg:px-16 lg:py-[120px]">
+      <div className="mx-auto flex max-w-[1120px] flex-col gap-14">
+        <SectionHeading eyebrow="Graduates and investors" title="Two ways to take part" />
+        <div className="grid gap-5 md:grid-cols-2">
+          <Reveal from="left">
+            <article
+              className="group flex h-full flex-col gap-7 rounded-[20px] border border-[#3b82f655] p-7 transition-[transform,box-shadow] duration-500 hover:-translate-y-1.5 hover:shadow-[0_30px_70px_-25px_#2563eb88] sm:p-9"
+              style={{ background: 'radial-gradient(80% 70% at 0% 0%, rgba(37,99,235,0.18), rgba(37,99,235,0) 100%), rgba(255,255,255,0.03)' }}
+            >
+              <div className="flex items-center gap-3.5">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#2563eb] transition-transform duration-500 group-hover:rotate-[-8deg]">
+                  <GraduationCap className="h-5 w-5 text-white" aria-hidden="true" />
+                </span>
+                <p className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#60a5fa]">For graduates</p>
+              </div>
+              <h3 className="text-[28px] font-medium leading-[1.15] tracking-[-0.9px] text-white sm:text-[32px]">Turn your venture into a verified record.</h3>
+              <ul className="flex flex-col">
+                <WayRow a="Submit and verify projects" b="reviewed by an administrator" />
+                <WayRow a="Apply for opportunities" b="hackathons, grants and competitions" />
+                <WayRow a="Get introduced to investors" b="only when you accept" />
+              </ul>
+              <Link to="/register" className={`${PRIMARY} mt-auto h-[46px] w-fit px-[22px] text-[15px]`}>
+                Join as a graduate
+                <ArrowRight className={ARROW} aria-hidden="true" />
+              </Link>
+            </article>
+          </Reveal>
+          <Reveal from="right" delay={120}>
+            <article
+              className={`${CARD} group flex h-full flex-col gap-7 rounded-[20px] p-7 transition-[transform,border-color] duration-500 hover:-translate-y-1.5 hover:border-white/[0.16] sm:p-9`}
+            >
+              <div className="flex items-center gap-3.5">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.06] transition-transform duration-500 group-hover:rotate-[-8deg]">
+                  <Briefcase className="h-5 w-5 text-[#60a5fa]" aria-hidden="true" />
+                </span>
+                <p className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#60a5fa]">For investors and sponsors</p>
+              </div>
+              <h3 className="text-[28px] font-medium leading-[1.15] tracking-[-0.9px] text-white sm:text-[32px]">
+                Back ALU graduate founders with confidence.
+              </h3>
+              <ul className="flex flex-col">
+                <WayRow a="Browse verified projects" b="filter by sector, stage and country" />
+                <WayRow a="Record investments" b="confirmed with the founder" />
+                <WayRow a="Track introductions" b="from request to meeting" />
+              </ul>
+              <Link to="/register?role=investor" className={`${GHOST} mt-auto h-[46px] w-fit px-[22px] text-[15px]`}>
+                Request investor access
+                <ArrowRight className={ARROW} aria-hidden="true" />
+              </Link>
+            </article>
+          </Reveal>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---- Mission ----------------------------------------------------------------------------------
+
+function Mission() {
+  const [ref, inView] = useInView(0.2);
+  return (
+    <section
+      ref={ref}
+      id="mission"
+      className="relative isolate flex min-h-[560px] items-center justify-center overflow-hidden px-4 py-24 sm:px-8 lg:h-[640px] lg:px-16"
+    >
+      <img
+        src="/images/alu-background.jpeg"
+        alt=""
+        loading="lazy"
+        decoding="async"
+        className={`absolute inset-0 -z-20 h-full w-full object-cover transition-transform duration-[2400ms] ease-out ${inView ? 'scale-100' : 'scale-110'}`}
+      />
+      <div
+        className="absolute inset-0 -z-10"
+        style={{ background: 'linear-gradient(180deg, #070d18 0%, #070d18cc 30%, #070d18e0 75%, #070d18 100%)' }}
+        aria-hidden="true"
+      />
+      <Reveal className="flex max-w-[860px] flex-col items-center gap-6 text-center">
+        <p className={EYEBROW}>Our mission</p>
+        <h2 className="text-[38px] font-medium leading-[1.08] tracking-[-1.2px] text-white sm:text-[48px] lg:text-[56px] lg:tracking-[-1.8px]">
+          Let&apos;s help graduates navigate real-world solutions
+        </h2>
+        <p className="max-w-[660px] text-[17px] leading-[1.6] text-white/85 sm:text-[18px]">
+          ALU Ventures turns graduate ideas into verified ventures that investors can trust, connects them with funding, and helps them grow into businesses
+          that create jobs across Africa.
+        </p>
+        <Link
+          to="/register"
+          className="group inline-flex h-[46px] items-center gap-2 rounded-full border border-white/25 bg-white/10 px-[22px] text-[15px] font-semibold text-white backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        >
+          Start your venture
+          <ArrowRight className={ARROW} aria-hidden="true" />
+        </Link>
+      </Reveal>
+    </section>
+  );
+}
+
+// ---- Plans ------------------------------------------------------------------------------------
+
+const PLANS = [
+  {
+    name: 'Community',
+    available: true,
+    price: 'Free',
+    note: 'Every feature, during the pilot',
+    items: ['Browse approved ventures', 'Request introductions', 'Confirm meetings and investments', 'Email updates'],
+  },
+  {
+    name: 'Syndicate Pro',
+    price: 'Future plan',
+    note: 'No payments are taken today.',
+    items: ['Saved searches and alerts', 'Early access to showcases', 'Advanced filters'],
+  },
+  { name: 'Institutional', price: 'Future plan', note: 'No payments are taken today.', items: ['Team seats', 'Dedicated liaison', 'Portfolio exports'] },
+];
+
+function Plans() {
+  return (
+    <section id="plans" className="scroll-mt-20 bg-[#070d18] px-4 py-20 sm:px-8 lg:px-16 lg:py-[120px]">
+      <div className="mx-auto flex max-w-[1120px] flex-col gap-14">
+        <SectionHeading eyebrow="For investors" title="Free during the pilot" width={720}>
+          All services are free today. Paid plans are future work and take no payments.
+        </SectionHeading>
+        <div className="grid gap-5 md:grid-cols-3">
+          {PLANS.map((p, i) => (
+            <Reveal key={p.name} delay={i * 110} className="h-full">
+              <article
+                className={`flex h-full flex-col gap-6 rounded-[20px] p-8 transition-[transform,box-shadow] duration-500 hover:-translate-y-1.5 md:min-h-[440px] ${
+                  p.available ? 'border-[1.5px] border-[#2563eb] hover:shadow-[0_30px_70px_-25px_#2563eb88]' : 'border border-white/[0.08] bg-white/[0.03]'
+                }`}
+                style={p.available ? { background: 'linear-gradient(180deg, #2563eb24 0%, #2563eb00 70%), rgba(255,255,255,0.03)' } : undefined}
+              >
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[16px] font-semibold text-white">{p.name}</h3>
+                  {p.available ? (
+                    <span className="rounded-full border border-[#4ade8040] bg-[#4ade801a] px-2.5 py-[3px] text-[12px] font-semibold text-[#4ade80]">
+                      Available
+                    </span>
+                  ) : (
+                    <span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-2.5 py-[3px] text-[12px] font-semibold text-white/50">
+                      Coming soon
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <p
+                    className={p.available ? 'text-[48px] font-medium tracking-[-1.4px] text-white' : 'text-[30px] font-medium tracking-[-1.4px] text-white/70'}
+                  >
+                    {p.price}
+                  </p>
+                  <p className="text-[14px] text-white/50">{p.note}</p>
+                </div>
+                <ul className="flex flex-col gap-3 border-t border-white/[0.08] pt-5">
+                  {p.items.map((it) => (
+                    <li key={it} className={`flex items-center gap-2.5 text-[14px] ${p.available ? 'text-white/70' : 'text-white/50'}`}>
+                      <Check className={`h-[15px] w-[15px] shrink-0 ${p.available ? 'text-[#60a5fa]' : 'text-white/50'}`} aria-hidden="true" />
+                      {it}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-auto">
+                  {p.available ? (
+                    <Link to="/register?role=investor" className={`${PRIMARY} h-11 w-full text-[14px]`}>
+                      Request investor access
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="h-11 w-full cursor-not-allowed rounded-full border border-white/[0.08] bg-white/[0.03] text-[14px] font-semibold text-white/50"
+                    >
+                      Not yet available
+                    </button>
+                  )}
+                </div>
+              </article>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---- Built by ---------------------------------------------------------------------------------
+
+function BuiltBy() {
+  return (
+    <section className="bg-[#070d18] px-4 pb-20 sm:px-8 lg:px-16 lg:pb-[120px]">
+      <Reveal className="mx-auto max-w-[1120px]">
+        <figure className={`${CARD} group flex flex-col items-center gap-8 rounded-[20px] p-7 sm:flex-row sm:gap-12 sm:p-10`}>
+          <div className="h-[200px] w-[160px] shrink-0 overflow-hidden rounded-[14px]">
+            <img
+              src="/images/developer.jpeg"
+              alt="Levis Ishimwe"
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+            />
+          </div>
+          <div className="flex flex-col gap-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[1.4px] text-[#60a5fa]">Built by an ALU graduate</p>
+            <blockquote className="text-[19px] leading-[1.5] tracking-[-0.3px] text-white sm:text-[22px]">
+              Levis designed and built ALU Ventures: graduate and investor registration with administrator review, project submission with document checks,
+              investor introductions, and the hackathon, grant and competition workflow.
+            </blockquote>
+            <figcaption className="flex flex-col gap-1">
+              <span className="text-[15px] font-semibold text-white">Levis Ishimwe</span>
+              <span className="text-[14px] text-white/50">BSc Software Engineering · African Leadership University</span>
+            </figcaption>
+          </div>
+        </figure>
+      </Reveal>
+    </section>
+  );
+}
+
+// ---- Hero slider ------------------------------------------------------------------------------
+// Two slides that cross-fade (1.2 s) with a slow zoom. The progress bar under
+// the active tab drives the timing: when it fills, the next slide shows. It
+// pauses off screen, on hover, keyboard focus or the pause button; with reduced motion
+// there is no autoplay and no zoom. WebP copies are served first.
+
+const SLIDE_MS = 7000;
+const SLIDES = [
+  {
+    tab: 'Shine',
+    image: '/images/Shinning',
+    original: '/images/Shinning.jpg',
+    alt: 'A laptop glowing with golden light on a rooftop above a city at night.',
+    tagIcon: Sparkles,
+    tagColor: '#fcd34d',
+    tag: 'For ALU graduate founders',
+    title: 'Let your ideas and projects shine in Africa and all over the world.',
+    body: 'Turn your venture into a verified public record that investors and sponsors can trust.',
+    primary: ['Get started — it’s free', '/register'],
+    secondary: ['Browse ventures', '/ventures'],
+    next: 'Let your ideas shine',
+  },
+  {
+    tab: 'Navigate',
+    image: '/images/Navigate',
+    original: '/images/Navigate.png',
+    alt: 'A desk and laptop on a grassy hilltop above a misty valley at sunrise, with a river winding into the distance.',
+    tagIcon: Compass,
+    tagColor: '#fda4af',
+    tag: 'From idea to investment',
+    title: 'Navigate from idea to verified venture.',
+    body: 'Submit your project, pass document checks and reach investors and sponsors who back ALU graduates.',
+    primary: ['Submit your venture', null],
+    secondary: ['See how verification works', '#why'],
+    next: 'Navigate from idea to venture',
+  },
+];
+
+const SLIDER_STATS = [
+  ['verifiedGraduates', 'Verified graduates'],
+  ['approvedProjects', 'Approved projects'],
+  ['investors', 'Investors'],
+  ['introductions', 'Introductions made'],
+];
+
+const GLASS_BTN =
+  'flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/[0.08] text-white backdrop-blur-lg transition-all duration-300 hover:scale-105 hover:bg-white/[0.16] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
+
+function HeroSlider({ stats }) {
+  const reduced = useReducedMotion();
+  const gated = useGated();
+  const [index, setIndex] = useState(0);
+  const [hold, setHold] = useState(false); // hover or keyboard focus
+  const [stopped, setStopped] = useState(false); // pause button
+  const [seen, setSeen] = useState([true, false]); // second image loads when first needed
+  const [sectionRef, onScreen] = useOnScreen();
+
+  const go = (i) => {
+    const n = (i + SLIDES.length) % SLIDES.length;
+    setSeen((s) => s.map((v, k) => v || k === n));
+    setIndex(n);
+  };
+  const autoplay = !reduced && !stopped;
+  const running = autoplay && !hold && onScreen;
+  const slide = SLIDES[index];
+  const nextSlide = SLIDES[(index + 1) % SLIDES.length];
+
+  // Fetch the next image a little before it is needed.
+  useEffect(() => {
+    if (!autoplay || !onScreen) return undefined;
+    const t = setTimeout(() => setSeen([true, true]), 3000);
+    return () => clearTimeout(t);
+  }, [autoplay, onScreen]);
 
   const fade = reduced ? '' : 'transition-opacity duration-[1200ms] ease-in-out';
   return (
     <section
+      ref={sectionRef}
       aria-roledescription="carousel"
-      aria-label="Messages for graduates"
-      className="relative isolate overflow-hidden bg-[#0B1F3A]"
+      aria-label="Messages for graduate founders"
+      className="relative isolate flex min-h-[720px] flex-col justify-between overflow-hidden border-t border-white/[0.08] bg-[#070d18] lg:h-[760px]"
       onMouseEnter={() => setHold(true)}
       onMouseLeave={() => setHold(false)}
       onFocus={() => setHold(true)}
       onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setHold(false)}
     >
       {SLIDES.map((s, i) => (
-        <picture key={s.image} className={`absolute inset-0 -z-20 ${fade} ${i === index ? 'opacity-100' : 'opacity-0'}`} aria-hidden={i !== index}>
-          <source srcSet={`${s.image}.webp`} type="image/webp" />
-          <img src={s.original} alt={s.alt} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" className="h-full w-full object-cover" />
+        <picture
+          key={s.image}
+          className={`absolute inset-0 -z-20 overflow-hidden ${fade} ${i === index ? 'opacity-100' : 'opacity-0'}`}
+          aria-hidden={i !== index}
+        >
+          {seen[i] && (
+            <>
+              <source srcSet={`${s.image}.webp`} type="image/webp" />
+              <img
+                key={i === index ? `on-${index}` : 'off'}
+                src={s.original}
+                alt={s.alt}
+                decoding="async"
+                className={`h-full w-full object-cover ${i === index && !reduced ? 'land-kenburns' : ''}`}
+              />
+            </>
+          )}
         </picture>
       ))}
-      {/* Navy overlay (about 60%), darker behind the text, so white text stays readable on bright areas. */}
-      <div className="absolute inset-0 -z-10 bg-[#0B1F3A]/60" aria-hidden="true" />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#070d18]/70 via-[#070d18]/35 to-transparent" aria-hidden="true" />
+      <div
+        className="absolute inset-0 -z-10"
+        style={{
+          background: 'linear-gradient(90deg, #070d18f2 0%, #070d18b3 42%, #070d1800 75%), linear-gradient(180deg, #070d1800 55%, #070d18e6 100%)',
+        }}
+        aria-hidden="true"
+      />
 
-      <div className="mx-auto flex min-h-[520px] max-w-6xl flex-col justify-center px-4 py-16 sm:min-h-[560px]">
-        <div className="grid max-w-2xl" aria-live={playing ? 'off' : 'polite'}>
-          {SLIDES.map((s, i) => (
-            <div
-              key={s.image}
-              className={`col-start-1 row-start-1 ${fade} ${i === index ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
-              aria-hidden={i !== index}
-              aria-roledescription="slide"
-              aria-label={`${i + 1} of ${SLIDES.length}`}
-            >
-              <h2 className="text-[30px] font-semibold leading-tight text-white [text-shadow:0_1px_12px_rgba(0,0,0,0.45)] sm:text-[42px]">{s.title}</h2>
-              <p className="mt-4 max-w-xl text-[16px] leading-relaxed text-[#e6eaf0] [text-shadow:0_1px_8px_rgba(0,0,0,0.5)]">{s.body}</p>
-            </div>
-          ))}
-        </div>
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Link to="/register" className={GREEN}>
-            Get started
-          </Link>
-          <Link to="/ventures" className={`${GREEN_OUTLINE} bg-[#070d18]/40`}>
-            Browse projects
-          </Link>
-        </div>
-        <div className="mt-8 flex gap-2" role="group" aria-label="Choose a slide">
-          {SLIDES.map((s, i) => (
-            <button
-              key={s.image}
-              type="button"
-              onClick={() => setIndex(i)}
-              aria-label={`Show slide ${i + 1}`}
-              aria-current={i === index ? 'true' : undefined}
-              className={`h-2.5 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${i === index ? 'w-7 bg-[#3fb950]' : 'w-2.5 bg-white/50 hover:bg-white/80'}`}
-            />
-          ))}
+      <div className="w-full max-w-[816px] px-4 pt-20 sm:px-8 lg:pl-24 lg:pr-0 lg:pt-[120px]" aria-live={running ? 'off' : 'polite'}>
+        <div key={index} className="flex flex-col gap-6" aria-roledescription="slide" aria-label={`${index + 1} of ${SLIDES.length}: ${slide.tab}`}>
+          <span
+            className="land-rise inline-flex w-fit items-center gap-2 rounded-full border border-white/[0.18] bg-white/[0.08] px-3 py-1.5 text-[13px] font-semibold text-white backdrop-blur-lg"
+            style={{ '--d': '100ms' }}
+          >
+            <slide.tagIcon className="h-3.5 w-3.5" style={{ color: slide.tagColor }} aria-hidden="true" />
+            {slide.tag}
+          </span>
+          <h2
+            className="land-rise text-[38px] font-medium leading-[1.06] tracking-[-1.2px] text-white sm:text-[48px] lg:text-[60px] lg:tracking-[-2px]"
+            style={{ '--d': '200ms' }}
+          >
+            {slide.title}
+          </h2>
+          <p className="land-rise max-w-[520px] text-[17px] leading-[1.55] text-white/85 sm:text-[18px]" style={{ '--d': '320ms' }}>
+            {slide.body}
+          </p>
+          <div className="land-rise flex flex-col gap-3 pt-3 sm:flex-row" style={{ '--d': '440ms' }}>
+            <Link to={slide.primary[1] || gated('/app/go/projects')} className={`${PRIMARY} h-[50px] px-[26px] text-[15px] shadow-[0_8px_24px_#2563eb66]`}>
+              {slide.primary[0]}
+              <ArrowRight className={ARROW} aria-hidden="true" />
+            </Link>
+            {slide.secondary[1].startsWith('#') ? (
+              <a
+                href={slide.secondary[1]}
+                className="inline-flex h-[50px] items-center justify-center rounded-full border border-white/25 bg-white/[0.08] px-6 text-[15px] font-semibold text-white backdrop-blur-lg transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/[0.16] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              >
+                {slide.secondary[0]}
+              </a>
+            ) : (
+              <Link
+                to={slide.secondary[1]}
+                className="inline-flex h-[50px] items-center justify-center rounded-full border border-white/25 bg-white/[0.08] px-6 text-[15px] font-semibold text-white backdrop-blur-lg transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/[0.16] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              >
+                {slide.secondary[0]}
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
-      {stats && (
-        <dl className="border-t border-white/10 bg-[#070d18]/85">
-          <div className="mx-auto grid max-w-4xl grid-cols-2 sm:grid-cols-4">
-            {BANNER_STATS.map(([key, label], i) => (
-              <div key={key} className={`flex flex-col-reverse px-4 py-4 text-center ${i % 2 ? 'border-l border-white/10' : ''} ${i >= 2 ? 'border-t border-white/10 sm:border-t-0' : ''} ${i === 2 ? 'sm:border-l' : ''}`}>
-                <dt className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#a3adbd]">{label}</dt>
-                <dd className="text-[24px] font-semibold tabular-nums text-white">{stats[key].toLocaleString('en-GB')}</dd>
-              </div>
-            ))}
+      <div className="mt-12 flex flex-col gap-7 lg:mt-0">
+        <div className="flex flex-col gap-6 px-4 sm:flex-row sm:items-end sm:justify-between sm:px-8 lg:px-24">
+          <div className="flex gap-5" role="group" aria-label="Choose a slide">
+            {SLIDES.map((s, i) => {
+              const on = i === index;
+              return (
+                <button
+                  key={s.tab}
+                  type="button"
+                  onClick={() => go(i)}
+                  aria-label={`Show slide ${i + 1}: ${s.tab}`}
+                  aria-current={on ? 'true' : undefined}
+                  className="group flex w-[140px] flex-col gap-2.5 text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white sm:w-[180px]"
+                >
+                  <span
+                    className="relative h-[3px] w-full overflow-hidden rounded-full bg-white/20 transition-colors group-hover:bg-white/35"
+                    aria-hidden="true"
+                  >
+                    {on && (
+                      <span
+                        key={`p-${index}`}
+                        className={`absolute inset-0 rounded-full bg-white ${reduced ? '' : 'land-progress'}`}
+                        style={{ '--slide-ms': `${SLIDE_MS}ms`, animationPlayState: running ? 'running' : 'paused' }}
+                        onAnimationEnd={() => go(index + 1)}
+                      />
+                    )}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <span className={`font-['JetBrains_Mono',ui-monospace,monospace] text-[12px] font-semibold ${on ? 'text-white' : 'text-white/50'}`}>
+                      0{i + 1}
+                    </span>
+                    <span
+                      className={`text-[14px] transition-colors ${on ? 'font-semibold text-white' : 'font-medium text-white/60 group-hover:text-white/90'}`}
+                    >
+                      {s.tab}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
-        </dl>
-      )}
-    </section>
-  );
-}
-
-// ---- 9. Plans (investors) --------------------------------------------------------------------
-
-function Plans() {
-  const plans = [
-    { name: 'Community', price: 'Free', note: 'Every feature, during the pilot', items: ['Browse approved ventures', 'Request introductions', 'Confirm meetings and investments', 'Email updates'], current: true },
-    { name: 'Syndicate Pro', price: 'Coming soon', note: 'Future work', items: ['Saved searches and alerts', 'Early access to showcases', 'Advanced filters'] },
-    { name: 'Institutional', price: 'Coming soon', note: 'Future work', items: ['Team seats', 'Dedicated liaison', 'Portfolio exports'] },
-  ];
-  return (
-    <section className="bg-[#070d18] px-4 pb-20">
-      <SectionTitle eyebrow="For investors" title="Choose the plan that fits">
-        All services are free today. Paid plans are future work and take no payments.
-      </SectionTitle>
-      <div className="mx-auto grid max-w-5xl gap-5 md:grid-cols-3">
-        {plans.map((p) => (
-          <article key={p.name} className={`${PANEL} flex flex-col p-6 ${p.current ? 'border-[#2ea043]' : ''}`}>
-            <p className="flex items-center gap-2 text-[14px] font-semibold text-white">
-              {p.name}
-              {p.current && <span className="rounded bg-[#1f883d] px-1.5 py-0.5 text-[10px] font-semibold text-white">Available</span>}
-            </p>
-            <p className="mt-3 text-[28px] font-semibold text-white">{p.price}</p>
-            <p className={`text-[12px] ${MUTED}`}>{p.note}</p>
-            {p.current ? (
-              <Link to="/register?role=investor" className={`${GREEN} mt-5 h-9 text-[13px]`}>
-                Request investor access
-              </Link>
-            ) : (
-              <button type="button" className={`${GREEN} mt-5 h-9 text-[13px]`} disabled>
-                Coming soon
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => go(index + 1)}
+              className="group hidden items-center gap-3 rounded-xl border border-white/15 bg-[#070d18]/60 py-1.5 pl-1.5 pr-3.5 text-left backdrop-blur-xl transition-colors hover:border-white/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:flex"
+              aria-label={`Up next: ${nextSlide.next}`}
+            >
+              <span className="h-12 w-[72px] overflow-hidden rounded-lg">
+                <picture>
+                  <source srcSet={`${nextSlide.image}.webp`} type="image/webp" />
+                  <img
+                    src={nextSlide.original}
+                    alt=""
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  />
+                </picture>
+              </span>
+              <span className="flex flex-col gap-0.5">
+                <span className="text-[11px] font-semibold uppercase tracking-[1px] text-white/50">Up next</span>
+                <span className="text-[13px] font-semibold text-white">{nextSlide.next}</span>
+              </span>
+            </button>
+            {!reduced && (
+              <button
+                type="button"
+                className={GLASS_BTN}
+                onClick={() => setStopped((s) => !s)}
+                aria-label={stopped ? 'Play slides' : 'Pause slides'}
+                aria-pressed={stopped}
+              >
+                {stopped ? <Play className="h-[18px] w-[18px]" aria-hidden="true" /> : <Pause className="h-[18px] w-[18px]" aria-hidden="true" />}
               </button>
             )}
-            <ul className={`mt-5 space-y-2 text-[13px] ${MUTED}`}>
-              {p.items.map((i) => (
-                <li key={i}>
-                  <span className="mr-2 text-[#3fb950]">✓</span>
-                  {i}
-                </li>
-              ))}
-            </ul>
-          </article>
-        ))}
+            <button type="button" className={GLASS_BTN} onClick={() => go(index - 1)} aria-label="Previous slide">
+              <ChevronLeft className="h-[18px] w-[18px]" aria-hidden="true" />
+            </button>
+            <button type="button" className={GLASS_BTN} onClick={() => go(index + 1)} aria-label="Next slide">
+              <ChevronRight className="h-[18px] w-[18px]" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+
+        {stats && (
+          <div className="border-t border-white/[0.12] bg-[#070d18]/70 backdrop-blur-2xl">
+            <div className="flex flex-col px-4 py-6 sm:px-8 lg:flex-row lg:items-center lg:px-24">
+              <dl className="grid flex-1 grid-cols-2 items-center lg:flex">
+                {SLIDER_STATS.map(([key, label], i) => (
+                  <div
+                    key={key}
+                    className={`flex flex-col-reverse items-start gap-1 px-4 py-2 sm:flex-row-reverse sm:items-center sm:justify-end sm:gap-3.5 lg:flex-1 lg:px-7 lg:py-0 ${
+                      i === 0 ? 'lg:pl-0' : 'lg:border-l lg:border-white/[0.12]'
+                    } ${i % 2 ? 'border-l border-white/[0.12]' : ''}`}
+                  >
+                    <dt className="text-[11px] font-semibold uppercase tracking-[1.2px] text-white/60">{label}</dt>
+                    <dd className="text-[30px] font-medium tracking-[-1px] text-white sm:text-[36px]">
+                      <CountUp value={stats[key]} />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-3 flex items-center gap-2 px-4 text-[12px] font-semibold text-[#4ade80] lg:mt-0 lg:px-0">
+                <LiveDot />
+                Live
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
 }
 
-// ---- 10. Founder and mission ----------------------------------------------------------------
+// ---- Footer -----------------------------------------------------------------------------------
 
-function Mission() {
-  const [photo, setPhoto] = useState(true);
-  return (
-    <section className="relative overflow-hidden bg-[#0B1F3A] px-4 py-24 text-center">
-      <img src="/images/alu-background.jpeg" alt="" className="absolute inset-0 h-full w-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#070d18]/90 via-[#0B1F3A]/85 to-[#070d18]/95" aria-hidden="true" />
-      <div className="relative mx-auto max-w-2xl">
-        <figure>
-          {photo ? (
-            <img
-              src="/images/fred-swaniker.jpeg"
-              alt="Fred Swaniker"
-              onError={() => setPhoto(false)}
-              className="mx-auto h-20 w-20 rounded-full object-cover ring-2 ring-white/20"
-            />
-          ) : (
-            <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-white/10 text-[20px] font-semibold text-white" aria-hidden="true">
-              FS
-            </span>
-          )}
-          <figcaption className="mt-3 text-[13px] text-[#c9d1d9]">Fred Swaniker, Co-founder, African Leadership University</figcaption>
-        </figure>
-        <p className="mt-12 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#3fb950]">Our mission</p>
-        <h2 className="mt-3 text-[30px] font-bold leading-tight text-white sm:text-[40px]">Let&apos;s Help Graduates Navigate Real-World Solutions</h2>
-        <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-[#d0d7e2]">
-          ALU Ventures turns graduate ideas into verified ventures that investors can trust, connects them with funding, and helps them grow into businesses that
-          create jobs across Africa.
-        </p>
-        <Link to="/register" className={`${GREEN} mt-8 rounded-full`}>
-          Start your venture
-        </Link>
-      </div>
-    </section>
-  );
-}
-
-// ---- 11. Footer -------------------------------------------------------------------------------
+const FOOTER_COLS = [
+  [
+    'Explore',
+    [
+      ['/ventures', 'Browse ventures'],
+      ['/opportunities', 'Opportunities'],
+      ['/verify', 'Verify a project'],
+    ],
+  ],
+  [
+    'Account',
+    [
+      ['/signin', 'Sign in'],
+      ['/register', 'Create an account'],
+      ['/register?role=investor', 'Investor access'],
+    ],
+  ],
+  ['Help', [['/app/contact', 'Contact the team']]],
+];
 
 function Footer() {
-  const cols = [
-    ['Explore', [['/ventures', 'Browse'], ['/verify', 'Verify a project'], ['/opportunities', 'Opportunities']]],
-    ['Account', [['/signin', 'Sign in'], ['/register', 'Create an account'], ['/register?role=investor', 'Investor access']]],
-    ['Help', [['/app/contact', 'Contact']]],
-  ];
   return (
-    <footer className="border-t border-white/10 bg-[#050a13] px-4 pt-14 text-[13px]">
-      <div className="mx-auto grid max-w-5xl gap-10 md:grid-cols-[1fr_3fr]">
-        <Link to="/" aria-label="ALU Ventures home" className="h-fit w-fit">
-          <img src="/alu-logo.png" alt="African Leadership University" className="h-9 w-auto max-w-none rounded-[3px]" />
-        </Link>
-        <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
-          {cols.map(([title, links]) => (
-            <div key={title}>
-              <p className="font-semibold text-white">{title}</p>
-              <ul className="mt-3 space-y-2">
+    <footer className="border-t border-white/[0.08] bg-[#070d18] px-4 pb-10 pt-[72px] sm:px-8 lg:px-16">
+      <div className="mx-auto flex max-w-[1312px] flex-col gap-12">
+        <div className="flex flex-col gap-12 lg:flex-row lg:gap-16">
+          <div className="flex flex-col gap-5 lg:w-[400px] lg:shrink-0">
+            <Link to="/" aria-label="ALU Ventures home" className="w-fit">
+              <Brand />
+            </Link>
+            <p className="text-[14px] leading-[1.6] text-white/50">
+              Where verified ALU graduate ventures meet investors and sponsors, through consent-based introductions.
+            </p>
+            <p className="inline-flex w-fit items-center gap-2 rounded-full border border-[#3b82f640] bg-[#3b82f61f] px-3 py-1.5 text-[12px] font-medium text-[#60a5fa]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#60a5fa]" aria-hidden="true" />
+              All platform services are free
+            </p>
+          </div>
+          <div className="grid flex-1 grid-cols-2 gap-8 sm:grid-cols-3">
+            {FOOTER_COLS.map(([title, links]) => (
+              <nav key={title} aria-label={title} className="flex flex-col gap-3.5">
+                <p className="text-[13px] font-semibold text-white">{title}</p>
                 {links.map(([to, label]) => (
-                  <li key={to}>
-                    <Link to={to} className={`${MUTED} hover:text-white`}>
-                      {label}
-                    </Link>
-                  </li>
+                  <Link key={to} to={to} className="w-fit text-[14px] text-white/50 transition-colors hover:text-white">
+                    {label}
+                  </Link>
                 ))}
-              </ul>
-            </div>
-          ))}
+              </nav>
+            ))}
+          </div>
         </div>
-      </div>
-      <div className={`mx-auto mt-12 max-w-5xl space-y-2 border-t border-white/10 py-8 text-[12px] ${MUTED}`}>
-        <p className="font-semibold text-white">All platform services are free.</p>
-        <p>ALU Graduate Entrepreneurship &amp; Funding Platform. A verified record confirms an administrator-approved venture on this platform; it is not an investment recommendation.</p>
-        <p>© {new Date().getFullYear()} African Leadership University</p>
+        <div className="flex flex-col gap-5 border-t border-white/[0.08] pt-7 text-[12px] text-white/50">
+          <p className="leading-[1.6]">
+            ALU Graduate Entrepreneurship &amp; Funding Platform. A verified record confirms an administrator-approved venture on this platform; it is not an
+            investment recommendation.
+          </p>
+          <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+            <p>© {new Date().getFullYear()} African Leadership University</p>
+            <p>Built at African Leadership University</p>
+          </div>
+        </div>
       </div>
     </footer>
   );
@@ -765,8 +1454,7 @@ function Footer() {
 
 export default function Home() {
   const { user } = useAuth();
-  const { stats, stories, investors, testimonials } = useHomeData();
-  const [paused, setPaused] = useState(false);
+  const stats = useBannerStats();
 
   useEffect(() => {
     document.title = 'ALU Ventures';
@@ -775,29 +1463,20 @@ export default function Home() {
   // Plans are for investors: shown to visitors and investors, not to other signed-in roles.
   const showPlans = !user || user.role === 'investor';
   return (
-    <div className="bg-[#070d18] text-white">
-      <Hero stats={stats} />
-      <div className="sticky top-0 z-10 flex justify-end bg-transparent px-4">
-        <button
-          type="button"
-          onClick={() => setPaused((p) => !p)}
-          aria-pressed={paused}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-[#070d18]/80 px-3 py-1 text-[12px] text-[#c9d1d9] backdrop-blur hover:text-white"
-        >
-          {paused ? <Play className="h-3.5 w-3.5" aria-hidden="true" /> : <Pause className="h-3.5 w-3.5" aria-hidden="true" />}
-          {paused ? 'Play motion' : 'Pause motion'}
-        </button>
-      </div>
-      <IconStrip paused={paused} />
-      <WhyChoose />
-      <Developer />
-      <Features />
-      <PeopleRows stories={stories} investors={investors} paused={paused} />
-      <Testimonies items={testimonials} paused={paused} />
-      <TwoWays />
-      <RotatingBanner paused={paused} />
-      {showPlans && <Plans />}
-      <Mission />
+    <div className="min-h-screen bg-[#070d18] font-sans text-white antialiased">
+      <Header />
+      <main>
+        <Hero stats={stats} />
+        <WhyAluVentures />
+        <ForInvestors />
+        <Opportunities />
+        <Introductions />
+        <TwoWays />
+        <Mission />
+        {showPlans && <Plans />}
+        <BuiltBy />
+        <HeroSlider stats={stats} />
+      </main>
       <Footer />
     </div>
   );
