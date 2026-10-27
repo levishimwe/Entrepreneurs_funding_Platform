@@ -504,6 +504,141 @@ function TwoWays() {
   );
 }
 
+// ---- 8b. Rotating banner -------------------------------------------------------------------
+// Two full-width slides whose backgrounds cross-fade (1.2 s fade, new slide
+// every 7 s). Pauses on hover and keyboard focus; with reduced motion it stays
+// on slide 1 and the dots switch slides without fading. WebP copies are served
+// first; the original files remain the fallback.
+
+const SLIDES = [
+  {
+    image: '/images/Navigate',
+    original: '/images/Navigate.png',
+    alt: 'A desk and laptop on a grassy hilltop above a misty valley at sunrise, with a river winding into the distance.',
+    title: 'Dear Graduates, do not quit after graduation.',
+    body: 'Keep navigating real-world solutions: verify your project, meet investors through introductions, and apply to hackathons, grants and competitions.',
+  },
+  {
+    image: '/images/Shinning',
+    original: '/images/Shinning.jpg',
+    alt: 'A laptop glowing with golden light on a rooftop above a city at night.',
+    title: 'Let your ideas and projects shine in Africa and all over the world.',
+    body: 'Turn your venture into a verified public record that investors and sponsors can trust.',
+  },
+];
+const SLIDE_MS = 7000;
+const BANNER_STATS = [
+  ['verifiedGraduates', 'Verified graduates'],
+  ['approvedProjects', 'Approved projects'],
+  ['investors', 'Investors'],
+  ['introductions', 'Introductions made'],
+];
+
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(() => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onChange = () => setReduced(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return reduced;
+}
+
+function RotatingBanner({ paused }) {
+  const reduced = useReducedMotion();
+  const [index, setIndex] = useState(0);
+  const [hold, setHold] = useState(false); // hover or keyboard focus
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    api
+      .get('/public/banner-stats')
+      .then((d) => setStats(BANNER_STATS.every(([k]) => Number.isFinite(d?.[k])) ? d : null))
+      .catch(() => setStats(null));
+  }, []);
+
+  const playing = !reduced && !hold && !paused;
+  useEffect(() => {
+    if (!playing) return undefined;
+    const t = setInterval(() => setIndex((i) => (i + 1) % SLIDES.length), SLIDE_MS);
+    return () => clearInterval(t);
+  }, [playing]);
+
+  const fade = reduced ? '' : 'transition-opacity duration-[1200ms] ease-in-out';
+  return (
+    <section
+      aria-roledescription="carousel"
+      aria-label="Messages for graduates"
+      className="relative isolate overflow-hidden bg-[#0B1F3A]"
+      onMouseEnter={() => setHold(true)}
+      onMouseLeave={() => setHold(false)}
+      onFocus={() => setHold(true)}
+      onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setHold(false)}
+    >
+      {SLIDES.map((s, i) => (
+        <picture key={s.image} className={`absolute inset-0 -z-20 ${fade} ${i === index ? 'opacity-100' : 'opacity-0'}`} aria-hidden={i !== index}>
+          <source srcSet={`${s.image}.webp`} type="image/webp" />
+          <img src={s.original} alt={s.alt} loading={i === 0 ? 'eager' : 'lazy'} decoding="async" className="h-full w-full object-cover" />
+        </picture>
+      ))}
+      {/* Navy overlay (about 60%), darker behind the text, so white text stays readable on bright areas. */}
+      <div className="absolute inset-0 -z-10 bg-[#0B1F3A]/60" aria-hidden="true" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#070d18]/70 via-[#070d18]/35 to-transparent" aria-hidden="true" />
+
+      <div className="mx-auto flex min-h-[520px] max-w-6xl flex-col justify-center px-4 py-16 sm:min-h-[560px]">
+        <div className="grid max-w-2xl" aria-live={playing ? 'off' : 'polite'}>
+          {SLIDES.map((s, i) => (
+            <div
+              key={s.image}
+              className={`col-start-1 row-start-1 ${fade} ${i === index ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+              aria-hidden={i !== index}
+              aria-roledescription="slide"
+              aria-label={`${i + 1} of ${SLIDES.length}`}
+            >
+              <h2 className="text-[30px] font-semibold leading-tight text-white [text-shadow:0_1px_12px_rgba(0,0,0,0.45)] sm:text-[42px]">{s.title}</h2>
+              <p className="mt-4 max-w-xl text-[16px] leading-relaxed text-[#e6eaf0] [text-shadow:0_1px_8px_rgba(0,0,0,0.5)]">{s.body}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <Link to="/register" className={GREEN}>
+            Get started
+          </Link>
+          <Link to="/ventures" className={`${GREEN_OUTLINE} bg-[#070d18]/40`}>
+            Browse projects
+          </Link>
+        </div>
+        <div className="mt-8 flex gap-2" role="group" aria-label="Choose a slide">
+          {SLIDES.map((s, i) => (
+            <button
+              key={s.image}
+              type="button"
+              onClick={() => setIndex(i)}
+              aria-label={`Show slide ${i + 1}`}
+              aria-current={i === index ? 'true' : undefined}
+              className={`h-2.5 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${i === index ? 'w-7 bg-[#3fb950]' : 'w-2.5 bg-white/50 hover:bg-white/80'}`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {stats && (
+        <dl className="border-t border-white/10 bg-[#070d18]/85">
+          <div className="mx-auto grid max-w-4xl grid-cols-2 sm:grid-cols-4">
+            {BANNER_STATS.map(([key, label], i) => (
+              <div key={key} className={`flex flex-col-reverse px-4 py-4 text-center ${i % 2 ? 'border-l border-white/10' : ''} ${i >= 2 ? 'border-t border-white/10 sm:border-t-0' : ''} ${i === 2 ? 'sm:border-l' : ''}`}>
+                <dt className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#a3adbd]">{label}</dt>
+                <dd className="text-[24px] font-semibold tabular-nums text-white">{stats[key].toLocaleString('en-GB')}</dd>
+              </div>
+            ))}
+          </div>
+        </dl>
+      )}
+    </section>
+  );
+}
+
 // ---- 9. Plans (investors) --------------------------------------------------------------------
 
 function Plans() {
@@ -660,6 +795,7 @@ export default function Home() {
       <PeopleRows stories={stories} investors={investors} paused={paused} />
       <Testimonies items={testimonials} paused={paused} />
       <TwoWays />
+      <RotatingBanner paused={paused} />
       {showPlans && <Plans />}
       <Mission />
       <Footer />

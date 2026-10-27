@@ -123,6 +123,17 @@ router.get('/stats', async (req, res) => {
   res.json({ approvedProjects, approvedGraduates, openOpportunities, introductions });
 });
 
+// Home-page banner: four live counts, nothing else (no names, codes or ids).
+router.get('/banner-stats', async (req, res) => {
+  const [verifiedGraduates, approvedProjects, investors, introductions] = await Promise.all([
+    User.count({ where: { role: 'graduate', status: 'active' }, include: [{ model: GraduateProfile, as: 'graduateProfile', required: true, where: { verificationStatus: 'approved' } }] }),
+    Project.count({ where: PUBLIC_WHERE }),
+    User.count({ where: { role: 'investor', status: 'active' } }),
+    Introduction.count({ where: { status: 'accepted' } }),
+  ]);
+  res.json({ verifiedGraduates, approvedProjects, investors, introductions });
+});
+
 // FR14: exact code → one approved, consented profile. Anything else gets the
 // same neutral response, so the lookup cannot be used to probe records.
 const NEUTRAL = 'No approved public project matches that code. Check the code and try again.';

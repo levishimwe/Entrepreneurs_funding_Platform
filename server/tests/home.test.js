@@ -95,3 +95,21 @@ describe('home page: investors', () => {
     expect((await InvestorProfile.findByPk(pending.user.id)).showOnHome).toBe(false);
   });
 });
+
+describe('home page: banner stats', () => {
+  test('returns four live counts and nothing else', async () => {
+    const before = (await agent().get('/api/public/banner-stats')).body;
+    expect(Object.keys(before).sort()).toEqual(['approvedProjects', 'introductions', 'investors', 'verifiedGraduates']);
+    Object.values(before).forEach((n) => expect(Number.isInteger(n) && n >= 0).toBe(true));
+
+    // An approved graduate and an approved investor each add one.
+    await approvedGraduate();
+    await investorClient();
+    const after = (await agent().get('/api/public/banner-stats')).body;
+    expect(after.verifiedGraduates).toBe(before.verifiedGraduates + 1);
+    expect(after.investors).toBe(before.investors + 1);
+    // A pending investor does not count.
+    await investorClient({ approved: false });
+    expect((await agent().get('/api/public/banner-stats')).body.investors).toBe(after.investors);
+  });
+});
