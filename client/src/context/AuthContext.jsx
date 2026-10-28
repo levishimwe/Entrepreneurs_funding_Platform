@@ -59,5 +59,5 @@ export function useAuth() {
 // Where each role lands after signing in.
 export function homePathFor(user) {
   if (!user) return '/signin';
-  return { admin: '/app/admin', staff: '/app/staff', investor: '/app/discover', graduate: '/app' }[user.role] || '/app';
+  return { admin: '/app/admin', staff: '/app/staff', investor: '/app/activity', graduate: '/app' }[user.role] || '/app';
 }

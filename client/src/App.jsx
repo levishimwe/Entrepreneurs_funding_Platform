@@ -19,6 +19,8 @@ import AdminTestimonials from './pages/admin/AdminTestimonials';
 import Introductions from './pages/Introductions';
 import Discover from './pages/investor/Discover';
 import InvestorProject from './pages/investor/InvestorProject';
+import InvestorActivity from './pages/investor/InvestorActivity';
+import Editor from './pages/graduate/Editor';
 import Billing from './pages/investor/Billing';
 import AdminIntroductions from './pages/admin/AdminIntroductions';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -71,8 +73,10 @@ export default function App() {
               <Route path="projects/:id" element={<ProjectDetail />} />
               <Route path="projects/:id/edit" element={<ProjectForm />} />
               <Route path="opportunities" element={<Opportunities />} />
+              <Route path="editor" element={<Editor />} />
             </Route>
             <Route element={<RequireAuth roles={['investor']} />}>
+              <Route path="activity" element={<InvestorActivity />} />
               <Route path="discover" element={<Discover />} />
               <Route path="discover/:code" element={<InvestorProject />} />
               <Route path="billing" element={<Billing />} />

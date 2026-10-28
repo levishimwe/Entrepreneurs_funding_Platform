@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { Field, formatDate } from '../../components/ui';
@@ -25,7 +26,10 @@ export default function Opportunities() {
   const [applications, setApplications] = useState([]);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [view, setView] = useState('open');
+  // ?view=applied opens "My applications" (the sidebar's Results link).
+  const [params, setParams] = useSearchParams();
+  const view = params.get('view') === 'applied' ? 'applied' : 'open';
+  const setView = (v) => setParams(v === 'applied' ? { view: 'applied' } : {});
   const [type, setType] = useState('');
   const [q, setQ] = useState('');
   const [openId, setOpenId] = useState(null);

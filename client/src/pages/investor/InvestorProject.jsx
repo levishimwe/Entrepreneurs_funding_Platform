@@ -38,7 +38,7 @@ export default function InvestorProject() {
   if (error) {
     return (
       <AdminPage title="Project">
-        <Breadcrumb items={[['Browse projects', '/app/discover'], [code]]} />
+        <Breadcrumb items={[['Browse projects', '/app/discover'], ['Venture']]} />
         <Messages error={error} />
       </AdminPage>
     );
@@ -49,7 +49,7 @@ export default function InvestorProject() {
 
   return (
     <AdminPage title={p.title} meta={p.status !== 'approved' ? <StatusPill status={p.status} /> : null}>
-      <Breadcrumb items={[['Browse projects', '/app/discover'], [p.projectCode]]} />
+      <Breadcrumb items={[['Browse projects', '/app/discover'], [p.title]]} />
       <Messages notice={notice} />
       <div className="adm-card mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
         <span className="adm-muted">{introduction ? INTRO_TEXT[introduction.status] : p.acceptingIntroductions ? 'Open to introductions.' : 'No longer accepting introductions.'}</span>
@@ -70,7 +70,6 @@ export default function InvestorProject() {
 
       <KeyValue
         rows={[
-          ['Code', <span key="c" className="adm-mono">{p.projectCode}</span>],
           ['Summary', p.summary],
           ['Sector', p.sector],
           ['Stage', p.stage],

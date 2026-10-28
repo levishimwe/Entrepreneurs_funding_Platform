@@ -22,6 +22,8 @@ export default function Discover() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [search, setSearch] = useState(params.get('q') || '');
+  // Keeps the box in step when the top-bar search changes ?q= on this page.
+  useEffect(() => setSearch(params.get('q') || ''), [params]);
   const [expressing, setExpressing] = useState(null);
   const f = useMemo(
     () => ({
@@ -70,10 +72,9 @@ export default function Discover() {
       label: 'Project',
       render: (p) => (
         <>
-          <Link to={`/app/discover/${p.projectCode}`} className="adm-a font-medium">
+          <Link to={`/app/discover/${p.id}`} className="adm-a font-medium">
             {p.title}
           </Link>
-          <div className="adm-mono adm-muted">{p.projectCode}</div>
         </>
       ),
     },
@@ -117,10 +118,10 @@ export default function Discover() {
           <DataTable
             columns={columns}
             rows={data.projects}
-            rowKey={(p) => p.projectCode}
+            rowKey={(p) => p.id}
             actions={(p) => (
               <>
-                <Link to={`/app/discover/${p.projectCode}`} className="adm-act">
+                <Link to={`/app/discover/${p.id}`} className="adm-act">
                   View
                 </Link>
                 {p.myIntroduction ? (
@@ -164,12 +165,12 @@ export function ExpressInterestDialog({ project, onClose, onDone }) {
       confirmLabel="Send request"
       onClose={onClose}
       onConfirm={async (message) => {
-        const res = await api.post(`/investor/projects/${project.projectCode}/interest`, { message });
+        const res = await api.post(`/investor/projects/${project.id}/interest`, { message });
         onDone(res, project);
       }}
     >
       <Field label="Project" htmlFor="interest-project">
-        <input id="interest-project" className="input bg-subtle" readOnly value={`${project?.title || ''} · ${project?.projectCode || ''}`} />
+        <input id="interest-project" className="input bg-subtle" readOnly value={project?.title || ''} />
       </Field>
     </ReasonDialog>
   );

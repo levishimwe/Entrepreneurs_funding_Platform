@@ -3,7 +3,7 @@
 const express = require('express');
 const { Op, fn, col } = require('sequelize');
 const { z } = require('zod');
-const { sequelize, Project, User, GraduateProfile, InvestorProfile, Introduction } = require('../models');
+const { sequelize, Project, User, GraduateProfile, InvestorProfile, Introduction, AuditLog } = require('../models');
 const { requireApprovedInvestor } = require('../middleware/auth');
 const { badRequest, conflict, notFound } = require('../middleware/errors');
 const { forInvestor, requestEmail } = require('../services/introductions');
@@ -19,12 +19,18 @@ const DISCOVERABLE = { status: 'approved' };
 const FOUNDER = {
   model: User,
   as: 'owner',
-  attributes: ['id', 'fullName'],
+  attributes: ['id', 'fullName', 'photoKey'],
   include: [{ model: GraduateProfile, as: 'graduateProfile', attributes: ['cohortYear', 'program'] }],
 };
 
+// The founder's photo appears only when they consented to publication; it is
+// served by the public photo route, which applies the same rule.
+const founderPhoto = (p) => (p.publicationConsent && p.owner?.photoKey ? `/api/public/projects/${p.id}/photo` : null);
+
 function card(p, extra = {}) {
   return {
+    // Screens link by id; the code stays in the payload for existing clients and tests but is never displayed.
+    id: p.id,
     projectCode: p.projectCode,
     title: p.title,
     type: p.type,
@@ -37,10 +43,51 @@ function card(p, extra = {}) {
     rdbRegistered: p.type === 'company',
     approvedAt: p.approvedAt,
     status: p.status,
-    founder: p.owner ? { name: p.owner.fullName, cohortYear: p.owner.graduateProfile?.cohortYear ?? null, program: p.owner.graduateProfile?.program ?? null } : null,
+    founder: p.owner
+      ? { name: p.owner.fullName, cohortYear: p.owner.graduateProfile?.cohortYear ?? null, program: p.owner.graduateProfile?.program ?? null, photoUrl: founderPhoto(p) }
+      : null,
     ...extra,
   };
 }
+
+// A project reference in a URL: the numeric id (used by the screens) or the code.
+const byRef = (ref) => (/^\d+$/.test(String(ref)) ? { id: Number(ref) } : { projectCode: String(ref).toUpperCase() });
+const VIEW_ACTION = 'project.viewed_by_investor';
+const firstName = (name = '') => name.trim().split(/\s+/)[0] || '';
+
+// Investor activity page: graduate spotlight, recently listed and most viewed.
+// Real data only; the client hides any list that comes back empty.
+router.get('/home', async (req, res) => {
+  const since = new Date(Date.now() - 30 * 864e5);
+  const [spotlight, recent, viewed] = await Promise.all([
+    // Approved and seeking investment, and the founder consented to be shown.
+    Project.findAll({ where: { ...DISCOVERABLE, publicationConsent: true }, include: [FOUNDER], order: [['approvedAt', 'DESC'], ['id', 'DESC']], limit: 20 }),
+    Project.findAll({ where: DISCOVERABLE, include: [FOUNDER], order: [['approvedAt', 'DESC'], ['id', 'DESC']], limit: 5 }),
+    AuditLog.findAll({
+      where: { action: VIEW_ACTION, entityType: 'project', createdAt: { [Op.gte]: since } },
+      attributes: ['entityId', [fn('COUNT', fn('DISTINCT', col('actor_id'))), 'n']],
+      group: ['entityId'],
+      order: [[fn('COUNT', fn('DISTINCT', col('actor_id'))), 'DESC']],
+      limit: 20,
+      raw: true,
+    }),
+  ]);
+  const counts = Object.fromEntries(viewed.map((r) => [r.entityId, Number(r.n)]));
+  const viewedProjects = viewed.length ? await Project.findAll({ where: { ...DISCOVERABLE, id: Object.keys(counts) }, include: [FOUNDER] }) : [];
+  const seen = new Set();
+  res.json({
+    // One tile per graduate, newest listing first.
+    spotlight: spotlight
+      .filter((p) => p.owner && !seen.has(p.owner.id) && seen.add(p.owner.id))
+      .slice(0, 12)
+      .map((p) => ({ projectId: p.id, firstName: firstName(p.owner.fullName), name: p.owner.fullName, photoUrl: founderPhoto(p), title: p.title })),
+    recent: recent.map((p) => card(p)),
+    mostViewed: viewedProjects
+      .map((p) => ({ ...card(p), views: counts[p.id] }))
+      .sort((a, b) => b.views - a.views || a.title.localeCompare(b.title))
+      .slice(0, 3),
+  });
+});
 
 async function facets() {
   const count = (column) =>
@@ -99,8 +146,8 @@ router.get('/projects', async (req, res) => {
   });
 });
 
-async function findVisibleProject(code, investorId) {
-  const project = await Project.findOne({ where: { projectCode: String(code).toUpperCase() }, include: [FOUNDER] });
+async function findVisibleProject(ref, investorId) {
+  const project = await Project.findOne({ where: byRef(ref), include: [FOUNDER] });
   if (!project) return null;
   if (project.status === 'approved') return project;
   // A project that left discovery stays visible to investors already introduced to it.
@@ -111,12 +158,21 @@ async function findVisibleProject(code, investorId) {
   return null;
 }
 
+// One view per investor per project per day feeds "Most viewed ventures".
+async function recordView(projectId, investorId) {
+  const recent = await AuditLog.count({
+    where: { action: VIEW_ACTION, entityType: 'project', entityId: projectId, actorId: investorId, createdAt: { [Op.gte]: new Date(Date.now() - 864e5) } },
+  });
+  if (!recent) await audit.record({ actorId: investorId, action: VIEW_ACTION, entityType: 'project', entityId: projectId });
+}
+
 router.get('/projects/:code', async (req, res) => {
   const project = await findVisibleProject(req.params.code, req.user.id);
   if (!project) throw notFound('This project is not available for investor discovery.');
   const [mine, investors] = await Promise.all([
     Introduction.findOne({ where: { projectId: project.id, investorId: req.user.id } }),
     confirmedInvestorCount(project.id),
+    recordView(project.id, req.user.id),
   ]);
   res.json({
     project: {
@@ -138,7 +194,7 @@ router.post('/projects/:code/interest', async (req, res) => {
     .object({ message: z.string().trim().max(1000).optional().or(z.literal('')).transform((v) => v || null) })
     .parse(req.body || {});
   const project = await Project.findOne({
-    where: { projectCode: String(req.params.code).toUpperCase() },
+    where: byRef(req.params.code),
     include: [{ model: User, as: 'owner', attributes: ['id', 'fullName', 'email'] }],
   });
   if (!project || !['approved', 'funded', 'investor_limit_reached'].includes(project.status)) {

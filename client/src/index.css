@@ -282,3 +282,21 @@ select.input {
     scroll-behavior: auto;
   }
 }
+
+/* Member shell: the phone menu slides in from the left. */
+@keyframes member-drawer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: none;
+  }
+}
+.member-drawer {
+  animation: member-drawer 0.2s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .member-drawer {
+    animation: none;
+  }
+}

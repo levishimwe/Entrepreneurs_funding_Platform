@@ -133,10 +133,9 @@ export default function Introductions() {
                     label: 'Project',
                     render: (r) => (
                       <>
-                        <Link to={`/app/discover/${r.project.projectCode}`} className="adm-a font-medium">
+                        <Link to={`/app/discover/${r.project.id}`} className="adm-a font-medium">
                           {r.project.title}
                         </Link>
-                        <div className="adm-mono adm-muted">{r.project.projectCode}</div>
                       </>
                     ),
                   }
@@ -177,7 +176,8 @@ export default function Introductions() {
           <KeyValue
             rows={[
               ['Status', <StatusPill key="s" status={open.status} label={STATUS_LABEL[role][open.status]} />],
-              ['Project', `${open.project.title} · ${open.project.projectCode}`],
+              // A graduate sees their own code; an investor never sees one.
+              ['Project', role === 'graduate' ? `${open.project.title} · ${open.project.projectCode}` : open.project.title],
               ...(role === 'graduate' ? [['Investor', `${open.investor.name}${open.investor.organisation ? ` · ${open.investor.organisation}` : ''}`]] : []),
               ['Requested', formatDate(open.requestedAt, true)],
               ...(open.message ? [['Message', `“${open.message}”`]] : []),

@@ -45,7 +45,7 @@ function forInvestor(i) {
     acceptedAt: i.acceptedAt,
     declinedAt: i.declinedAt,
     project: i.project
-      ? { projectCode: i.project.projectCode, title: i.project.title, sector: i.project.sector, stage: i.project.stage, status: i.project.status, summary: i.project.summary }
+      ? { id: i.project.id, projectCode: i.project.projectCode, title: i.project.title, sector: i.project.sector, stage: i.project.stage, status: i.project.status, summary: i.project.summary }
       : undefined,
     founder: owner ? { name: owner.fullName, email: accepted ? owner.email : null, phone: accepted ? owner.phone : null } : null,
     meeting: { investor: i.investorConfirmed, graduate: i.graduateConfirmed },

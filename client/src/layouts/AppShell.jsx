@@ -1,7 +1,10 @@
 import AdminShell from './AdminShell';
+import MemberShell from './MemberShell';
+import { useAuth } from '../context/AuthContext';
 
-// Every signed-in role uses the same shell (navy bar, text sidebar, light
-// canvas); the navigation differs by role.
+// Graduates and investors use the member shell (light sidebar, search top
+// bar); administrators and staff keep the admin console shell.
 export default function AppShell() {
-  return <AdminShell />;
+  const { user } = useAuth();
+  return ['graduate', 'investor'].includes(user?.role) ? <MemberShell /> : <AdminShell />;
 }
