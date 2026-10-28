@@ -2,7 +2,8 @@
 const express = require('express');
 const { Op } = require('sequelize');
 const { z } = require('zod');
-const { AuditLog, Project, Application, Document } = require('../models');
+const { AuditLog, Project, Application, Document, GraduatePost } = require('../models');
+const { processPublicImage } = require('../services/publicImages');
 const { requireAuth, requireRole, isApprovedGraduate } = require('../middleware/auth');
 const { badRequest, notFound } = require('../middleware/errors');
 const { upload, validatePhoto } = require('../middleware/upload');
@@ -95,6 +96,13 @@ const LABEL = {
   'introduction.requested': 'An investor requested an introduction',
   'introduction.accepted': 'Accepted an introduction',
   'introduction.declined': 'Declined an introduction',
+  'post.created': 'Published a post',
+  'post.edited': 'Edited a post',
+  'post.deleted': 'Deleted a post',
+  'post.removed': 'A post was removed by an administrator',
+  'profile.public_updated': 'Updated your public profile',
+  'profile.public_image_updated': 'Updated your public image',
+  'profile.public_image_removed': 'Removed your public image',
 };
 
 // Never shown in a member's activity: sign-ins, resets, document views and
@@ -104,14 +112,16 @@ const HIDDEN = ['auth.login', 'auth.password_reset_requested', 'document.viewed'
 // Recent activity on the user's own account, projects and applications.
 router.get('/activity', async (req, res) => {
   const { limit } = z.object({ limit: z.coerce.number().int().min(1).max(50).default(6) }).parse(req.query);
-  const [projects, applications] = await Promise.all([
+  const [projects, applications, posts] = await Promise.all([
     Project.findAll({ where: { ownerId: req.user.id }, attributes: ['id', 'title'] }),
     Application.findAll({ where: { applicantId: req.user.id }, attributes: ['id'] }),
+    GraduatePost.findAll({ where: { graduateId: req.user.id }, attributes: ['id'] }),
   ]);
   const titles = Object.fromEntries(projects.map((p) => [p.id, p.title]));
   const or = [{ actorId: req.user.id }, { entityType: 'user', entityId: req.user.id }];
   if (projects.length) or.push({ entityType: 'project', entityId: projects.map((p) => p.id) });
   if (applications.length) or.push({ entityType: 'application', entityId: applications.map((a) => a.id) });
+  if (posts.length) or.push({ entityType: 'post', entityId: posts.map((p) => p.id) });
   const rows = await AuditLog.findAll({
     where: { [Op.or]: or, action: { [Op.notIn]: HIDDEN } },
     order: [['id', 'DESC']],
@@ -124,10 +134,59 @@ router.get('/activity', async (req, res) => {
       label: LABEL[r.action] || r.action.replace(/[._]/g, ' '),
       subject: r.entityType === 'project' ? titles[r.entityId] || null : null,
       projectId: r.entityType === 'project' ? r.entityId : null,
-      reason: ['project.reject', 'project.request_revision'].includes(r.action) ? r.reason : null,
+      reason: ['project.reject', 'project.request_revision', 'post.removed'].includes(r.action) ? r.reason : null,
       at: r.createdAt,
     })),
   });
+});
+
+// --- Graduate public profile: bio, consent and the public image -------------
+// The public image is separate from the account photo and is shown to
+// investors, sponsors, administrators and staff only while consent is on.
+router.patch('/public-profile', requireRole('graduate'), async (req, res) => {
+  const data = z
+    .object({
+      bio: z.string().trim().max(500, 'Keep your bio to 500 characters.').optional().or(z.literal('')).or(z.null()),
+      consent: z.boolean().optional(),
+    })
+    .parse(req.body || {});
+  const profile = req.user.graduateProfile;
+  if (!profile) throw notFound('Graduate profile not found.');
+  const changes = {};
+  if (data.bio !== undefined) changes.bio = data.bio || null;
+  if (data.consent !== undefined) changes.publicProfileConsent = data.consent;
+  await profile.update(changes);
+  await audit.record({ actorId: req.user.id, action: 'profile.public_updated', entityType: 'user', entityId: req.user.id, metadata: { consent: profile.publicProfileConsent } });
+  res.json({ bio: profile.bio, publicProfileConsent: profile.publicProfileConsent, hasPublicImage: Boolean(profile.publicImageKey) });
+});
+
+router.get('/public-image', requireRole('graduate'), async (req, res) => {
+  const key = req.user.graduateProfile?.publicImageKey;
+  if (!key) throw notFound('No public image.');
+  await sendStoredFile(res, { storageKey: key, mimeType: 'image/jpeg', filename: 'public-image' });
+});
+
+router.post('/public-image', requireRole('graduate'), uploadLimiter, upload.single('publicImage'), async (req, res) => {
+  const image = await processPublicImage(req.file, 'Public image');
+  if (!image) throw badRequest('Choose an image to upload.');
+  const profile = req.user.graduateProfile;
+  const key = await storage.put(image.buffer, { prefix: 'public-images', mimeType: image.mimeType });
+  const previous = profile.publicImageKey;
+  await profile.update({ publicImageKey: key });
+  if (previous) await storage.remove(previous).catch(() => {});
+  await audit.record({ actorId: req.user.id, action: 'profile.public_image_updated', entityType: 'user', entityId: req.user.id });
+  res.json({ hasPublicImage: true, width: image.width, height: image.height });
+});
+
+router.delete('/public-image', requireRole('graduate'), async (req, res) => {
+  const profile = req.user.graduateProfile;
+  const previous = profile?.publicImageKey;
+  if (previous) {
+    await profile.update({ publicImageKey: null });
+    await storage.remove(previous).catch(() => {});
+    await audit.record({ actorId: req.user.id, action: 'profile.public_image_removed', entityType: 'user', entityId: req.user.id });
+  }
+  res.json({ hasPublicImage: false });
 });
 
 // A graduate's next steps, from their real records. A step that does not

@@ -66,18 +66,21 @@ describe('graduate activity page', () => {
 });
 
 describe('investor activity page', () => {
-  test('spotlight shows consented founders only; ventures open by id; views are counted once a day', async () => {
+  test('spotlight shows founders who consented to be shown; ventures open by id; views are counted once a day', async () => {
     const shown = await approvedGraduate('Aline Uwimana');
     const hidden = await approvedGraduate('Patrick Nkurunziza');
+    // Consent to be shown to investors and sponsors (Settings -> Profile).
+    await shown.client.patch('/api/account/public-profile').send({ consent: true });
     const visible = await submitIdea(shown.client);
-    const unlisted = await submitIdea(hidden.client, { consent: false });
+    const unlisted = await submitIdea(hidden.client);
     await approve(visible.id);
     await approve(unlisted.id);
 
     const { client: investor, email } = await investorClient();
     const home = (await investor.get('/api/investor/home')).body;
     const tile = home.spotlight.find((t) => t.projectId === visible.id);
-    expect(tile).toMatchObject({ firstName: 'Aline', photoUrl: null });
+    // No public image uploaded, so the tile shows initials; it opens the graduate's profile.
+    expect(tile).toMatchObject({ firstName: 'Aline', photoUrl: null, graduateId: shown.user.id });
     expect(home.spotlight.some((t) => t.projectId === unlisted.id)).toBe(false);
     // Recently listed covers every discoverable venture, consented or not.
     expect(home.recent.length).toBeLessThanOrEqual(5);

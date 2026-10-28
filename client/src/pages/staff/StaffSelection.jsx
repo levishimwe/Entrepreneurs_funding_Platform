@@ -64,7 +64,7 @@ function ApplicationPanel({ application, resultsEnabled, onSaved, onClose }) {
         rows={[
           ['Application', <span key="a" className="adm-mono">APP-{String(application.id).padStart(4, '0')}</span>],
           ['Status', <StatusText key="s" status={application.status} label={STATUS_LABEL[application.status]} />],
-          ['Venture', `${application.project.title} (${application.project.projectCode})`],
+          ['Venture', application.project.title],
           ['Sector and stage', `${application.project.sector} · ${application.project.stage}`],
           ['Summary', application.project.summary],
           ['Programme', `${application.applicant.program || '—'} · ${cohort(application)}`],
@@ -166,7 +166,7 @@ export default function StaffSelection() {
       (a) =>
         (tab === 'all' || a.status === tab) &&
         (!cohortFilter || String(a.applicant.cohortYear) === cohortFilter) &&
-        (!term || `${a.applicant.name} ${a.project.title} ${a.project.projectCode} ${a.project.summary}`.toLowerCase().includes(term))
+        (!term || `${a.applicant.name} ${a.project.title} ${a.project.summary}`.toLowerCase().includes(term))
     );
   }, [data, tab, q, cohortFilter]);
 

@@ -803,22 +803,35 @@ function OpportunityCard({ o, now, index, user, gated }) {
               <dd className="font-semibold text-[#111827]">{formatDate(o.deadline, true)}</dd>
             </div>
             <div className="flex gap-1.5">
-              <dt className="text-[#5b6676]">Eligibility:</dt>
-              <dd className="font-semibold text-[#111827]">Approved venture</dd>
+              <dt className="text-[#5b6676]">{o.linkOnly ? 'Apply:' : 'Eligibility:'}</dt>
+              <dd className="font-semibold text-[#111827]">{o.linkOnly ? 'On the official site' : 'Approved venture'}</dd>
             </div>
           </dl>
         </div>
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-          className={`inline-flex h-10 shrink-0 items-center justify-center gap-1 rounded-md px-4 text-[14px] font-semibold transition-colors ${
-            left.urgent ? 'bg-[#2563eb] text-white hover:bg-[#1d4ed8]' : 'border border-[#d9dfe7] bg-white text-[#111827] hover:bg-[#f9fafb]'
-          }`}
-        >
-          {open ? 'Hide details' : 'View and apply'}
-          <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
-        </button>
+        {o.linkOnly ? (
+          // No internal form: the organiser runs applications on their own site.
+          <a
+            href={o.externalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-[#2563eb] px-4 text-[14px] font-semibold text-white transition-colors hover:bg-[#1d4ed8]"
+          >
+            Apply on the official site
+            <span className="sr-only"> (opens in a new tab)</span>
+          </a>
+        ) : (
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+            className={`inline-flex h-10 shrink-0 items-center justify-center gap-1 rounded-md px-4 text-[14px] font-semibold transition-colors ${
+              left.urgent ? 'bg-[#2563eb] text-white hover:bg-[#1d4ed8]' : 'border border-[#d9dfe7] bg-white text-[#111827] hover:bg-[#f9fafb]'
+            }`}
+          >
+            {open ? 'Hide details' : 'View and apply'}
+            <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+          </button>
+        )}
       </div>
       {open && (
         <div className="land-rise mt-5 grid gap-5 border-t border-[#eef1f5] pt-5 text-[14px] leading-[1.6] text-[#344054] sm:grid-cols-2">

@@ -116,6 +116,7 @@ export default function Opportunities() {
                 key: 'you',
                 label: 'Your projects',
                 render: (o) => {
+                  if (o.linkOnly) return <span className="adm-muted">Apply on the official site</span>;
                   const applied = o.projects.find((p) => p.applied);
                   if (applied) return <StatusPill status={applied.applied} />;
                   const n = eligibleFor(o).length;
@@ -129,6 +130,11 @@ export default function Opportunities() {
                 <button type="button" className="adm-act" onClick={() => setOpenId(o.id)}>
                   Details
                 </button>
+                {o.linkOnly && (
+                  <a href={o.externalUrl} target="_blank" rel="noopener noreferrer" className="adm-act">
+                    Apply on the official site
+                  </a>
+                )}
                 {user.approved && eligibleFor(o).length > 0 && (
                   <button type="button" className="adm-act" onClick={() => startApply(o)}>
                     Apply
@@ -164,7 +170,12 @@ export default function Opportunities() {
               ['Deadline', formatDate(open.deadline, true)],
               ['Who can apply', criteriaText(open.criteria)],
               ...(open.criteria?.notes ? [['Notes', open.criteria.notes]] : []),
-              ['Description', <span key="d" className="whitespace-pre-line">{open.description}</span>],
+              [
+                'Description',
+                <span key="d" className="whitespace-pre-line">
+                  {open.description}
+                </span>,
+              ],
               ...(open.applicationInstructions ? [['If selected', open.applicationInstructions]] : []),
             ]}
           />
@@ -172,11 +183,21 @@ export default function Opportunities() {
           <DataTable
             columns={[
               { key: 'title', label: 'Project', render: (p) => p.title },
-              { key: 'state', label: 'Eligibility', render: (p) => (p.applied ? <StatusPill status={p.applied} /> : p.issues.length ? <span className="adm-muted">{p.issues.join(' ')}</span> : 'Eligible') },
+              {
+                key: 'state',
+                label: 'Eligibility',
+                render: (p) =>
+                  p.applied ? <StatusPill status={p.applied} /> : p.issues.length ? <span className="adm-muted">{p.issues.join(' ')}</span> : 'Eligible',
+              },
             ]}
             rows={open.projects}
             empty="You have no projects yet. Submit one and have it approved to apply."
           />
+          {open.linkOnly && (
+            <a href={open.externalUrl} target="_blank" rel="noopener noreferrer" className="adm-primary mt-4 inline-flex">
+              Apply on the official site
+            </a>
+          )}
           {user.approved && eligibleFor(open).length > 0 && (
             <button type="button" className="adm-primary mt-4" onClick={() => startApply(open)}>
               Apply
@@ -210,7 +231,7 @@ export default function Opportunities() {
             {applying &&
               eligibleFor(applying).map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.title} ({p.projectCode})
+                  {p.title}
                 </option>
               ))}
           </select>

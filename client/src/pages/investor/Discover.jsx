@@ -78,7 +78,19 @@ export default function Discover() {
         </>
       ),
     },
-    { key: 'founder', label: 'Founder', render: (p) => founderLine(p.founder) },
+    {
+      key: 'founder',
+      label: 'Founder',
+      // Links to the founder's profile when they chose to be shown to investors.
+      render: (p) =>
+        p.founder?.profileId ? (
+          <Link to={`/app/graduates/${p.founder.profileId}`} className="adm-a">
+            {founderLine(p.founder)}
+          </Link>
+        ) : (
+          founderLine(p.founder)
+        ),
+    },
     { key: 'sector', label: 'Sector', render: (p) => `${p.sector} · ${p.stage}` },
     { key: 'country', label: 'Country', render: (p) => p.country },
     {

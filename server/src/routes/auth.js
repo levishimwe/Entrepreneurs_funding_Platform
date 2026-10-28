@@ -125,6 +125,8 @@ function serializeUser(user) {
           program: graduate.program,
           verificationStatus: graduate.verificationStatus,
           bio: graduate.bio,
+          publicProfileConsent: Boolean(graduate.publicProfileConsent),
+          hasPublicImage: Boolean(graduate.publicImageKey),
         }
       : undefined,
     investorProfile: investor

@@ -444,7 +444,7 @@ router.get('/projects/:id', async (req, res) => {
       },
       competitionResults: (
         await CompetitionResult.findAll({ where: { projectId: p.id }, include: [{ model: Opportunity, as: 'opportunity', attributes: ['id', 'title', 'type'] }], order: [['id', 'DESC']] })
-      ).map((r) => serializeResult(r)),
+      ).map((r) => serializeResult(r, { forAdmin: true })),
       owner: {
         id: p.owner.id,
         name: p.owner.fullName,
@@ -862,5 +862,6 @@ router.put('/config/sectors/:id', async (req, res) => {
 require('./adminRequests')(router);
 require('./adminResults')(router);
 require('./adminHome')(router);
+require('./adminPosts')(router);
 
 module.exports = router;

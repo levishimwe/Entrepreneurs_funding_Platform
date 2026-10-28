@@ -10,7 +10,6 @@ const { HttpError } = require('../middleware/errors');
 const { lookupLimiter } = require('../middleware/rateLimits');
 const { CODE_PATTERN, normalizeCode, COMPARABLE_STATUSES } = require('../services/categorization');
 const { publicProject } = require('../services/projectView');
-const { sendStoredFile } = require('../services/fileDelivery');
 
 const router = express.Router();
 
@@ -19,7 +18,7 @@ const withFounder = [
   {
     model: User,
     as: 'owner',
-    attributes: ['fullName', 'photoKey'],
+    attributes: ['fullName'],
     include: [{ model: GraduateProfile, as: 'graduateProfile', attributes: ['cohortYear', 'program'] }],
   },
 ];
@@ -215,21 +214,6 @@ router.get('/projects/:id', async (req, res) => {
   });
 });
 
-// The founder's profile photo, only while their venture is public. Other
-// profile photos stay private (owner and administrators only).
-router.get('/projects/:id/photo', async (req, res) => {
-  const id = idParam.safeParse(req.params.id);
-  if (!id.success) throw new HttpError(404, 'No photo.');
-  const project = await Project.findOne({
-    where: { ...PUBLIC_WHERE, id: id.data },
-    attributes: ['id'],
-    include: [{ model: User, as: 'owner', attributes: ['photoKey', 'status'] }],
-  });
-  const key = project?.owner?.status === 'active' ? project.owner.photoKey : null;
-  if (!key) throw new HttpError(404, 'No photo.');
-  await sendStoredFile(res, { storageKey: key, mimeType: key.endsWith('.png') ? 'image/png' : 'image/jpeg', filename: 'founder-photo' });
-});
-
 router.get('/opportunities', async (req, res) => {
   const rows = await Opportunity.findAll({
     where: { status: 'published', deadline: { [Op.gt]: new Date() } },
@@ -246,6 +230,8 @@ router.get('/opportunities', async (req, res) => {
       applicationInstructions: o.applicationInstructions,
       prize: o.prize,
       deadline: o.deadline,
+      linkOnly: Boolean(o.linkOnly),
+      externalUrl: o.linkOnly ? o.externalUrl : null,
     })),
   });
 });

@@ -89,7 +89,6 @@ router.get('/opportunities/:id', async (req, res) => {
       },
       project: {
         id: a.project.id,
-        projectCode: a.project.projectCode,
         title: a.project.title,
         summary: a.project.summary,
         sector: a.project.sector,
@@ -318,7 +317,7 @@ router.get('/results', async (req, res) => {
         participants: o.applications.map((a) => ({
           applicationId: a.id,
           applicant: { name: a.applicant.fullName },
-          project: { id: a.project.id, title: a.project.title, projectCode: a.project.projectCode },
+          project: { id: a.project.id, title: a.project.title },
           result: a.results?.length ? serializeResult([...a.results].sort((x, y) => y.id - x.id)[0]) : null,
         })),
       })

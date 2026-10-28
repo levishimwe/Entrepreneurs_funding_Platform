@@ -38,7 +38,7 @@ export default function StaffResults() {
         <>
           <span className="font-medium">{p.applicant.name}</span>
           <div className="adm-muted text-[12px]">
-            {p.project.title} · <span className="adm-mono">{p.project.projectCode}</span>
+            {p.project.title}
           </div>
         </>
       ),
@@ -123,7 +123,7 @@ export default function StaffResults() {
             rows={[
               ['Opportunity', `${editing.opportunity.title} (${ref(editing.opportunity.id)})`],
               ['Participant', editing.participant.applicant.name],
-              ['Project', `${editing.participant.project.title} · ${editing.participant.project.projectCode}`],
+              ['Project', editing.participant.project.title],
               ...(editing.participant.result?.decisionReason ? [['Rejected because', editing.participant.result.decisionReason]] : []),
             ]}
           />

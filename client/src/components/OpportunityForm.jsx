@@ -15,6 +15,8 @@ const EMPTY = {
   description: '',
   applicationInstructions: '',
   prize: '',
+  linkOnly: false,
+  externalUrl: '',
   deadline: '',
   endsAt: '',
   criteria: { sectors: [], projectTypes: [], stages: [], minCohortYear: '', maxCohortYear: '', notes: '' },
@@ -55,9 +57,16 @@ export default function OpportunityForm({ initial, submitLabel, onSubmit, onCanc
       organiser: initial.organiser || '',
       applicationInstructions: initial.applicationInstructions || '',
       prize: initial.prize || '',
+      linkOnly: Boolean(initial.linkOnly),
+      externalUrl: initial.externalUrl || '',
       deadline: toLocalInput(initial.deadline),
       endsAt: initial.endsAt ? toLocalInput(initial.endsAt) : '',
-      criteria: { ...EMPTY.criteria, ...initial.criteria, minCohortYear: initial.criteria?.minCohortYear || '', maxCohortYear: initial.criteria?.maxCohortYear || '' },
+      criteria: {
+        ...EMPTY.criteria,
+        ...initial.criteria,
+        minCohortYear: initial.criteria?.minCohortYear || '',
+        maxCohortYear: initial.criteria?.maxCohortYear || '',
+      },
     };
   });
   const [errors, setErrors] = useState({});
@@ -90,9 +99,27 @@ export default function OpportunityForm({ initial, submitLabel, onSubmit, onCanc
     }
   };
 
+  const link = v.linkOnly;
   return (
     <form onSubmit={submit} className="space-y-4" noValidate>
       {error && <Alert type="error">{error}</Alert>}
+      {/* Link only: graduates apply on the organiser's site; there is no internal application form. */}
+      <label className="flex items-start gap-3 rounded-md border border-line p-3">
+        <input
+          type="checkbox"
+          role="switch"
+          aria-checked={link}
+          className="mt-0.5 h-4 w-4 accent-[var(--adm-accent)]"
+          checked={link}
+          onChange={(e) => setV((s) => ({ ...s, linkOnly: e.target.checked }))}
+        />
+        <span>
+          <span className="block text-sm font-semibold">Link only (applicants apply on the official site)</span>
+          <span className="help block">
+            Only the title, type, organiser, deadline and the official https link are required. Graduates see “Apply on the official site”.
+          </span>
+        </span>
+      </label>
       <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
         <Field label="Title" htmlFor="o-title" required error={errors.title}>
           <input id="o-title" className="input" value={v.title} onChange={set('title')} />
@@ -107,28 +134,51 @@ export default function OpportunityForm({ initial, submitLabel, onSubmit, onCanc
         </Field>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Organiser / sponsoring partner" htmlFor="o-org" error={errors.organiser}>
+        <Field label="Organiser / sponsoring partner" htmlFor="o-org" required={link} error={errors.organiser}>
           <input id="o-org" className="input" value={v.organiser} onChange={set('organiser')} />
         </Field>
         <Field label="Deadline" htmlFor="o-deadline" required error={errors.deadline}>
           <input id="o-deadline" type="datetime-local" className="input" value={v.deadline} onChange={set('deadline')} />
         </Field>
       </div>
+      {link && (
+        <Field label="Official application link" htmlFor="o-url" required error={errors.externalUrl} help="Must start with https://. Opens in a new tab.">
+          <input id="o-url" type="url" inputMode="url" placeholder="https://" className="input" value={v.externalUrl} onChange={set('externalUrl')} />
+        </Field>
+      )}
       <Field label="Event end date (optional)" htmlFor="o-ends" error={errors.endsAt} help="Staff can mark it Completed and record results after this date.">
         <input id="o-ends" type="datetime-local" className="input sm:max-w-xs" value={v.endsAt} onChange={set('endsAt')} />
       </Field>
-      <Field label="Description" htmlFor="o-desc" required error={errors.description}>
+      <Field label={link ? 'Description (optional)' : 'Description'} htmlFor="o-desc" required={!link} error={errors.description}>
         <textarea id="o-desc" rows={4} className="input" value={v.description} onChange={set('description')} />
       </Field>
-      <Field label="Application instructions" htmlFor="o-instr" error={errors.applicationInstructions} help="Included in the email sent to selected applicants.">
-        <textarea id="o-instr" rows={2} className="input" value={v.applicationInstructions} onChange={set('applicationInstructions')} />
+      <Field label="Prize or amount (optional)" htmlFor="o-prize" error={errors.prize}>
+        <input id="o-prize" className="input sm:max-w-sm" value={v.prize} onChange={set('prize')} />
       </Field>
+      {!link && (
+        <Field
+          label="Application instructions"
+          htmlFor="o-instr"
+          error={errors.applicationInstructions}
+          help="Included in the email sent to selected applicants."
+        >
+          <textarea id="o-instr" rows={2} className="input" value={v.applicationInstructions} onChange={set('applicationInstructions')} />
+        </Field>
+      )}
       <div className="rounded-md border border-line p-4">
-        <p className="mb-3 text-sm font-semibold">Eligibility criteria</p>
+        <p className="mb-3 text-sm font-semibold">Eligibility criteria{link ? ' (optional)' : ''}</p>
         <div className="space-y-4">
           <Chips label="Sectors" options={SECTORS.map((s) => [s, s])} value={v.criteria.sectors} onChange={(x) => setC('sectors', x)} />
           <div className="grid gap-4 sm:grid-cols-2">
-            <Chips label="Project type" options={[['company', 'Registered company'], ['idea', 'Idea stage']]} value={v.criteria.projectTypes} onChange={(x) => setC('projectTypes', x)} />
+            <Chips
+              label="Project type"
+              options={[
+                ['company', 'Registered company'],
+                ['idea', 'Idea stage'],
+              ]}
+              value={v.criteria.projectTypes}
+              onChange={(x) => setC('projectTypes', x)}
+            />
             <Chips label="Stage" options={STAGES.map((s) => [s, s])} value={v.criteria.stages} onChange={(x) => setC('stages', x)} />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

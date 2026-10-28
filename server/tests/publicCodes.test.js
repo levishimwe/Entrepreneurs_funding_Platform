@@ -80,24 +80,18 @@ describe('project codes stay off every public endpoint', () => {
     expect((await agent().get(`/api/public/projects/${project.id}`)).status).toBe(404);
   });
 
-  test('the founder photo is served only while the venture is public', async () => {
+  test('anonymous visitors never get a founder photo; the account photo stays private', async () => {
     const { user, project } = await publicVenture();
     const key = await storage.put(PNG, { prefix: 'profile-photos', mimeType: 'image/png' });
     await User.update({ photoKey: key }, { where: { id: user.id } });
 
+    // Public pages show initials. The public image is for signed-in investors
+    // and sponsors (with the graduate's consent), never for anonymous visitors.
     const detail = (await agent().get(`/api/public/projects/${project.id}`)).body.project;
-    expect(detail.founder.photoUrl).toBe(`/api/public/projects/${project.id}/photo`);
+    expect(detail.founder.photoUrl).toBeNull();
     expect(JSON.stringify(detail)).not.toContain(key);
-    const photo = await agent().get(detail.founder.photoUrl);
-    expect(photo.status).toBe(200);
-    expect(photo.headers['content-type']).toBe('image/png');
-
-    // Not public any more → no photo.
-    await Project.update({ publicationConsent: false }, { where: { id: project.id } });
-    expect((await agent().get(detail.founder.photoUrl)).status).toBe(404);
-    // A founder without a photo has no photo URL.
-    const other = await publicVenture();
-    expect((await agent().get(`/api/public/projects/${other.project.id}`)).body.project.founder.photoUrl).toBeNull();
+    expect((await agent().get(`/api/public/projects/${project.id}/photo`)).status).toBe(404);
+    expect((await agent().get(`/api/graduates/${user.id}/image`)).status).toBe(401);
   });
 
   test('the public list sorts and returns filter counts', async () => {

@@ -4,12 +4,26 @@ const { z } = require('zod');
 
 const optionalList = z.array(z.string().trim().min(1).max(80)).max(20).default([]);
 
+// The organiser's official page for a link-only opportunity: https only.
+function isHttpsUrl(value) {
+  try {
+    const u = new URL(value);
+    return u.protocol === 'https:' && u.hostname.includes('.') && !u.username && !u.password;
+  } catch {
+    return false;
+  }
+}
+
 const opportunitySchema = z
   .object({
     title: z.string().trim().min(5, 'Use at least 5 characters.').max(200),
     type: z.enum(['hackathon', 'grant', 'competition', 'other'], { message: 'Choose a type.' }),
     organiser: z.string().trim().max(150).optional().or(z.literal('')).transform((v) => v || null),
-    description: z.string().trim().min(30, 'Describe the opportunity (30+ characters).').max(6000),
+    // Link only: applicants apply on the organiser's site. Then only title,
+    // type, organiser, deadline and the https link are required.
+    linkOnly: z.boolean().optional().default(false),
+    externalUrl: z.string().trim().max(500).optional().or(z.literal('')).or(z.null()).transform((v) => v || null),
+    description: z.string().trim().max(6000).optional().or(z.null()).transform((v) => v || ''),
     applicationInstructions: z.string().trim().max(4000).optional().or(z.literal('')).transform((v) => v || null),
     prize: z.string().trim().max(150).optional().or(z.literal('')).transform((v) => v || null),
     deadline: z.coerce.date({ message: 'Choose a valid deadline.' }),
@@ -30,6 +44,13 @@ const opportunitySchema = z
       .default({}),
   })
   .superRefine((d, ctx) => {
+    if (d.linkOnly) {
+      if (!d.organiser) ctx.addIssue({ code: 'custom', path: ['organiser'], message: 'Name the organiser.' });
+      if (!d.externalUrl) ctx.addIssue({ code: 'custom', path: ['externalUrl'], message: 'Add the link to the official site.' });
+      else if (!isHttpsUrl(d.externalUrl)) ctx.addIssue({ code: 'custom', path: ['externalUrl'], message: 'Use a full https:// link to the official site.' });
+    } else if (d.description.length < 30) {
+      ctx.addIssue({ code: 'custom', path: ['description'], message: 'Describe the opportunity (30+ characters).' });
+    }
     if (d.deadline <= new Date()) ctx.addIssue({ code: 'custom', path: ['deadline'], message: 'The deadline must be in the future.' });
     if (d.endsAt && d.endsAt < d.deadline) ctx.addIssue({ code: 'custom', path: ['endsAt'], message: 'The event cannot end before applications close.' });
     const { minCohortYear: min, maxCohortYear: max } = d.criteria;
@@ -49,6 +70,7 @@ const APPROVED_PROJECT_STATUSES = ['approved', 'funded', 'investor_limit_reached
 function checkEligibility(opportunity, project, graduate) {
   const reasons = [];
   const c = opportunity.criteria || {};
+  if (opportunity.linkOnly) reasons.push('Apply on the official site; this opportunity has no application form here.');
   if (opportunity.status !== 'published') reasons.push('This opportunity is not open for applications.');
   if (new Date(opportunity.deadline) <= new Date()) reasons.push('The application deadline has passed.');
   if (graduate.role !== 'graduate' || graduate.status !== 'active' || graduate.graduateProfile?.verificationStatus !== 'approved') {
@@ -98,6 +120,8 @@ function serializeOpportunity(o, extra = {}) {
     applicationInstructions: o.applicationInstructions,
     prize: o.prize,
     criteria: o.criteria || {},
+    linkOnly: Boolean(o.linkOnly),
+    externalUrl: o.linkOnly ? o.externalUrl : null,
     deadline: o.deadline,
     endsAt: o.endsAt || null,
     completedAt: o.completedAt || null,
@@ -111,4 +135,4 @@ function serializeOpportunity(o, extra = {}) {
   };
 }
 
-module.exports = { opportunitySchema, checkEligibility, serializeOpportunity, stageOf, canComplete, STAGE_LABEL, APPROVED_PROJECT_STATUSES };
+module.exports = { isHttpsUrl, opportunitySchema, checkEligibility, serializeOpportunity, stageOf, canComplete, STAGE_LABEL, APPROVED_PROJECT_STATUSES };

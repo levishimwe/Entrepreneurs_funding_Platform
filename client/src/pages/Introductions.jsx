@@ -51,7 +51,7 @@ export default function Introductions() {
   const shown = useMemo(() => {
     const term = q.trim().toLowerCase();
     return (rows || []).filter(
-      (r) => (status === 'all' || r.status === status) && (!term || `${r.project.title} ${r.project.projectCode} ${r.investor?.name || ''} ${r.investor?.organisation || ''}`.toLowerCase().includes(term))
+      (r) => (status === 'all' || r.status === status) && (!term || `${r.project.title} ${r.investor?.name || ''} ${r.investor?.organisation || ''}`.toLowerCase().includes(term))
     );
   }, [rows, status, q]);
 
@@ -176,8 +176,7 @@ export default function Introductions() {
           <KeyValue
             rows={[
               ['Status', <StatusPill key="s" status={open.status} label={STATUS_LABEL[role][open.status]} />],
-              // A graduate sees their own code; an investor never sees one.
-              ['Project', role === 'graduate' ? `${open.project.title} · ${open.project.projectCode}` : open.project.title],
+              ['Project', open.project.title],
               ...(role === 'graduate' ? [['Investor', `${open.investor.name}${open.investor.organisation ? ` · ${open.investor.organisation}` : ''}`]] : []),
               ['Requested', formatDate(open.requestedAt, true)],
               ...(open.message ? [['Message', `“${open.message}”`]] : []),

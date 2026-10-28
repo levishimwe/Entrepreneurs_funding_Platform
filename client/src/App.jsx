@@ -1,4 +1,4 @@
-import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import PublicLayout from './layouts/PublicLayout';
 import AppShell from './layouts/AppShell';
@@ -20,6 +20,8 @@ import Introductions from './pages/Introductions';
 import Discover from './pages/investor/Discover';
 import InvestorProject from './pages/investor/InvestorProject';
 import InvestorActivity from './pages/investor/InvestorActivity';
+import GraduateProfile from './pages/GraduateProfile';
+import AdminPosts from './pages/admin/AdminPosts';
 import Editor from './pages/graduate/Editor';
 import Billing from './pages/investor/Billing';
 import AdminIntroductions from './pages/admin/AdminIntroductions';
@@ -35,10 +37,23 @@ import StaffOpportunities, { StaffOpportunityForm, StaffSelectionHome } from './
 import StaffSelection from './pages/staff/StaffSelection';
 import StaffResults from './pages/staff/StaffResults';
 
+// /graduates/:id is the shareable address; the page lives in the signed-in app.
+function GraduateRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/app/graduates/${id}`} replace />;
+}
+
 function NotFound() {
   return (
     <div className="mx-auto max-w-xl px-4 py-24">
-      <EmptyState title="Page not found" action={<Link to="/" className="btn-primary">Go home</Link>}>
+      <EmptyState
+        title="Page not found"
+        action={
+          <Link to="/" className="btn-primary">
+            Go home
+          </Link>
+        }
+      >
         The page you are looking for does not exist or has moved.
       </EmptyState>
     </div>
@@ -62,10 +77,18 @@ export default function App() {
             <Route path="ventures/:id" element={<PublicProject />} />
             <Route path="verify" element={<VerifyProject />} />
             <Route path="opportunities" element={<PublicOpportunities />} />
+            <Route path="graduates/:id" element={<GraduateRedirect />} />
             <Route path="*" element={<NotFound />} />
           </Route>
 
-          <Route path="app" element={<RequireAuth><AppShell /></RequireAuth>}>
+          <Route
+            path="app"
+            element={
+              <RequireAuth>
+                <AppShell />
+              </RequireAuth>
+            }
+          >
             <Route element={<RequireAuth roles={['graduate']} />}>
               <Route index element={<GraduateOverview />} />
               <Route path="projects" element={<MyProjects />} />
@@ -96,6 +119,7 @@ export default function App() {
               <Route path="requests" element={<AdminRequests />} />
               <Route path="results" element={<AdminResults />} />
               <Route path="testimonials" element={<AdminTestimonials />} />
+              <Route path="posts" element={<AdminPosts />} />
               <Route path="outbox" element={<Outbox />} />
               <Route path="config" element={<RulesConfig />} />
             </Route>
@@ -107,6 +131,7 @@ export default function App() {
               <Route path=":id" element={<StaffSelection />} />
               <Route path=":id/edit" element={<StaffOpportunityForm />} />
             </Route>
+            <Route path="graduates/:id" element={<GraduateProfile />} />
             <Route path="go/:target" element={<GoTo />} />
             <Route path="settings" element={<Settings />} />
             <Route path="settings/:section" element={<Settings />} />

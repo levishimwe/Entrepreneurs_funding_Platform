@@ -167,11 +167,11 @@ describe('projects', () => {
     expect((await admin.delete(`/api/admin/projects/${p.id}`)).status).toBe(409);
 
     const { client: investor } = await investorClient();
-    // Investor discovery identifies projects by their public code.
-    const listed = async () => (await investor.get(`/api/investor/projects?q=${encodeURIComponent(p.title)}&pageSize=25`)).body.projects.map((x) => x.projectCode);
-    expect(await listed()).toContain(p.projectCode);
+    // Investor discovery identifies projects by id (never by code).
+    const listed = async () => (await investor.get(`/api/investor/projects?q=${encodeURIComponent(p.title)}&pageSize=25`)).body.projects.map((x) => x.id);
+    expect(await listed()).toContain(p.id);
     await admin.post(`/api/admin/projects/${p.id}/archive`).send({});
-    expect(await listed()).not.toContain(p.projectCode);
+    expect(await listed()).not.toContain(p.id);
     await admin.post(`/api/admin/projects/${p.id}/restore`).send({});
     expect((await p.reload()).status).toBe('approved');
   });

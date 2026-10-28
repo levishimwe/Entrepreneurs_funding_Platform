@@ -8,7 +8,7 @@ import { useAuth, homePathFor } from '../context/AuthContext';
 // drawer on narrow screens), and the page on a light canvas.
 const NAV = {
   admin: [
-    ['Review', [['/app/admin/projects', 'Projects'], ['/app/admin/graduates', 'Graduates'], ['/app/admin/investors', 'Investors'], ['/app/admin/results', 'Competition results'], ['/app/admin/requests', 'Requests'], ['/app/admin/testimonials', 'Testimonies']]],
+    ['Review', [['/app/admin/projects', 'Projects'], ['/app/admin/graduates', 'Graduates'], ['/app/admin/investors', 'Investors'], ['/app/admin/results', 'Competition results'], ['/app/admin/requests', 'Requests'], ['/app/admin/testimonials', 'Testimonies'], ['/app/admin/posts', 'Posts']]],
     ['Manage', [['/app/admin', 'Dashboard', true], ['/app/admin/introductions', 'Introductions & funding'], ['/app/admin/opportunities', 'Opportunities'], ['/app/admin/outbox', 'Email outbox']]],
     ['Settings', [['/app/admin/config', 'Rules & thresholds'], ['/app/settings', 'Account']]],
   ],

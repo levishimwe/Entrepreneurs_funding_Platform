@@ -45,6 +45,9 @@ const GraduateProfile = sequelize.define(
       field: 'verification_status',
     },
     bio: DataTypes.TEXT,
+    // A separate image for investors and sponsors; shown only with consent.
+    publicImageKey: { type: DataTypes.STRING(255), field: 'public_image_key' },
+    publicProfileConsent: { type: DataTypes.BOOLEAN, defaultValue: false, field: 'public_profile_consent' },
   },
   { tableName: 'graduate_profiles' }
 );
@@ -221,6 +224,9 @@ const Opportunity = sequelize.define(
     endsAt: { type: DataTypes.DATE, field: 'ends_at' },
     completedAt: { type: DataTypes.DATE, field: 'completed_at' },
     completedBy: { ...REF, field: 'completed_by' },
+    // Link only: applicants apply on the organiser's site; no internal form.
+    linkOnly: { type: DataTypes.BOOLEAN, defaultValue: false, field: 'link_only' },
+    externalUrl: { type: DataTypes.STRING(500), field: 'external_url' },
   },
   { tableName: 'opportunities' }
 );
@@ -317,6 +323,37 @@ const Testimonial = sequelize.define(
     decisionReason: { type: DataTypes.TEXT, field: 'decision_reason' },
   },
   { tableName: 'testimonials' }
+);
+
+// A short plain-text post by a graduate, shown to investors on the graduate's
+// profile and in their feed. Removal is a soft delete with a reason.
+const GraduatePost = sequelize.define(
+  'GraduatePost',
+  {
+    id: ID,
+    graduateId: { ...REF, allowNull: false, field: 'graduate_id' },
+    body: { type: DataTypes.TEXT, allowNull: false },
+    imageKey: { type: DataTypes.STRING(255), field: 'image_key' },
+    editedAt: { type: DataTypes.DATE, field: 'edited_at' },
+    removedAt: { type: DataTypes.DATE, field: 'removed_at' },
+    removedBy: { ...REF, field: 'removed_by' },
+    removedReason: { type: DataTypes.TEXT, field: 'removed_reason' },
+  },
+  { tableName: 'graduate_posts' }
+);
+
+// An investor's report of a post, for the administrator to review.
+const PostReport = sequelize.define(
+  'PostReport',
+  {
+    id: ID,
+    postId: { ...REF, allowNull: false, field: 'post_id' },
+    reporterId: { ...REF, allowNull: false, field: 'reporter_id' },
+    reason: DataTypes.TEXT,
+    resolvedAt: { type: DataTypes.DATE, field: 'resolved_at' },
+    resolvedBy: { ...REF, field: 'resolved_by' },
+  },
+  { tableName: 'post_reports' }
 );
 
 // A participant's outcome in a hackathon or competition, recorded by staff and
@@ -439,6 +476,11 @@ Testimonial.belongsTo(User, { foreignKey: 'userId', as: 'author' });
 Testimonial.belongsTo(User, { foreignKey: 'decidedBy', as: 'decider' });
 Application.hasMany(CompetitionResult, { foreignKey: 'applicationId', as: 'results' });
 Project.hasMany(CompetitionResult, { foreignKey: 'projectId', as: 'competitionResults' });
+GraduatePost.belongsTo(User, { foreignKey: 'graduateId', as: 'graduate' });
+User.hasMany(GraduatePost, { foreignKey: 'graduateId', as: 'posts' });
+GraduatePost.hasMany(PostReport, { foreignKey: 'postId', as: 'reports' });
+PostReport.belongsTo(GraduatePost, { foreignKey: 'postId', as: 'post' });
+PostReport.belongsTo(User, { foreignKey: 'reporterId', as: 'reporter' });
 
 module.exports = {
   sequelize,
@@ -457,6 +499,8 @@ module.exports = {
   SupportMessage,
   CompetitionResult,
   Testimonial,
+  GraduatePost,
+  PostReport,
   AuthToken,
   SectorKeyword,
   Setting,

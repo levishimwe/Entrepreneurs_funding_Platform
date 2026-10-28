@@ -8,6 +8,7 @@ import ReasonDialog from '../components/ReasonDialog';
 import { Loading, Messages } from '../components/admin';
 import { MemberAvatar, MemberCard, MemberColumns } from '../layouts/MemberShell';
 import { useMyProjects } from './graduate/MyProjects';
+import PostComposer from '../components/member/PostComposer';
 
 // Graduate Activity: needs-attention items, a post box (coming next), the
 // graduate's own events, and on the right their next steps and profile.
@@ -24,6 +25,12 @@ const OWN = new Set([
   'application.submitted',
   'introduction.accepted',
   'introduction.declined',
+  'profile.public_updated',
+  'profile.public_image_updated',
+  'profile.public_image_removed',
+  'post.created',
+  'post.edited',
+  'post.deleted',
 ]);
 const FILTERS = [
   ['all', 'All activity', () => true],
@@ -240,17 +247,7 @@ export default function GraduateOverview() {
         </MemberCard>
       )}
 
-      {/* Posts arrive in a later release; the box is shown but disabled. */}
-      <section className="flex items-center gap-4 rounded-xl border border-line bg-surface p-5" aria-label="Write a post">
-        <MemberAvatar user={user} size={44} />
-        <div
-          className="flex h-11 flex-1 items-center justify-between gap-3 rounded-full border border-line bg-subtle px-5 text-[14px] text-muted"
-          aria-disabled="true"
-        >
-          Write a post…
-          <span className="rounded-full border border-line bg-surface px-2.5 py-0.5 text-[12px] font-medium">Coming next</span>
-        </div>
-      </section>
+      <PostComposer avatar={<MemberAvatar user={user} size={44} />} />
 
       <section aria-label="Your activity">
         <div className="mb-3 flex items-center justify-between gap-3">

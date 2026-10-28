@@ -76,7 +76,20 @@ export default function InvestorProject() {
           ['Country', p.country],
           ['Seeking', p.fundingSought],
           ['Entity', p.rdbRegistered ? `${p.companyName} · RDB ${p.companyNumber}` : 'Idea stage, not yet registered'],
-          ['Founder', `${f.name || '—'}${f.cohortYear ? ` · Class of ${f.cohortYear}` : ''}${f.program ? ` · ${f.program}` : ''}`],
+          [
+            'Founder',
+            <span key="f">
+              {`${f.name || '—'}${f.cohortYear ? ` · Class of ${f.cohortYear}` : ''}${f.program ? ` · ${f.program}` : ''}`}
+              {f.profileId && (
+                <>
+                  {' · '}
+                  <Link to={`/app/graduates/${f.profileId}`} className="adm-a">
+                    View profile
+                  </Link>
+                </>
+              )}
+            </span>,
+          ],
           ['Founder contact', introduction?.status === 'accepted' ? 'Shared with you' : 'After the founder accepts an introduction'],
           ['Confirmed investors', `${p.confirmedInvestors} of ${p.investorLimit}`],
           ['Approved', formatDate(p.approvedAt)],

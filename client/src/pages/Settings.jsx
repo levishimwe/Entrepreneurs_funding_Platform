@@ -119,7 +119,11 @@ function Testimony() {
         </p>
       )}
       <form className="adm-card max-w-xl space-y-4 p-4" onSubmit={save}>
-        <Field label="Your testimony" htmlFor="testimony" help={`${body.trim().length} / 600. Shown with your name and ${user.role === 'investor' ? 'organisation' : 'cohort'}. Editing sends it back for approval.`}>
+        <Field
+          label="Your testimony"
+          htmlFor="testimony"
+          help={`${body.trim().length} / 600. Shown with your name and ${user.role === 'investor' ? 'organisation' : 'cohort'}. Editing sends it back for approval.`}
+        >
           <textarea id="testimony" rows={5} className="input" value={body} onChange={(e) => setBody(e.target.value)} maxLength={600} />
         </Field>
         <div className="flex gap-2">
@@ -133,6 +137,129 @@ function Testimony() {
           )}
         </div>
         {user.status !== 'active' && <p className="adm-hint !mb-0">Available once your account is approved.</p>}
+      </form>
+    </>
+  );
+}
+
+// What investors and sponsors see: a separate public image (not the account
+// photo), a short bio and the consent that turns both on. The server resizes
+// the image to 1200px and strips its metadata.
+const PUBLIC_IMAGE_MAX = 3 * 1024 * 1024;
+function PublicProfile() {
+  const { user, setUser } = useAuth();
+  const g = user.graduateProfile || {};
+  const [bio, setBio] = useState(g.bio || '');
+  const [consent, setConsent] = useState(Boolean(g.publicProfileConsent));
+  const [version, setVersion] = useState(0);
+  const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const setProfile = (changes) => setUser({ ...user, graduateProfile: { ...g, ...changes } });
+
+  const save = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const res = await api.patch('/account/public-profile', { bio, consent });
+      setProfile({ bio: res.bio, publicProfileConsent: res.publicProfileConsent });
+      setNotice(
+        res.publicProfileConsent ? 'Saved. Investors and sponsors can now see your profile.' : 'Saved. Your profile is hidden from investors and sponsors.',
+      );
+    } catch (err) {
+      setError(err.fields?.bio || err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const upload = async (file) => {
+    if (!file) return;
+    setError('');
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return setError('Choose a JPG, PNG or WebP image.');
+    if (file.size > PUBLIC_IMAGE_MAX) return setError('The image must be 3 MB or smaller.');
+    try {
+      const data = new FormData();
+      data.append('publicImage', file);
+      await api.upload('/account/public-image', data);
+      setProfile({ hasPublicImage: true });
+      setVersion((v) => v + 1);
+      setNotice('Public image updated.');
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+  const remove = async () => {
+    await api.delete('/account/public-image');
+    setProfile({ hasPublicImage: false });
+    setNotice('Public image removed. Investors see your initials instead.');
+  };
+
+  return (
+    <>
+      <h2>Public profile</h2>
+      <Messages notice={notice} error={error} />
+      <form className="adm-card max-w-xl space-y-4 p-4" onSubmit={save}>
+        <div className="flex flex-wrap items-center gap-4">
+          {g.hasPublicImage ? (
+            <img
+              key={version}
+              src={`/api/account/public-image?v=${version}`}
+              alt="Your public image"
+              className="h-20 w-20 rounded-xl object-cover ring-1 ring-line"
+            />
+          ) : (
+            <span
+              className="flex h-20 w-20 items-center justify-center rounded-xl bg-subtle text-[20px] font-semibold text-muted ring-1 ring-line"
+              aria-hidden="true"
+            >
+              {user.fullName
+                .split(/\s+/)
+                .slice(0, 2)
+                .map((p) => p[0])
+                .join('')}
+            </span>
+          )}
+          <label htmlFor="public-image" className="adm-secondary cursor-pointer">
+            {g.hasPublicImage ? 'Replace image' : 'Upload public image'}
+          </label>
+          <input
+            id="public-image"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            onChange={(e) => {
+              upload(e.target.files?.[0]);
+              e.target.value = '';
+            }}
+          />
+          {g.hasPublicImage && (
+            <button type="button" className="adm-act adm-act-danger" onClick={remove}>
+              Remove
+            </button>
+          )}
+          <p className="adm-hint w-full !mb-0">JPG, PNG or WebP, up to 3 MB. Separate from your account photo; resized and stripped of location data.</p>
+        </div>
+        <Field label="Short bio (optional)" htmlFor="public-bio" help={`${bio.length} / 500. Shown on your profile to investors and sponsors.`}>
+          <textarea id="public-bio" rows={4} maxLength={500} className="input" value={bio} onChange={(e) => setBio(e.target.value)} />
+        </Field>
+        <label className="flex items-start gap-2">
+          <input type="checkbox" className="mt-1" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+          <span>
+            Investors and sponsors may see this photo.
+            <span className="adm-hint block !mb-0">
+              This also shows them your profile, bio and posts. Without it they see only your initials, and you cannot post.
+            </span>
+          </span>
+        </label>
+        <div className="flex flex-wrap items-center gap-4">
+          <button type="submit" className="adm-primary" disabled={busy}>
+            {busy ? 'Saving…' : 'Save public profile'}
+          </button>
+          <Link to={`/app/graduates/${user.id}`} className="adm-a">
+            Preview my profile
+          </Link>
+        </div>
       </form>
     </>
   );
@@ -191,7 +318,12 @@ function Profile() {
       <KeyValue
         rows={[
           ['Role', ROLE[user.role]],
-          ['Account ID', <span key="id" className="adm-mono">ALU-{user.role.toUpperCase()}-{String(user.id).padStart(4, '0')}</span>],
+          [
+            'Account ID',
+            <span key="id" className="adm-mono">
+              ALU-{user.role.toUpperCase()}-{String(user.id).padStart(4, '0')}
+            </span>,
+          ],
           ['Member since', formatDate(user.createdAt)],
         ]}
       />
@@ -219,6 +351,8 @@ function Profile() {
         )}
         <p className="adm-hint w-full !mb-0">JPEG or PNG, up to 5 MB. Only you and administrators can see it.</p>
       </div>
+
+      {user.role === 'graduate' && <PublicProfile />}
 
       <h2>Contact details</h2>
       <form className="adm-card max-w-xl space-y-4 p-4" onSubmit={savePhone}>
@@ -262,7 +396,8 @@ export default function Settings() {
     document.title = `${{ appearance: 'Appearance', testimony: 'Testimony', profile: 'Profile' }[current]} · Settings · ALU Ventures`;
   }, [current]);
 
-  const tab = ({ isActive }) => `border-b-2 py-2 text-[13px] ${isActive ? 'border-[var(--adm-accent)] font-semibold' : 'adm-muted border-transparent hover:text-[var(--adm-text)]'}`;
+  const tab = ({ isActive }) =>
+    `border-b-2 py-2 text-[13px] ${isActive ? 'border-[var(--adm-accent)] font-semibold' : 'adm-muted border-transparent hover:text-[var(--adm-text)]'}`;
   return (
     <AdminPage title="Account settings">
       <nav className="mb-4 flex gap-6 border-b border-[var(--adm-border)]" aria-label="Settings">

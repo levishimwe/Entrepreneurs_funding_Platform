@@ -20,7 +20,7 @@ const serializeApplication = (a) => ({
   submittedAt: a.submittedAt,
   decidedAt: a.decidedAt,
   opportunity: a.opportunity ? { id: a.opportunity.id, title: a.opportunity.title, type: a.opportunity.type, deadline: a.opportunity.deadline } : undefined,
-  project: a.project ? { id: a.project.id, title: a.project.title, projectCode: a.project.projectCode } : undefined,
+  project: a.project ? { id: a.project.id, title: a.project.title } : undefined,
 });
 
 router.get('/', requireRole('graduate'), async (req, res) => {
@@ -38,7 +38,6 @@ router.get('/', requireRole('graduate'), async (req, res) => {
           return {
             id: p.id,
             title: p.title,
-            projectCode: p.projectCode,
             applied: existing ? existing.status : null,
             issues: existing ? [] : checkEligibility(o, p, req.user),
           };

@@ -26,7 +26,7 @@ function forGraduate(i) {
     requestedAt: i.createdAt,
     acceptedAt: i.acceptedAt,
     declinedAt: i.declinedAt,
-    project: i.project ? { id: i.project.id, title: i.project.title, projectCode: i.project.projectCode, status: i.project.status } : undefined,
+    project: i.project ? { id: i.project.id, title: i.project.title, status: i.project.status } : undefined,
     investor: { ...investorSummary(i.investor), email: accepted ? i.investor?.email : null, phone: accepted ? i.investor?.phone : null },
     meeting: { investor: i.investorConfirmed, graduate: i.graduateConfirmed },
     investment: { investor: i.investmentInvestorConfirmed, graduate: i.investmentGraduateConfirmed, recordedAt: i.investmentRecordedAt },
@@ -45,7 +45,7 @@ function forInvestor(i) {
     acceptedAt: i.acceptedAt,
     declinedAt: i.declinedAt,
     project: i.project
-      ? { id: i.project.id, projectCode: i.project.projectCode, title: i.project.title, sector: i.project.sector, stage: i.project.stage, status: i.project.status, summary: i.project.summary }
+      ? { id: i.project.id, title: i.project.title, sector: i.project.sector, stage: i.project.stage, status: i.project.status, summary: i.project.summary }
       : undefined,
     founder: owner ? { name: owner.fullName, email: accepted ? owner.email : null, phone: accepted ? owner.phone : null } : null,
     meeting: { investor: i.investorConfirmed, graduate: i.graduateConfirmed },
@@ -80,7 +80,7 @@ async function introductionEmails({ introduction, project, graduate, investor })
     to: investor.email,
     recipientId: investor.id,
     introductionId: introduction.id,
-    subject: `Introduction: ${project.title} (${project.projectCode})`,
+    subject: `Introduction: ${project.title}`,
     paragraphs: [
       `Hello ${investor.fullName},`,
       `${graduate.fullName} accepted your introduction request for "${project.title}". You can now contact the founder directly.`,
@@ -114,7 +114,7 @@ function declinedEmail({ introduction, project, investor }) {
     subject: `Introduction request update: ${project.title}`,
     paragraphs: [
       `Hello ${investor.fullName},`,
-      `The founder of "${project.title}" (${project.projectCode}) has declined the introduction request. No contact details were shared.`,
+      `The founder of "${project.title}" has declined the introduction request. No contact details were shared.`,
       'You can continue browsing other approved ventures on ALU Ventures.',
     ],
     cta: { label: 'Browse projects', url: `${env.clientUrl}/app/discover` },

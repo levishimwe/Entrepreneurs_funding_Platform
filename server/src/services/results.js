@@ -21,7 +21,10 @@ function serializeResult(r, { forAdmin = false } = {}) {
     decidedAt: r.decidedAt,
     createdAt: r.createdAt,
     ...(r.opportunity ? { opportunity: { id: r.opportunity.id, title: r.opportunity.title, type: r.opportunity.type } } : {}),
-    ...(r.project ? { project: { id: r.project.id, title: r.project.title, projectCode: r.project.projectCode, status: r.project.status, fundingSource: r.project.fundingSource } } : {}),
+    // The project code goes to administrators only.
+    ...(r.project
+      ? { project: { id: r.project.id, title: r.project.title, ...(forAdmin ? { projectCode: r.project.projectCode } : {}), status: r.project.status, fundingSource: r.project.fundingSource } }
+      : {}),
     ...(forAdmin
       ? {
           graduate: r.graduate ? { id: r.graduate.id, name: r.graduate.fullName, email: r.graduate.email } : null,

@@ -3,7 +3,8 @@
 const express = require('express');
 const { Op, fn, col } = require('sequelize');
 const { z } = require('zod');
-const { sequelize, Project, User, GraduateProfile, InvestorProfile, Introduction, AuditLog } = require('../models');
+const { sequelize, Project, User, GraduateProfile, InvestorProfile, Introduction, AuditLog, GraduatePost } = require('../models');
+const { isShownGraduate, imageUrlOf, serializePost } = require('../services/graduateProfiles');
 const { requireApprovedInvestor } = require('../middleware/auth');
 const { badRequest, conflict, notFound } = require('../middleware/errors');
 const { forInvestor, requestEmail } = require('../services/introductions');
@@ -19,19 +20,19 @@ const DISCOVERABLE = { status: 'approved' };
 const FOUNDER = {
   model: User,
   as: 'owner',
-  attributes: ['id', 'fullName', 'photoKey'],
-  include: [{ model: GraduateProfile, as: 'graduateProfile', attributes: ['cohortYear', 'program'] }],
+  attributes: ['id', 'fullName', 'role', 'status'],
+  include: [{ model: GraduateProfile, as: 'graduateProfile', attributes: ['cohortYear', 'program', 'verificationStatus', 'publicImageKey', 'publicProfileConsent'] }],
 };
 
-// The founder's photo appears only when they consented to publication; it is
-// served by the public photo route, which applies the same rule.
-const founderPhoto = (p) => (p.publicationConsent && p.owner?.photoKey ? `/api/public/projects/${p.id}/photo` : null);
+// The founder's public image (never the account photo), and a link to their
+// profile, only when they consented to be shown to investors and sponsors.
+const founderPhoto = (p) => (p.owner ? imageUrlOf(p.owner) : null);
+const founderProfile = (p) => (p.owner && isShownGraduate(p.owner) ? p.owner.id : null);
 
 function card(p, extra = {}) {
   return {
-    // Screens link by id; the code stays in the payload for existing clients and tests but is never displayed.
+    // Investors reach a venture by id; the project code is never sent to them.
     id: p.id,
-    projectCode: p.projectCode,
     title: p.title,
     type: p.type,
     sector: p.sector,
@@ -44,14 +45,14 @@ function card(p, extra = {}) {
     approvedAt: p.approvedAt,
     status: p.status,
     founder: p.owner
-      ? { name: p.owner.fullName, cohortYear: p.owner.graduateProfile?.cohortYear ?? null, program: p.owner.graduateProfile?.program ?? null, photoUrl: founderPhoto(p) }
+      ? { name: p.owner.fullName, cohortYear: p.owner.graduateProfile?.cohortYear ?? null, program: p.owner.graduateProfile?.program ?? null, photoUrl: founderPhoto(p), profileId: founderProfile(p) }
       : null,
     ...extra,
   };
 }
 
-// A project reference in a URL: the numeric id (used by the screens) or the code.
-const byRef = (ref) => (/^\d+$/.test(String(ref)) ? { id: Number(ref) } : { projectCode: String(ref).toUpperCase() });
+// Investors reach a project by its numeric id only; anything else matches nothing.
+const byRef = (ref) => ({ id: /^\d+$/.test(String(ref)) ? Number(ref) : 0 });
 const VIEW_ACTION = 'project.viewed_by_investor';
 const firstName = (name = '') => name.trim().split(/\s+/)[0] || '';
 
@@ -59,9 +60,9 @@ const firstName = (name = '') => name.trim().split(/\s+/)[0] || '';
 // Real data only; the client hides any list that comes back empty.
 router.get('/home', async (req, res) => {
   const since = new Date(Date.now() - 30 * 864e5);
-  const [spotlight, recent, viewed] = await Promise.all([
-    // Approved and seeking investment, and the founder consented to be shown.
-    Project.findAll({ where: { ...DISCOVERABLE, publicationConsent: true }, include: [FOUNDER], order: [['approvedAt', 'DESC'], ['id', 'DESC']], limit: 20 }),
+  const [spotlight, recent, viewed, posts] = await Promise.all([
+    // Approved and seeking investment; filtered below to founders who consented to be shown.
+    Project.findAll({ where: DISCOVERABLE, include: [FOUNDER], order: [['approvedAt', 'DESC'], ['id', 'DESC']], limit: 60 }),
     Project.findAll({ where: DISCOVERABLE, include: [FOUNDER], order: [['approvedAt', 'DESC'], ['id', 'DESC']], limit: 5 }),
     AuditLog.findAll({
       where: { action: VIEW_ACTION, entityType: 'project', createdAt: { [Op.gte]: since } },
@@ -71,6 +72,13 @@ router.get('/home', async (req, res) => {
       limit: 20,
       raw: true,
     }),
+    // Recent posts from graduates who are shown to investors.
+    GraduatePost.findAll({
+      where: { removedAt: null },
+      include: [{ ...FOUNDER, as: 'graduate', required: true, where: { status: 'active' } }],
+      order: [['createdAt', 'DESC']],
+      limit: 40,
+    }),
   ]);
   const counts = Object.fromEntries(viewed.map((r) => [r.entityId, Number(r.n)]));
   const viewedProjects = viewed.length ? await Project.findAll({ where: { ...DISCOVERABLE, id: Object.keys(counts) }, include: [FOUNDER] }) : [];
@@ -78,9 +86,13 @@ router.get('/home', async (req, res) => {
   res.json({
     // One tile per graduate, newest listing first.
     spotlight: spotlight
-      .filter((p) => p.owner && !seen.has(p.owner.id) && seen.add(p.owner.id))
+      .filter((p) => p.owner && isShownGraduate(p.owner) && !seen.has(p.owner.id) && seen.add(p.owner.id))
       .slice(0, 12)
-      .map((p) => ({ projectId: p.id, firstName: firstName(p.owner.fullName), name: p.owner.fullName, photoUrl: founderPhoto(p), title: p.title })),
+      .map((p) => ({ graduateId: p.owner.id, projectId: p.id, firstName: firstName(p.owner.fullName), name: p.owner.fullName, photoUrl: founderPhoto(p), title: p.title })),
+    posts: posts
+      .filter((p) => isShownGraduate(p.graduate))
+      .slice(0, 20)
+      .map((p) => serializePost(p, { graduate: p.graduate })),
     recent: recent.map((p) => card(p)),
     mostViewed: viewedProjects
       .map((p) => ({ ...card(p), views: counts[p.id] }))

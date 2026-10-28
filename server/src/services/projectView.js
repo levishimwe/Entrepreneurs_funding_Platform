@@ -24,8 +24,9 @@ function publicProject(p) {
           name: p.owner.fullName,
           cohortYear: p.owner.graduateProfile?.cohortYear ?? null,
           program: p.owner.graduateProfile?.program ?? null,
-          // Served by /api/public/projects/:id/photo, only while the venture is public.
-          photoUrl: p.owner.photoKey ? `/api/public/projects/${p.id}/photo` : null,
+          // Anonymous visitors see initials: the public image is for signed-in
+          // investors and sponsors only, and the account photo is private.
+          photoUrl: null,
         }
       : null,
   };

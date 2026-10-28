@@ -7,6 +7,7 @@ import { relativeTime } from '../../components/kit';
 import { Loading } from '../../components/admin';
 import { initials } from '../../components/Avatar';
 import { MemberCard, MemberColumns } from '../../layouts/MemberShell';
+import { PostCard } from '../../components/member/Posts';
 
 // Investor / sponsor Activity: a profile banner while the account is
 // incomplete, a carousel of graduate founders, a feed of recently listed
@@ -76,7 +77,7 @@ function Spotlight({ tiles }) {
         {tiles.map((t, i) => (
           <li key={t.projectId} className="land-rise shrink-0 snap-start" style={{ '--d': `${Math.min(i, 6) * 50}ms` }}>
             <Link
-              to={`/app/discover/${t.projectId}`}
+              to={`/app/graduates/${t.graduateId}`}
               className="group block w-[140px] overflow-hidden rounded-xl border border-line bg-surface transition-[transform,border-color] duration-300 hover:-translate-y-1 hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               aria-label={`${t.name}, founder of ${t.title}`}
             >
@@ -152,19 +153,22 @@ export default function InvestorActivity() {
   // The profile a founder sees on an introduction: photo and phone are set in Settings.
   const incomplete = !user.hasPhoto || !user.phone;
 
+  // Ventures and graduate posts, newest first; "By sector" groups ventures only.
   const groups = useMemo(() => {
     if (!ventures) return null;
+    const posts = (home?.posts || []).map((post) => ({ post, at: post.createdAt }));
+    const merge = (list) => [...list.map((p) => ({ ...p, at: p.approvedAt })), ...posts].sort((a, b) => new Date(b.at) - new Date(a.at));
     if (mode === 'newest') {
       const since = Date.now() - 30 * DAY;
-      return [[null, ventures.filter((p) => new Date(p.approvedAt) >= since)]];
+      return [[null, merge(ventures).filter((item) => new Date(item.at) >= since)]];
     }
     if (mode === 'sector') {
       const by = {};
       ventures.forEach((p) => (by[p.sector] = [...(by[p.sector] || []), p]));
       return Object.entries(by).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
     }
-    return [[null, ventures]];
-  }, [ventures, mode]);
+    return [[null, merge(ventures)]];
+  }, [ventures, home, mode]);
 
   const banner = incomplete && (
     <section className="rounded-xl border border-line bg-surface px-6 py-5">
@@ -280,9 +284,15 @@ export default function InvestorActivity() {
                   </h3>
                 )}
                 <ul className="rounded-xl border border-line bg-surface">
-                  {rows.map((p, i) => (
-                    <VentureItem key={p.id} p={p} index={i} />
-                  ))}
+                  {rows.map((item, i) =>
+                    item.post ? (
+                      <li key={`post-${item.post.id}`} className="border-t border-line first:border-0">
+                        <PostCard post={item.post} showAuthor canReport />
+                      </li>
+                    ) : (
+                      <VentureItem key={item.id} p={item} index={i} />
+                    ),
+                  )}
                 </ul>
               </div>
             ))}
