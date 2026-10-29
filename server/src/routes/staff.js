@@ -15,11 +15,18 @@ const storage = require('../services/storage');
 const { upload, validateDocument } = require('../middleware/upload');
 const { uploadLimiter } = require('../middleware/rateLimits');
 const { serializeResult, RESULT_TYPES } = require('../services/results');
+const { staffDashboard, periodSchema } = require('../services/analytics');
 
 const router = express.Router();
 router.use(requireRole('staff'));
 
 const CREATOR = { model: User, as: 'creator', attributes: ['id', 'fullName', 'role'] };
+
+// Applications and opportunities in aggregate (no applicant details), cached for 60 seconds.
+router.get('/dashboard', async (req, res) => {
+  const { period } = periodSchema.parse(req.query);
+  res.json(await staffDashboard(period));
+});
 
 router.get('/opportunities', async (req, res) => {
   const rows = await Opportunity.findAll({

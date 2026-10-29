@@ -89,7 +89,71 @@ async function loginAs(key) {
   return client;
 }
 
+// Rows a suite creates, removed when it finishes. Suites run one at a time
+// (--runInBand), so every row above the ids noted at the start belongs to the
+// suite. Children are deleted before parents, by exact id; stored files too.
+const OWN_TABLES = [
+  'post_reports',
+  'graduate_posts',
+  'support_messages',
+  'support_threads',
+  'testimonials',
+  'competition_results',
+  'notifications',
+  'applications',
+  'introductions',
+  'reviews',
+  'documents',
+  'projects',
+  'opportunities',
+  'graduate_profiles',
+  'investor_profiles',
+  'auth_tokens',
+  'audit_logs',
+  'users',
+];
+const FILE_COLUMNS = { documents: ['storage_key'], users: ['photo_key'], graduate_profiles: ['public_image_key'], graduate_posts: ['image_key'], support_messages: ['attachment_key'] };
+// Profiles are keyed by their user, so they follow the users' mark.
+const KEY = { graduate_profiles: ['user_id', 'users'], investor_profiles: ['user_id', 'users'] };
+
+async function snapshotIds() {
+  const { sequelize } = require('../src/models');
+  const env = require('../src/config/env');
+  if (!env.db.name.endsWith('_test')) throw new Error(`Refusing to snapshot "${env.db.name}": tests only run against a *_test database.`);
+  const marks = {};
+  for (const table of OWN_TABLES.filter((t) => !KEY[t])) {
+    const [[row]] = await sequelize.query(`SELECT COALESCE(MAX(id), 0) AS id FROM \`${table}\``);
+    marks[table] = Number(row.id);
+  }
+  return marks;
+}
+
+async function removeRowsSince(marks) {
+  const { sequelize } = require('../src/models');
+  const env = require('../src/config/env');
+  const storage = require('../src/services/storage');
+  if (!env.db.name.endsWith('_test')) throw new Error(`Refusing to clean "${env.db.name}": tests only run against a *_test database.`);
+  const removed = {};
+  const keys = [];
+  for (const table of OWN_TABLES) {
+    const cols = FILE_COLUMNS[table] || [];
+    const [key, markTable] = KEY[table] || ['id', table];
+    const [rows] = await sequelize.query(`SELECT ${key} AS id${cols.map((c) => `, ${c}`).join('')} FROM \`${table}\` WHERE ${key} > ?`, {
+      replacements: [marks[markTable]],
+    });
+    if (!rows.length) continue;
+    rows.forEach((r) => cols.forEach((c) => r[c] && keys.push(r[c])));
+    const ids = rows.map((r) => r.id);
+    await sequelize.query(`DELETE FROM \`${table}\` WHERE ${key} IN (?)`, { replacements: [ids] });
+    removed[table] = ids.length;
+  }
+  await Promise.all(keys.map((k) => storage.remove(k).catch(() => {})));
+  return { removed, files: keys.length };
+}
+
 module.exports = {
+  snapshotIds,
+  removeRowsSince,
   stubOcr,
   agent,
   latestCode,

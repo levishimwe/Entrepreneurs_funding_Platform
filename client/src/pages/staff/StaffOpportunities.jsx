@@ -219,11 +219,11 @@ export function StaffOpportunityForm() {
         <OpportunityForm
           initial={initial}
           submitLabel={id ? 'Save submission' : 'Submit for publication'}
-          onCancel={() => navigate('/app/staff')}
+          onCancel={() => navigate('/app/staff/opportunities')}
           onSubmit={async (data) => {
             if (id) await api.patch(`/staff/opportunities/${id}`, data);
             else await api.post('/staff/opportunities', data);
-            navigate('/app/staff');
+            navigate('/app/staff/opportunities');
           }}
         />
       </div>

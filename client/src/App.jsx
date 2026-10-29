@@ -36,6 +36,7 @@ import { Outbox, RulesConfig } from './pages/admin/PlatformAdmin';
 import StaffOpportunities, { StaffOpportunityForm, StaffSelectionHome } from './pages/staff/StaffOpportunities';
 import StaffSelection from './pages/staff/StaffSelection';
 import StaffResults from './pages/staff/StaffResults';
+import StaffDashboard from './pages/staff/StaffDashboard';
 
 // /graduates/:id is the shareable address; the page lives in the signed-in app.
 function GraduateRedirect() {
@@ -124,7 +125,8 @@ export default function App() {
               <Route path="config" element={<RulesConfig />} />
             </Route>
             <Route path="staff" element={<RequireAuth roles={['staff']} />}>
-              <Route index element={<StaffOpportunities />} />
+              <Route index element={<StaffDashboard />} />
+              <Route path="opportunities" element={<StaffOpportunities />} />
               <Route path="new" element={<StaffOpportunityForm />} />
               <Route path="selection" element={<StaffSelectionHome />} />
               <Route path="results" element={<StaffResults />} />

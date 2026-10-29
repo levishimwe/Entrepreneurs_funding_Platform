@@ -179,7 +179,7 @@ export default function StaffSelection() {
   return (
     <AdminPage title={`Applicants: ${opportunity.title}`}>
       <p className="adm-hint">
-        <Link className="adm-a" to="/app/staff">
+        <Link className="adm-a" to="/app/staff/opportunities">
           Opportunities
         </Link>
         {' / '}

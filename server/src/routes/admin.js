@@ -26,6 +26,7 @@ const { badRequest, notFound, HttpError } = require('../middleware/errors');
 const { recordDecision, confirmedInvestorCount } = require('../services/decisions');
 const { enqueueEmail, retryNotification } = require('../services/mailer');
 const { getDashboardStats } = require('../services/dashboard');
+const { adminDashboard, periodSchema } = require('../services/analytics');
 const { opportunitySchema, serializeOpportunity, stageOf } = require('../services/opportunities');
 const { documentSummary } = require('../services/projectView');
 const audit = require('../services/audit');
@@ -62,8 +63,12 @@ function documentReview(d) {
 
 // ---------------------------------------------------------------------------
 // Dashboard
+// Without a period: the live totals and review queues. With ?period=week|month|year:
+// the same plus aggregated charts for the console, cached for 60 seconds.
 router.get('/dashboard', async (req, res) => {
-  res.json(await getDashboardStats());
+  if (req.query.period === undefined) return res.json(await getDashboardStats());
+  const { period } = periodSchema.parse(req.query);
+  res.json(await adminDashboard(period));
 });
 
 // ---------------------------------------------------------------------------

@@ -19,6 +19,13 @@
   --adm-danger: #b91c1c;
   --adm-danger-soft: #fdeaea;
   --adm-neutral-soft: #eef1f5;
+  /* Dashboard charts: four colours at most, always with text labels. */
+  --chart-blue: #2563eb;
+  --chart-green: #16a34a;
+  --chart-green-light: #86efac;
+  --chart-amber: #d97706;
+  --chart-grey: #94a3b8;
+  --chart-grey-light: #cbd5e1;
 }
 [data-theme='dark'] {
   --adm-success: #4ade80;
@@ -28,6 +35,12 @@
   --adm-danger: #f87171;
   --adm-danger-soft: #3a1717;
   --adm-neutral-soft: #222d40;
+  --chart-blue: #3b82f6;
+  --chart-green: #22c55e;
+  --chart-green-light: #166534;
+  --chart-amber: #f59e0b;
+  --chart-grey: #64748b;
+  --chart-grey-light: #475569;
 }
 
 /* In the components layer so Tailwind utilities (lg:hidden, sm:w-…) still win. */

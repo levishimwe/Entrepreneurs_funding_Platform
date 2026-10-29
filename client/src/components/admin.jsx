@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import { statusLabel, statusTone } from '../lib/status';
 import { useAuth } from '../context/AuthContext';
 import ReasonDialog from './ReasonDialog';
+import { useHostedSearch } from './shellSearch';
 
 // Building blocks of the admin and staff console. Styles: src/admin.css.
 
@@ -43,10 +44,12 @@ export function Loading() {
 }
 
 // Search box that submits on Enter (or as you type when `live`).
+// Inside the console shell the top bar hosts this box on wide screens.
 export function SearchInput({ value, onChange, onSubmit, placeholder = 'Search' }) {
+  const hosted = useHostedSearch({ value, onChange, onSubmit, placeholder });
   return (
     <form
-      className="flex min-w-0 basis-full gap-2 sm:basis-auto sm:flex-1 sm:max-w-sm"
+      className={`flex min-w-0 basis-full gap-2 sm:basis-auto sm:flex-1 sm:max-w-sm ${hosted ? 'lg:hidden' : ''}`}
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit?.();
