@@ -286,4 +286,4 @@ async function buildStaff(period) {
 const adminDashboard = (period) => cached(`admin:${period}`, () => buildAdmin(period));
 const staffDashboard = (period) => cached(`staff:${period}`, () => buildStaff(period));
 
-module.exports = { adminDashboard, staffDashboard, periodSchema, periodWindow, clearAnalyticsCache, PERIODS };
+module.exports = { adminDashboard, staffDashboard, periodSchema, periodWindow, clearAnalyticsCache, PERIODS, cached, series, compare, change, grouped, rows, num, topBars };

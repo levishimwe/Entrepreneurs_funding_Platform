@@ -9,9 +9,11 @@ import { Loading, Messages } from '../components/admin';
 import { MemberAvatar, MemberCard, MemberColumns } from '../layouts/MemberShell';
 import { useMyProjects } from './graduate/MyProjects';
 import PostComposer from '../components/member/PostComposer';
+import { GraduateSummary } from '../components/member/ActivitySummary';
 
-// Graduate Activity: needs-attention items, a post box (coming next), the
-// graduate's own events, and on the right their next steps and profile.
+// Graduate Activity: how things are going (period, KPI cards and charts),
+// needs-attention items, the post box, the graduate's own events, and on the
+// right their next steps and profile.
 
 const LIVE = ['approved', 'funded', 'investor_limit_reached'];
 // Events the graduate did themselves; the rest come from the platform.
@@ -222,6 +224,8 @@ export default function GraduateOverview() {
         </>
       }
     >
+      <GraduateSummary />
+
       {!user.approved && (
         <p className="rounded-xl border border-line bg-surface px-5 py-4 text-[14px] text-ink">
           Your graduate account is waiting for administrator review. You will be emailed when a decision is recorded; you can then submit projects.

@@ -11,6 +11,12 @@ const COLOR = {
   amber: 'var(--chart-amber)',
   grey: 'var(--chart-grey)',
   'grey-light': 'var(--chart-grey-light)',
+  // Member Activity palette (index.css).
+  c1: 'var(--chart-1)',
+  'c1-soft': 'var(--chart-1-soft)',
+  c2: 'var(--chart-2)',
+  c3: 'var(--chart-3)',
+  c4: 'var(--chart-4)',
 };
 const fmt = (n) => Number(n || 0).toLocaleString('en-US');
 
@@ -22,11 +28,13 @@ export function ChartEmpty({ children = 'No data in this period', height = 200 }
   );
 }
 
-export function ChartCard({ title, subtitle, action, className = '', children }) {
+// `label` names the region when the title is already used elsewhere on the page.
+export function ChartCard({ title, label, subtitle, action, className = '', children }) {
   return (
-    <section className={`adm-card flex min-w-0 flex-col p-4 sm:p-5 ${className}`} aria-label={title}>
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="min-w-0">
+    <section className={`adm-card flex min-w-0 flex-col p-4 sm:p-5 ${className}`} aria-label={label || title}>
+      {/* The action link drops below the title when the card is narrow. */}
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+        <div className="min-w-0 flex-1 basis-40">
           <h2 className="!m-0 text-[15px] font-semibold">{title}</h2>
           {subtitle && <p className="adm-muted m-0 text-[12px]">{subtitle}</p>}
         </div>
@@ -37,7 +45,8 @@ export function ChartCard({ title, subtitle, action, className = '', children })
   );
 }
 
-export function KpiCard({ label, value, hint, change, versus, to }) {
+export function KpiCard({ label, value, hint, change, versus, to, className = '' }) {
+  const long = typeof value === 'string' && value.length > 8;
   const pill =
     change === null || change === undefined ? null : (
       <span className={`adm-pill ${change > 0 ? 'adm-pill-success' : change < 0 ? 'adm-pill-warning' : 'adm-pill-neutral'} mt-2 inline-flex`}>
@@ -48,17 +57,17 @@ export function KpiCard({ label, value, hint, change, versus, to }) {
   const body = (
     <>
       <span className="adm-muted block text-[11px] font-semibold uppercase tracking-[0.06em]">{label}</span>
-      <span className="mt-1 block text-[24px] font-semibold leading-8 tabular-nums">{typeof value === 'number' ? fmt(value) : value}</span>
+      <span className={`mt-1 block font-semibold tabular-nums ${long ? 'text-[17px] leading-6' : 'text-[24px] leading-8'}`}>{typeof value === 'number' ? fmt(value) : value}</span>
       {hint && <span className="adm-muted block text-[12px]">{hint}</span>}
       {pill}
     </>
   );
   return to ? (
-    <Link to={to} className="adm-card block min-w-0 p-4 hover:border-[var(--adm-accent)]">
+    <Link to={to} className={`adm-card block min-w-0 p-4 hover:border-[var(--adm-accent)] ${className}`}>
       {body}
     </Link>
   ) : (
-    <div className="adm-card min-w-0 p-4">{body}</div>
+    <div className={`adm-card min-w-0 p-4 ${className}`}>{body}</div>
   );
 }
 
@@ -126,10 +135,12 @@ function useWidth(fallback = 600) {
 // arrow keys, to read every value for one day or month.
 export function LineChart({ title, labels, longLabels = labels, series, height = 240 }) {
   const [ref, w] = useWidth();
-  const [active, setActive] = useState(null);
+  const [hovered, setActive] = useState(null);
   const gid = `g${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const max = Math.max(0, ...series.flatMap((s) => s.values));
   const n = labels.length;
+  // A point picked on a longer period (e.g. day 30 before switching to Year) no longer exists.
+  const active = hovered !== null && hovered < n ? hovered : null;
 
   const legend = <Legend items={series} />;
   if (max === 0)

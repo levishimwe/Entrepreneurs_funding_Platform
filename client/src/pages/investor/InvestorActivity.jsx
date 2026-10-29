@@ -8,10 +8,12 @@ import { Loading } from '../../components/admin';
 import { initials } from '../../components/Avatar';
 import { MemberCard, MemberColumns } from '../../layouts/MemberShell';
 import { PostCard } from '../../components/member/Posts';
+import { InvestorSummary } from '../../components/member/ActivitySummary';
 
 // Investor / sponsor Activity: a profile banner while the account is
-// incomplete, a carousel of graduate founders, a feed of recently listed
-// ventures and two side cards. Real data only; no codes, emails, phones or
+// incomplete, how things are going (period, KPI cards and charts with the
+// recently listed ventures), a carousel of graduate founders, the feed and
+// the most viewed ventures beside it. Real data only; no codes, emails, phones or
 // documents appear here.
 
 const FEED = [
@@ -214,34 +216,12 @@ export default function InvestorActivity() {
           </ul>
         </MemberCard>
       )}
-      {home.recent.length > 0 && (
-        <MemberCard
-          title="Recently listed"
-          action={
-            <Link to="/app/discover" className="text-[13px] font-semibold text-accent hover:underline">
-              See all
-            </Link>
-          }
-        >
-          <ul className="px-2 pb-3 pt-2">
-            {home.recent.map((p) => (
-              <li key={p.id}>
-                <Link to={`/app/discover/${p.id}`} className="block rounded-lg px-3 py-2.5 hover:bg-subtle">
-                  <span className="block truncate text-[14px] font-semibold text-ink">{p.title}</span>
-                  <span className="block text-[12px] text-muted">
-                    {p.sector} · listed {relativeTime(p.approvedAt)}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </MemberCard>
-      )}
     </>
   );
 
   return (
     <MemberColumns aside={aside}>
+      <InvestorSummary />
       {banner}
       {error && <p className="rounded-xl border border-line bg-surface px-5 py-4 text-[14px] text-[#b91c1c]">{error}</p>}
       {!home && !error && <Loading />}

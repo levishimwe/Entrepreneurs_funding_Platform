@@ -41,6 +41,14 @@
   --accent: #2563eb;
   --accent-strong: #1d4ed8;
   --accent-soft: #e8efff;
+  /* Graduate and investor Activity charts (admin and staff keep their own).
+     Contrast on the white card: 3.7 / 4.6 / 3.4 / 16.5. Sand (1.6 on white)
+     is used in dark mode only, where navy would disappear. */
+  --chart-1: #b07a1e; /* golden brown */
+  --chart-2: #3f7f7a; /* muted teal */
+  --chart-3: #c9764f; /* soft clay */
+  --chart-4: #0b1f3a; /* deep navy */
+  --chart-1-soft: color-mix(in srgb, var(--chart-1) 50%, var(--surface));
   color-scheme: light;
 }
 
@@ -54,6 +62,11 @@
   --accent: #4f8cff;
   --accent-strong: #7aa7ff;
   --accent-soft: #1b2b4a;
+  /* Contrast on the #161f2e card: 7.4 / 6.9 / 7.2 / 12.0. */
+  --chart-1: #d9a441;
+  --chart-2: #6fb3ad;
+  --chart-3: #e39a74;
+  --chart-4: #f0d9a8; /* warm sand */
   color-scheme: dark;
 }
 

@@ -135,19 +135,23 @@ async function removeRowsSince(marks) {
   if (!env.db.name.endsWith('_test')) throw new Error(`Refusing to clean "${env.db.name}": tests only run against a *_test database.`);
   const removed = {};
   const keys = [];
-  for (const table of OWN_TABLES) {
-    const cols = FILE_COLUMNS[table] || [];
-    const [key, markTable] = KEY[table] || ['id', table];
-    const [rows] = await sequelize.query(`SELECT ${key} AS id${cols.map((c) => `, ${c}`).join('')} FROM \`${table}\` WHERE ${key} > ?`, {
-      replacements: [marks[markTable]],
-    });
-    if (!rows.length) continue;
-    rows.forEach((r) => cols.forEach((c) => r[c] && keys.push(r[c])));
-    const ids = rows.map((r) => r.id);
-    await sequelize.query(`DELETE FROM \`${table}\` WHERE ${key} IN (?)`, { replacements: [ids] });
-    removed[table] = ids.length;
+  try {
+    for (const table of OWN_TABLES) {
+      const cols = FILE_COLUMNS[table] || [];
+      const [key, markTable] = KEY[table] || ['id', table];
+      const [rows] = await sequelize.query(`SELECT ${key} AS id${cols.map((c) => `, ${c}`).join('')} FROM \`${table}\` WHERE ${key} > ?`, {
+        replacements: [marks[markTable]],
+      });
+      if (!rows.length) continue;
+      const ids = rows.map((r) => r.id);
+      await sequelize.query(`DELETE FROM \`${table}\` WHERE ${key} IN (?)`, { replacements: [ids] });
+      // Files follow only rows that are really gone.
+      rows.forEach((r) => cols.forEach((c) => r[c] && keys.push(r[c])));
+      removed[table] = ids.length;
+    }
+  } finally {
+    await Promise.all(keys.map((k) => storage.remove(k).catch(() => {})));
   }
-  await Promise.all(keys.map((k) => storage.remove(k).catch(() => {})));
   return { removed, files: keys.length };
 }
 

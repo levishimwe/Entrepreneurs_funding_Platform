@@ -10,9 +10,18 @@ const { badRequest, conflict, notFound } = require('../middleware/errors');
 const { forInvestor, requestEmail } = require('../services/introductions');
 const { confirmedInvestorCount, INVESTOR_LIMIT } = require('../services/funding');
 const audit = require('../services/audit');
+const { periodSchema } = require('../services/analytics');
+const { investorSummary } = require('../services/memberSummary');
 
 const router = express.Router();
 router.use(requireApprovedInvestor);
+
+// Activity page summary: the investor's own introductions plus platform-wide
+// counts of ventures seeking investment. Counts only; cached for 60 seconds.
+router.get('/activity-summary', async (req, res) => {
+  const { period } = periodSchema.parse(req.query);
+  res.json(await investorSummary(req.user, period));
+});
 
 // Only "Approved and Seeking Investment" projects are in active discovery.
 // Funded, investor-limit and archived projects are hidden (FR13).
