@@ -5,7 +5,7 @@ const { shutdown } = require('../src/services/verification/textExtraction');
 const { buildRdbPdf } = require('../scripts/make-sample-documents');
 const { readAccountConfig, SeedConfigError } = require('../scripts/seed');
 const { TEST_ACCOUNTS } = require('./setupEnv');
-const { agent, registerGraduate, verifyEmail, approvedGraduate, investorClient, loginAs, unique } = require('./helpers');
+const { agent, registerGraduate, verifyEmail, approvedGraduate, investorClient, loginAs, unique, TEST_PASSWORD } = require('./helpers');
 
 require('./helpers').stubOcr();
 
@@ -18,9 +18,9 @@ afterAll(async () => {
 const nextYear = new Date().getUTCFullYear() + 1;
 const companyCode = () => String(100000000 + Math.floor(Math.random() * 899999999));
 
-async function pendingGraduate(file = 'degree-amina-uwase.pdf', fullName = 'Amina Uwase') {
+async function pendingGraduate(fullName = 'Amina Uwase') {
   const client = agent();
-  const { email } = await registerGraduate(client, { file, fullName });
+  const { email } = await registerGraduate(client, { fullName });
   await verifyEmail(client, email);
   await whenIdle();
   return { client, email, user: await User.findOne({ where: { email } }) };
@@ -95,26 +95,32 @@ describe('seeded accounts', () => {
 });
 
 describe('graduate and investor approval queues', () => {
-  test('queue shows the degree flag; approving a Suspicious degree needs a reason', async () => {
+  test('a pending graduate is approved after the OTP with no document check; the decision is emailed and audit-logged', async () => {
     const admin = await loginAs('admin');
-    const { user } = await pendingGraduate('degree-other-person.pdf', 'Amina Uwase');
+    const { user, email, client } = await pendingGraduate();
     const queue = await admin.get('/api/admin/graduates?status=pending');
     const row = queue.body.graduates.find((g) => g.id === user.id);
-    expect(row.degree.flag).toBe('suspicious');
-    expect(row.degree.checks.find((c) => c.id === 'name_match').passed).toBe(false);
+    expect(row).toMatchObject({ fullName: 'Amina Uwase', email, program: 'BSc Software Engineering', cohortYear: 2024 });
+    expect(row).not.toHaveProperty('degree');
 
-    const noReason = await admin.post(`/api/admin/graduates/${user.id}/approve`).send({});
-    expect(noReason.status).toBe(400);
-    expect(noReason.body.fields.reason).toMatch(/Suspicious/);
+    // Still pending: no project submission yet.
+    expect((await client.post('/api/projects').field('title', 'Before approval')).status).toBe(403);
 
-    const ok = await admin.post(`/api/admin/graduates/${user.id}/approve`).send({ reason: 'Checked the original certificate in person.' });
+    // No reason is needed to approve.
+    const ok = await admin.post(`/api/admin/graduates/${user.id}/approve`).send({});
     expect(ok.status).toBe(200);
     await user.reload({ include: ['graduateProfile'] });
     expect(user.status).toBe('active');
     expect(user.graduateProfile.verificationStatus).toBe('approved');
     const review = await Review.findOne({ where: { subjectUserId: user.id } });
     expect(review.decision).toBe('approve');
-    expect(review.reason).toMatch(/in person/);
+    const logged = await AuditLog.findOne({ where: { action: 'account.approved', entityType: 'user', entityId: user.id } });
+    expect(logged.actorId).toBeTruthy();
+    expect(logged.metadata).toMatchObject({ role: 'graduate' });
+    expect(logged.metadata).not.toHaveProperty('degreeFlag');
+    const mail = await Notification.findOne({ where: { toEmail: email, subject: { [Op.like]: '%is approved%' } } });
+    expect(mail).not.toBeNull();
+    expect((await client.get('/api/auth/me')).body.user.approved).toBe(true);
   });
 
   test('rejection needs a reason, emails the graduate and blocks sign-in', async () => {
@@ -126,7 +132,7 @@ describe('graduate and investor approval queues', () => {
     expect(res.status).toBe(200);
     const mail = await Notification.findOne({ where: { toEmail: email, subject: { [Op.like]: '%not approved%' } } });
     expect(mail.bodyText).toMatch(/different programme/);
-    expect((await agent().post('/api/auth/login').send({ email, password: 'Password123' })).status).toBe(403);
+    expect((await agent().post('/api/auth/login').send({ email, password: TEST_PASSWORD })).status).toBe(403);
     // Decided accounts cannot be decided again.
     expect((await admin.post(`/api/admin/graduates/${user.id}/approve`).send({ reason: 'x x x x x' })).status).toBe(400);
   });

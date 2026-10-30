@@ -44,7 +44,7 @@ ALU graduates build ventures, but they have no verified, trusted place to show t
 
 ALU Ventures is a web platform that:
 
-- **verifies people and ventures**: alumni email domain plus a one-time code, an uploaded ALU degree certificate, and for registered companies an RDB certificate. Automated checks read each document and label it *Likely Valid* or *Suspicious*. An administrator always makes the final decision;
+- **verifies people and ventures**: graduates register with an `@alumni.alustudent.com` email confirmed by a one-time code, and an administrator then approves each graduate account; registered companies also upload an RDB certificate. Automated checks read each company document and label it *Likely Valid* or *Suspicious*. An administrator always makes the final decision;
 - **lists approved ventures** publicly (only with the founder's consent) and for approved investors, with filters;
 - **connects investors and founders through consent**: an investor requests an introduction, and contact details are shared only after the graduate accepts;
 - **runs opportunities**: staff propose hackathons, grants and competitions, the administrator publishes them, graduates apply with an approved project, staff record selection decisions and results, and the administrator approves the results;
@@ -54,7 +54,7 @@ ALU Ventures is a web platform that:
 
 | Role | How the account is created | What they do |
 | --- | --- | --- |
-| **Graduate** | Self-registration with an ALU alumni email, email code and degree certificate; approved by the administrator | Submit and revise ventures, answer similarity clarifications, accept or decline introductions, apply to opportunities, publish a public profile and short posts, contact the administrator |
+| **Graduate** | Self-registration with an `@alumni.alustudent.com` email and an email code; the administrator approves the account before projects can be submitted | Submit and revise ventures, answer similarity clarifications, accept or decline introductions, apply to opportunities, publish a public profile and short posts, contact the administrator |
 | **Investor / Sponsor** | Self-registration with organisation, website and interests; approved by the administrator | Browse and filter approved ventures, request introductions, confirm meetings and investments, view graduate profiles and posts, report a post |
 | **Administrator** | Provisioned by the seed script from environment variables (never self-assigned) | Approve accounts and projects, review document checks and similarity flags, publish opportunities, approve competition results, record investments, moderate testimonies and posts, manage the email outbox, rules and records, and view dashboards |
 | **Staff** | Provisioned by the seed script (two staff accounts) | Propose opportunities, review applicants and record shortlist / selected / not-selected decisions, mark events completed, record results, and view the staff dashboard |
@@ -62,7 +62,7 @@ ALU Ventures is a web platform that:
 ### Main features
 
 - **Verified project listing**: idea or registered-company ventures, each with a unique project code (`ALU-YYYY-XXXXX`), a rule-based sector suggestion and fuzzy similarity detection against approved projects. Similar projects are flagged for a clarification and administrator review.
-- **Document checks flagged for admin review**: degree, RDB and RRA documents are read with Tesseract.js OCR (PDF text layer plus OCR) and, when configured, Google Gemini. Rule-based checks cover issuer wording, registration numbers, dates and expiry, and fuzzy name matching. The result is a review aid; the administrator decides.
+- **Document checks flagged for admin review**: RDB certificates and RRA documents are read with Tesseract.js OCR (PDF text layer plus OCR) and, when configured, Google Gemini. Rule-based checks cover issuer wording, registration numbers, dates and expiry, and fuzzy name matching. The result is a review aid; the administrator decides.
 - **Consent-based introductions**: request, then accept or decline, then meeting and investment confirmations by both sides, then the investment is recorded by the administrator. Two-investor limit and *Fully Funded* status.
 - **Hackathons, grants and competitions**: staff proposals, administrator publication, server-side eligibility checks, one application per project, staff selection decisions with reasons, completion, results with administrator approval, and funding by competition. Opportunities can also be *link only* (apply on the organiser's site).
 - **Public site**: home page with live statistics, success stories (funded projects the administrator chose to show), approved testimonies, Browse ventures, public opportunities and *Verify a Project* by code.
@@ -71,6 +71,8 @@ ALU Ventures is a web platform that:
 - **Dashboards**: administrator and staff dashboards with KPI cards and charts, and Activity summaries for graduates and investors. All built from aggregated counts.
 - **Audit log and email outbox**: every decision is recorded, and every email goes through a persistent outbox with retries and an administrator view.
 - **One-time codes (OTP)**: six-digit codes for email verification at registration and for password reset. Sign-in itself uses email and password.
+- **Strong passwords**: every new or changed password needs 8+ characters with an uppercase letter, a lowercase letter, a number and a special character, and must not contain the user's name or email name or be a common password. One rule set on the server (`server/src/services/passwordPolicy.js`), sent to the forms for a live checklist. Existing passwords keep working.
+- **Project background image**: an optional JPG, PNG or WebP image (3 MB max) per project, checked by content, stripped of EXIF and resized to 1600px wide. It is shown on the venture page and cards only while the project is approved and public; the administrator can remove it with a reason.
 - **Records management**: archive and restore accounts, projects and opportunities. Permanent delete only for rejected records, ended opportunities and emails.
 - **Appearance**: light, dark or system theme per account.
 - **Investor "Billing & plans"**: a "Coming soon" placeholder only; the platform takes no payments.
@@ -86,7 +88,7 @@ Status is based on what the code and the automated tests actually do. FR/NFR num
 | Planned Feature | Intended Purpose | Current Status | Evidence |
 | --- | --- | --- | --- |
 | FR01 Free platform access, billing placeholder | No role is charged; premium plans shown only as "Coming soon" | **Completed** | `client/src/pages/investor/Billing.jsx` · screenshot `docs/screenshots/investor-billing.png` |
-| FR02 Graduate registration (alumni domain, OTP, degree, admin approval) | Only real ALU graduates get graduate status | **Partial**: the OTP is sent by email only; SMS delivery was not built because no SMS gateway was set up for the pilot. Everything else is complete | `server/src/routes/auth.js`, `server/src/services/otp.js`, `server/tests/auth.test.js`, `server/tests/uploads.test.js` · `docs/screenshots/register-graduate.png` |
+| FR02 Graduate registration (alumni domain, OTP, admin approval) | Only real ALU graduates get graduate status | **Partial**: the OTP is sent by email only; SMS delivery was not built because no SMS gateway was set up for the pilot. On the supervisor's advice the degree-certificate upload and its automated check were removed: only `@alumni.alustudent.com` addresses are accepted (checked on the server), and the administrator approves each graduate after the OTP. Certificates uploaded earlier are kept but no longer used | `server/src/routes/auth.js`, `server/src/services/otp.js`, `server/tests/auth.test.js`, `server/tests/uploads.test.js` · `docs/screenshots/register-graduate.png` |
 | FR03 Investor registration and controlled staff provisioning | Vetted investors; no self-assigned privileged roles | **Completed** | `server/src/routes/auth.js` (`/register/investor`), `server/scripts/seed.js`, `server/tests/seed.test.js`, `server/tests/access.test.js` |
 | FR04 Project submission and revision | Idea or company ventures with evidence; changes trigger renewed review | **Completed** | `server/src/routes/projects.js`, `client/src/pages/graduate/ProjectForm.jsx`, `server/tests/projects.test.js` · `docs/screenshots/project-form.png` |
 | FR05 OCR-assisted RDB certificate review | Flag registration certificates as Likely Valid / Suspicious for the admin | **Completed**, extended: Gemini can be the primary reader, and Tesseract always runs as the fallback | `server/src/services/verification/documentVerifier.js`, `server/tests/verification.test.js`, `server/tests/gemini.test.js` · `docs/screenshots/admin-document-checks.png` |
@@ -106,6 +108,8 @@ Status is based on what the code and the automated tests actually do. FR/NFR num
 | Contact / requests (added) | Users reach the administrator and get replies | **Completed** | `server/src/routes/support.js`, `server/src/routes/adminRequests.js`, `server/tests/support.test.js` |
 | Success stories and testimonies (added) | Show funded projects and approved testimonies on the home page | **Completed** | `server/src/routes/public.js`, `server/src/routes/testimonials.js`, `server/src/routes/adminHome.js`, `server/tests/home.test.js` · `docs/screenshots/home.png` |
 | Graduate public profile and posts (added) | Consent-based founder profile and short updates for investors | **Completed** | `server/src/routes/graduates.js`, `server/src/routes/posts.js`, `server/tests/graduateProfiles.test.js` |
+| Project background image (added) | Make venture pages and cards recognisable | **Completed** | `server/src/routes/projects.js`, `server/src/services/publicImages.js`, `server/src/services/projectView.js`, `server/tests/projectImage.test.js` |
+| Strong password rule and change password (added) | Stronger account security | **Completed** | `server/src/services/passwordPolicy.js`, `server/src/routes/account.js` (`/password`), `client/src/lib/passwordRules.js`, `server/tests/passwordPolicy.test.js` |
 | Member Activity summaries (added) | Graduates and investors see how things are going | **Completed** | `server/src/services/memberSummary.js`, `client/src/components/member/ActivitySummary.jsx`, `server/tests/memberSummary.test.js` |
 | PWA (installable app, offline caching) | Install on phones; cache public pages | **Not implemented**: `vite-plugin-pwa` is installed but not configured (no manifest, no service worker); time went to the verification and funding workflows | `client/vite.config.js`, `client/package.json` |
 | OTP for sign-in | One-time codes for account security | **Partial**: codes are used for email verification and password reset; sign-in uses email and password with rate limiting, which the proposal (FR02, FR12) also describes | `server/src/services/otp.js`, `server/src/routes/auth.js` |
@@ -308,7 +312,7 @@ cd client
 npm run dev            # web app on http://localhost:5173
 ```
 
-Open **http://localhost:5173**. Sign in with the admin account from your `.env`, or register a graduate (alumni email domain from `ALUMNI_EMAIL_DOMAINS`) or an investor. Sample synthetic certificates for testing uploads are in `server/samples/` (regenerate them with `npm run samples` in `server/`).
+Open **http://localhost:5173**. Sign in with the admin account from your `.env`, or register a graduate (an address at `ALUMNI_EMAIL_DOMAIN`, default `alumni.alustudent.com`) or an investor. Sample synthetic certificates for testing uploads are in `server/samples/` (regenerate them with `npm run samples` in `server/`).
 
 ### 5.7 Run the tests
 
@@ -339,7 +343,7 @@ All variables belong to `server/.env` (locally) or the Render service (productio
 | `CLIENT_URL` | Allowed browser origin(s), comma-separated; the first is used in email links | Optional (default `http://localhost:5173`) |
 | `JWT_SECRET` | Signs session tokens and keys the OTP hash | **Required** |
 | `SESSION_HOURS` | Session length in hours | Optional (default `12`) |
-| `ALUMNI_EMAIL_DOMAINS` | Email domains accepted for graduate registration | Optional (default `alueducation.com`) |
+| `ALUMNI_EMAIL_DOMAIN` | The only email domain accepted for new graduate registrations (exact match, case-insensitive). Existing accounts, admin, staff and investors are not affected | Optional (default `alumni.alustudent.com`) |
 | `TRUST_PROXY` | Number of proxies in front of Express (`2` behind Vercel + Render) | Optional (default `1`) |
 | `COOKIE_SECURE` | Force the cookie's `Secure` flag (`true`/`false`) | Optional (default: on in production) |
 | `COOKIE_SAMESITE` | Cookie `SameSite` value | Optional (default `lax`) |
@@ -405,7 +409,7 @@ All variables belong to `server/.env` (locally) or the Render service (productio
 ├── server/                       Express API
 │   ├── package.json              Scripts (start, dev, migrate, seed, test, …) and dependencies
 │   ├── .env.example              Every server variable with placeholders
-│   ├── samples/                  Synthetic degree/RDB certificates for tests and demos (fictional people)
+│   ├── samples/                  Synthetic RDB (and legacy degree) certificates for tests and demos (fictional people)
 │   ├── scripts/                  migrate, seed, db-test, sample generator, OCR warm-up, re-verify, S3 copy, Gemini trial
 │   ├── src/
 │   │   ├── server.js             Boot: migrate → schema check → seed → listen → background worker
@@ -457,14 +461,15 @@ flowchart LR
 
 - **Session in an HttpOnly cookie**: a JWT in an HttpOnly, `SameSite=Lax` cookie (`Secure` in production). The token carries the user's `token_version`, so a password change ends every other session (`server/src/middleware/auth.js`).
 - **CSRF header**: every state-changing `/api` request must send `X-Requested-With: fetch`, which a cross-site form cannot set (`server/src/app.js`, `client/src/lib/api.js`).
-- **Passwords** are hashed with bcrypt and never shown or set by the administrator.
+- **Passwords** are hashed with bcrypt and never shown or set by the administrator. New and changed passwords must meet the password policy (8+ characters, upper and lower case, a number, a special character; not the user's name or email name; not a common password), checked on the server for registration, reset and Settings → Security.
 - **One-time codes** are six digits from `crypto.randomInt`. They are stored only as an HMAC-SHA256 hash, compared in constant time, expire after 10 minutes, allow at most 5 attempts and work once (`server/src/services/otp.js`). Reset requests give a neutral answer.
 - **Rate limits** on sign-in, code requests, uploads and project-code lookups (`server/src/middleware/rateLimits.js`).
 - **helmet** security headers; authenticated API responses are sent with `Cache-Control: no-store`; private files get a narrow content security policy (`server/src/services/fileDelivery.js`).
 - **Server-side role checks** on every router (`requireRole`, `requireApprovedInvestor`). A test enumerates the admin and staff routes and checks that every other role is refused (`server/tests/access.test.js`).
-- **Validation**: every request body and query is validated with zod. Uploads are checked by file signature, size and page count, not by the declared type (`server/src/middleware/upload.js`).
+- **Validation**: every request body and query is validated with zod. Uploads are checked by file signature, size and page count, not by the declared type (`server/src/middleware/upload.js`). Images other people see are decoded and re-encoded, which removes EXIF data (`server/src/services/publicImages.js`).
 - **Private files**: stored under random keys in a private bucket, never public or presigned, and streamed only to an authorised user.
-- **Consent gating**: projects are public only with the founder's publication consent. A graduate's public image, profile and posts are visible only with their consent. Contact details are shared only after an introduction is accepted.
+- **Graduate approval**: graduate registration accepts only the configured alumni domain (exact match after the last `@`, so look-alike domains fail), and a graduate cannot submit projects until an administrator approves the account.
+- **Consent gating**: projects are public only with the founder's publication consent; a project's background image is served publicly only while the project is approved and public. A graduate's public image, profile and posts are visible only with their consent. Contact details are shared only after an introduction is accepted.
 - **Project codes never exposed publicly**: public, investor, staff and member responses carry no project code. The public reaches a venture by id, and *Verify a Project* only confirms a code the visitor already has (`server/src/services/projectView.js`, `server/tests/publicCodes.test.js`).
 - **Safe logging**: database errors are logged as class, code and message only, never SQL, values or credentials (`server/src/db/errors.js`).
 - **Secrets** come only from environment variables; `.env` files and certificates are git-ignored.
@@ -483,7 +488,7 @@ npm test -- tests/auth.test.js             # one suite
 
 ### Results
 
-Latest full run: **23 test suites, 276 tests, all passing** (`cd server && npm test`).
+Latest full run: **25 test suites, 310 tests, all passing** (`cd server && npm test`).
 
 ### Strategies
 
@@ -523,7 +528,7 @@ After deploying, check `https://entrepreneurs-funding-platform.onrender.com/api/
 
 ## 12. Test accounts
 
-No passwords are published in this repository. To try the administrator, staff, graduate or investor views on the live site, **please request test credentials from the author**, Levis Ishimwe. You can also register your own graduate account (an ALU alumni email is required) or investor account; an administrator then approves it.
+No passwords are published in this repository. To try the administrator, staff, graduate or investor views on the live site, **please request test credentials from the author**, Levis Ishimwe. You can also register your own graduate account (an `@alumni.alustudent.com` email is required) or investor account; an administrator then approves it.
 
 ---
 

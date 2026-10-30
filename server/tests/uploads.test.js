@@ -3,7 +3,7 @@ const { createCanvas } = require('@napi-rs/canvas');
 const { sequelize, User, Document, AuditLog, Notification, Project } = require('../src/models');
 const { whenIdle } = require('../src/workers/jobs');
 const { shutdown } = require('../src/services/verification/textExtraction');
-const { agent, verifyEmail, approvedGraduate, investorClient, loginAs, sample, unique } = require('./helpers');
+const { agent, verifyEmail, approvedGraduate, investorClient, loginAs, sample, unique, alumniEmail, addLegacyDegree, TEST_PASSWORD } = require('./helpers');
 
 require('./helpers').stubOcr();
 
@@ -22,16 +22,15 @@ function pngPhoto(size = 64) {
 }
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-function registerGraduateWith(client, { photo, phone = '', email = `grad${unique()}@alustudent.com` } = {}) {
+function registerGraduateWith(client, { photo, phone = '', email = alumniEmail() } = {}) {
   let req = client
     .post('/api/auth/register/graduate')
     .field('fullName', 'Amina Uwase')
     .field('email', email)
-    .field('password', 'Password123')
+    .field('password', TEST_PASSWORD)
     .field('phone', phone)
     .field('cohortYear', '2024')
-    .field('program', 'BSc Software Engineering')
-    .attach('degreeCertificate', sample('degree-amina-uwase.pdf'), 'degree.pdf');
+    .field('program', 'BSc Software Engineering');
   if (photo) req = req.attach('profilePhoto', photo.buffer, photo.name);
   return req.then((res) => ({ res, email }));
 }
@@ -93,7 +92,7 @@ describe('profile photo and phone at registration', () => {
       .post('/api/auth/register/investor')
       .field('fullName', 'Grace Mutoni')
       .field('email', email)
-      .field('password', 'Password123')
+      .field('password', TEST_PASSWORD)
       .field('phone', '+250 72 555 0101')
       .field('organisation', 'Kigali Angels')
       .field('investorType', 'investor')
@@ -117,7 +116,8 @@ describe('admin document and photo endpoints', () => {
     owner = g.client;
     ownerUser = g.user;
     await ownerUser.update({ photoKey: null });
-    doc = await Document.findOne({ where: { uploaderId: ownerUser.id, kind: 'degree_certificate' } });
+    // A graduate who registered when degree certificates were still collected.
+    doc = await addLegacyDegree(ownerUser);
   });
 
   test('admins can view any document inline; the response allows the PDF viewer but no scripts', async () => {

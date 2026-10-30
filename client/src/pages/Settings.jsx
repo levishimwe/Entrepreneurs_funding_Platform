@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useParams } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { api } from '../lib/api';
+import { passwordProblem, usePolicy } from '../lib/passwordPolicy';
+import { PasswordRules } from './auth';
 import { useAuth } from '../context/AuthContext';
 import { Field, formatDate } from '../components/ui';
 import Avatar from '../components/Avatar';
@@ -385,15 +388,96 @@ function Profile() {
   );
 }
 
-// Account settings: Profile and Appearance as two text tabs.
+function SecretInput({ id, value, onChange, autoComplete }) {
+  const [shown, setShown] = useState(false);
+  return (
+    <div className="relative">
+      <input id={id} type={shown ? 'text' : 'password'} autoComplete={autoComplete} className="input pr-10" value={value} onChange={(e) => onChange(e.target.value)} />
+      <button
+        type="button"
+        onClick={() => setShown((v) => !v)}
+        className="adm-muted absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded hover:text-[var(--adm-text)]"
+        aria-label={shown ? 'Hide password' : 'Show password'}
+        aria-pressed={shown}
+      >
+        {shown ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+      </button>
+    </div>
+  );
+}
+
+// Change password: the same policy as registration and reset (server-checked).
+function Security() {
+  const { user } = useAuth();
+  const policy = usePolicy();
+  const empty = { currentPassword: '', password: '', confirmPassword: '' };
+  const [values, setValues] = useState(empty);
+  const [fields, setFields] = useState({});
+  const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const set = (k) => (v) => {
+    setValues((s) => ({ ...s, [k]: v }));
+    setFields((f) => ({ ...f, [k]: undefined }));
+  };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setNotice('');
+    setError('');
+    const local = {};
+    if (!values.currentPassword) local.currentPassword = 'Enter your current password.';
+    const problem = passwordProblem(policy, values.password, { email: user.email, fullName: user.fullName });
+    if (problem) local.password = problem;
+    if (values.confirmPassword !== values.password) local.confirmPassword = 'Passwords do not match.';
+    setFields(local);
+    if (Object.keys(local).length) return;
+    setBusy(true);
+    try {
+      const res = await api.post('/account/password', values);
+      setValues(empty);
+      setNotice(res.message);
+    } catch (err) {
+      setFields(err.fields || {});
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <Messages notice={notice} error={error} />
+      <h2>Change password</h2>
+      <form className="adm-card max-w-xl space-y-4 p-4" onSubmit={submit} noValidate>
+        <Field label="Current password" htmlFor="pw-current" error={fields.currentPassword}>
+          <SecretInput id="pw-current" autoComplete="current-password" value={values.currentPassword} onChange={set('currentPassword')} />
+        </Field>
+        <Field label="New password" htmlFor="pw-new" error={fields.password}>
+          <SecretInput id="pw-new" autoComplete="new-password" value={values.password} onChange={set('password')} />
+          <PasswordRules value={values.password} email={user.email} fullName={user.fullName} policy={policy} />
+        </Field>
+        <Field label="Confirm new password" htmlFor="pw-confirm" error={fields.confirmPassword}>
+          <SecretInput id="pw-confirm" autoComplete="new-password" value={values.confirmPassword} onChange={set('confirmPassword')} />
+        </Field>
+        <button type="submit" className="adm-primary" disabled={busy}>
+          {busy ? 'Saving…' : 'Change password'}
+        </button>
+        <p className="adm-hint !mb-0">Changing your password signs you out on every other device.</p>
+      </form>
+    </>
+  );
+}
+
+// Account settings: Profile, Security and Appearance as text tabs.
 export default function Settings() {
   const { section } = useParams();
   const { user } = useAuth();
   const member = ['graduate', 'investor'].includes(user.role);
-  const current = section === 'appearance' ? 'appearance' : section === 'testimony' && member ? 'testimony' : 'profile';
+  const current = section === 'appearance' ? 'appearance' : ['security', 'testimony'].includes(section) && member ? section : 'profile';
 
   useEffect(() => {
-    document.title = `${{ appearance: 'Appearance', testimony: 'Testimony', profile: 'Profile' }[current]} · Settings · ALU Ventures`;
+    document.title = `${{ appearance: 'Appearance', security: 'Security', testimony: 'Testimony', profile: 'Profile' }[current]} · Settings · ALU Ventures`;
   }, [current]);
 
   const tab = ({ isActive }) =>
@@ -404,6 +488,11 @@ export default function Settings() {
         <NavLink to="/app/settings" end className={tab}>
           Profile
         </NavLink>
+        {member && (
+          <NavLink to="/app/settings/security" className={tab}>
+            Security
+          </NavLink>
+        )}
         <NavLink to="/app/settings/appearance" className={tab}>
           Appearance
         </NavLink>
@@ -418,7 +507,7 @@ export default function Settings() {
           </Link>
         )}
       </nav>
-      {current === 'appearance' ? <Appearance /> : current === 'testimony' ? <Testimony /> : <Profile />}
+      {current === 'appearance' ? <Appearance /> : current === 'security' ? <Security /> : current === 'testimony' ? <Testimony /> : <Profile />}
     </AdminPage>
   );
 }

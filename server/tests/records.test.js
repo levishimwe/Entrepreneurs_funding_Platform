@@ -7,7 +7,7 @@ const storage = require('../src/services/storage');
 const { processOutbox } = require('../src/services/mailer');
 const { whenIdle } = require('../src/workers/jobs');
 const { shutdown } = require('../src/services/verification/textExtraction');
-const { agent, registerGraduate, verifyEmail, approvedGraduate, investorClient, loginAs, unique, stubOcr } = require('./helpers');
+const { agent, registerGraduate, verifyEmail, approvedGraduate, investorClient, loginAs, unique, stubOcr, TEST_PASSWORD, addLegacyDegree } = require('./helpers');
 
 stubOcr();
 afterAll(async () => {
@@ -79,7 +79,7 @@ describe('accounts', () => {
 
     expect((await admin.post(`/api/admin/graduates/${user.id}/archive`).send({})).status).toBe(200);
     expect((await client.get('/api/auth/me')).status).toBe(401);
-    const login = await agent().post('/api/auth/login').send({ email, password: 'Password123' });
+    const login = await agent().post('/api/auth/login').send({ email, password: TEST_PASSWORD });
     expect(login.status).toBe(403);
     expect(login.body.error).toMatch(/archived/);
 
@@ -91,7 +91,7 @@ describe('accounts', () => {
 
     const back = await admin.post(`/api/admin/graduates/${user.id}/unarchive`).send({});
     expect(back.body.status).toBe('pending_review');
-    expect((await agent().post('/api/auth/login').send({ email, password: 'Password123' })).status).toBe(200);
+    expect((await agent().post('/api/auth/login').send({ email, password: TEST_PASSWORD })).status).toBe(200);
 
     const entry = await lastAudit('account.archived', user.id);
     expect(entry.actorId).not.toBeNull();
@@ -109,10 +109,11 @@ describe('accounts', () => {
     expect(await User.count({ where: { id: user.id } })).toBe(1);
   });
 
-  test('a rejected graduate is deleted with its degree file, reviews and emails; the audit entry has ids only', async () => {
+  test('a rejected graduate is deleted with its (legacy) degree file, reviews and emails; the audit entry has ids only', async () => {
     const { email, user } = await pendingGraduate('Delete Me Graduate');
-    await admin.post(`/api/admin/graduates/${user.id}/reject`).send({ reason: 'Degree certificate does not match.' });
-    const doc = await Document.findOne({ where: { uploaderId: user.id } });
+    // Registered before degree certificates stopped being collected.
+    const doc = await addLegacyDegree(user);
+    await admin.post(`/api/admin/graduates/${user.id}/reject`).send({ reason: 'Not an ALU graduate according to the registry.' });
     expect(await storage.exists(doc.storageKey)).toBe(true);
 
     const plan = (await admin.get(`/api/admin/graduates/${user.id}/delete-plan`)).body.plan;

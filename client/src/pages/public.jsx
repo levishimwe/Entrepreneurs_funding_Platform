@@ -18,6 +18,8 @@ function PublicPage({ children }) {
 function ProjectRecord({ project: p, code, disclaimer }) {
   return (
     <>
+      {/* The founder's optional background image; sent only while the venture is public. */}
+      {p.imageUrl && <img src={p.imageUrl} alt={p.title} className="mb-5 aspect-[16/5] w-full rounded-xl border border-[var(--adm-border)] object-cover" />}
       <KeyValue
         rows={[
           [
@@ -307,11 +309,19 @@ function VentureCard({ p, index }) {
       style={{ '--d': `${Math.min(index, 8) * 60}ms` }}
     >
       <div
-        className="relative flex h-[112px] items-start justify-between p-4"
-        style={{ background: `linear-gradient(135deg, ${c}2e 0%, ${c}12 55%, #ffffff 100%)` }}
+        className="relative flex h-[112px] items-start justify-between overflow-hidden p-4"
+        style={p.imageUrl ? undefined : { background: `linear-gradient(135deg, ${c}2e 0%, ${c}12 55%, #ffffff 100%)` }}
       >
-        <FounderAvatar founder={p.founder} />
-        <span className="rounded-full bg-white/90 px-2.5 py-0.5 text-[12px] font-semibold text-[#2563eb] shadow-sm">Verified</span>
+        {p.imageUrl && (
+          <>
+            <img src={p.imageUrl} alt={p.title} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+            <span className="absolute inset-0 bg-gradient-to-b from-black/25 to-transparent" aria-hidden="true" />
+          </>
+        )}
+        <span className="relative">
+          <FounderAvatar founder={p.founder} />
+        </span>
+        <span className="relative rounded-full bg-white/90 px-2.5 py-0.5 text-[12px] font-semibold text-[#2563eb] shadow-sm">Verified</span>
       </div>
       <div className="flex flex-1 flex-col gap-2.5 p-5">
         {p.founder?.name && (
@@ -1002,7 +1012,7 @@ export function PublicOpportunities() {
               <h2 className="text-[16px] font-semibold text-[#111827]">How applying works</h2>
               <ol className="mt-5 space-y-5">
                 {[
-                  ['Create a graduate account', 'Verified with your alumni email and degree certificate.'],
+                  ['Create a graduate account', 'Confirm your alumni email with a one-time code; an administrator then approves you.'],
                   ['Get a venture approved', 'An administrator reviews your project and documents.'],
                   ['Apply before the deadline', 'Eligibility is checked when you apply.'],
                 ].map(([t, b], i) => (

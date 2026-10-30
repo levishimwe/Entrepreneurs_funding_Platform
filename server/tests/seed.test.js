@@ -7,7 +7,7 @@ const { sequelize, User } = require('../src/models');
 const env = require('../src/config/env');
 const { seed, readAccountConfig, SeedConfigError } = require('../scripts/seed');
 const { TEST_ACCOUNTS } = require('./setupEnv');
-const { agent, loginAs, unique, sample, stubOcr } = require('./helpers');
+const { agent, loginAs, unique, stubOcr, TEST_PASSWORD } = require('./helpers');
 
 stubOcr();
 
@@ -98,17 +98,16 @@ describe('changing ADMIN_EMAIL', () => {
 
 describe('privileged addresses are reserved', () => {
   test('a graduate cannot register with a configured admin or staff address, even before the seed creates it', async () => {
-    const reserved = `reserved-${unique()}@alustudent.com`;
+    const reserved = `reserved-${unique()}@alumni.alustudent.com`;
     env.privilegedEmails.push(reserved);
     try {
       const res = await agent()
         .post('/api/auth/register/graduate')
         .field('fullName', 'Someone Else')
         .field('email', reserved.toUpperCase())
-        .field('password', 'Password123')
+        .field('password', TEST_PASSWORD)
         .field('cohortYear', '2024')
-        .field('program', 'BSc Software Engineering')
-        .attach('degreeCertificate', sample('degree-amina-uwase.pdf'), 'degree.pdf');
+        .field('program', 'BSc Software Engineering');
       expect(res.status).toBe(409);
       // Same wording as any taken address: nothing reveals it is privileged.
       expect(res.body.error).toBe('An account with this email already exists. Sign in or reset your password.');
@@ -121,7 +120,7 @@ describe('privileged addresses are reserved', () => {
   test('the seeded admin address itself is refused at registration', async () => {
     const res = await agent()
       .post('/api/auth/register/investor')
-      .send({ fullName: 'Not Admin', email: ORIGINAL, password: 'Password123', organisation: 'Kigali Angels', sectors: ['Agriculture'] });
+      .send({ fullName: 'Not Admin', email: ORIGINAL, password: TEST_PASSWORD, organisation: 'Kigali Angels', sectors: ['Agriculture'] });
     expect(res.status).toBe(409);
   });
 });

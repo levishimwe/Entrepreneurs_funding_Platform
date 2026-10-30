@@ -1,4 +1,5 @@
-// Images other members may see: a graduate's public image and post images.
+// Images other members may see: a graduate's public image, post images and
+// project background images.
 // JPEG, PNG or WebP up to 3 MB, judged by content. Each is decoded and
 // redrawn at most 1200px on its longest side and saved as a new JPEG, so the
 // stored file carries no EXIF (location, device) or other metadata.
@@ -19,9 +20,10 @@ function sniffImage(buffer) {
 
 /**
  * Validates and re-encodes an uploaded image. Returns { buffer, mimeType,
- * width, height } or null when no file was sent.
+ * width, height } or null when no file was sent. `maxWidth` limits the width
+ * instead of the longest side (project background images: 1600px wide).
  */
-async function processPublicImage(file, label = 'Image') {
+async function processPublicImage(file, label = 'Image', { maxWidth } = {}) {
   if (!file) return null;
   if (file.size > MAX_PUBLIC_IMAGE_BYTES) throw badRequest(`${label} must be 3 MB or smaller.`);
   if (!sniffImage(file.buffer)) throw badRequest(`${label} must be a JPG, PNG or WebP image.`);
@@ -35,7 +37,7 @@ async function processPublicImage(file, label = 'Image') {
   if (!image.width || !image.height || image.width > MAX_SOURCE_PIXELS || image.height > MAX_SOURCE_PIXELS) {
     throw badRequest(`${label} must be at most ${MAX_SOURCE_PIXELS} × ${MAX_SOURCE_PIXELS} pixels.`);
   }
-  const scale = Math.min(1, MAX_EDGE / Math.max(image.width, image.height));
+  const scale = Math.min(1, maxWidth ? maxWidth / image.width : MAX_EDGE / Math.max(image.width, image.height));
   const width = Math.max(1, Math.round(image.width * scale));
   const height = Math.max(1, Math.round(image.height * scale));
   const canvas = createCanvas(width, height);

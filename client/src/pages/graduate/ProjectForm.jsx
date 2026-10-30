@@ -33,6 +33,78 @@ function FormSection({ title, children }) {
   );
 }
 
+// Optional background image: checked here for type and size, then checked by
+// content, stripped of EXIF and resized on the server.
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const IMAGE_MAX = 3 * 1024 * 1024;
+function BackgroundImage({ title, currentUrl, file, onFile, removed, onRemove, error }) {
+  const [local, setLocal] = useState('');
+  const [preview, setPreview] = useState(null);
+  useEffect(() => {
+    if (!file) return setPreview(null);
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+  const take = (f) => {
+    setLocal('');
+    if (!f) return;
+    if (!IMAGE_TYPES.includes(f.type)) return setLocal('Choose a JPG, PNG or WebP image.');
+    if (f.size > IMAGE_MAX) return setLocal('The image must be 3 MB or smaller.');
+    onFile(f);
+  };
+  const shown = preview || (!removed ? currentUrl : null);
+  const message = local || error;
+  return (
+    <div className="space-y-3">
+      {shown ? (
+        <img src={shown} alt={title ? `Background image for ${title}` : 'Project background image'} className="aspect-[16/6] w-full rounded-lg border border-[var(--adm-border)] object-cover" />
+      ) : (
+        <div className="flex aspect-[16/6] w-full items-center justify-center rounded-lg border border-dashed border-[var(--adm-border)] bg-subtle text-[13px] adm-muted">
+          No background image
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor="backgroundImage" className="adm-secondary cursor-pointer">
+          {shown ? 'Replace image' : 'Choose image'}
+        </label>
+        <input
+          id="backgroundImage"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="sr-only"
+          onChange={(e) => {
+            take(e.target.files?.[0] || null);
+            e.target.value = '';
+          }}
+        />
+        {shown && (
+          <button
+            type="button"
+            className="adm-act adm-act-danger"
+            onClick={() => {
+              onFile(null);
+              if (currentUrl) onRemove(true);
+            }}
+          >
+            Remove
+          </button>
+        )}
+        {removed && currentUrl && !file && (
+          <button type="button" className="adm-act" onClick={() => onRemove(false)}>
+            Keep the current image
+          </button>
+        )}
+      </div>
+      {message ? <p className="text-[12px] text-red-600">{message}</p> : null}
+      <p className="adm-hint !mb-0">
+        Optional. JPG, PNG or WebP, up to 3 MB. Resized to 1600px wide; location and camera data are removed. Shown on your venture page and cards only once the
+        project is approved and public.
+      </p>
+    </div>
+  );
+}
+
 // Project submission and revision (FR04), laid out as the Figma form. Sector
 // suggestions and similarity warnings are assistive: the graduate decides.
 export default function ProjectForm() {
@@ -47,6 +119,8 @@ export default function ProjectForm() {
   const [suggestion, setSuggestion] = useState(null);
   const [rdb, setRdb] = useState(null);
   const [revenue, setRevenue] = useState([]);
+  const [image, setImage] = useState(null);
+  const [removeImage, setRemoveImage] = useState(false);
   const [matches, setMatches] = useState(null);
   const [acknowledged, setAcknowledged] = useState(false);
   const [errors, setErrors] = useState({});
@@ -124,6 +198,8 @@ export default function ProjectForm() {
       data.append('similarityAcknowledged', String(acknowledged));
       if (rdb && values.type === 'company') data.append('rdbCertificate', rdb);
       revenue.forEach((f) => data.append('revenueDocuments', f));
+      if (image) data.append('backgroundImage', image);
+      else if (removeImage) data.append('removeBackgroundImage', 'true');
       const { project } = editing ? await api.upload(`/projects/${id}`, data, 'PATCH') : await api.upload('/projects', data);
       navigate(`/app/projects/${project.id}`, { state: { created: !editing } });
     } catch (err) {
@@ -310,6 +386,21 @@ export default function ProjectForm() {
             )}
           </FormSection>
         </section>
+
+        <FormSection title="Project background image">
+          <BackgroundImage
+            title={values.title}
+            currentUrl={existing?.imageUrl || null}
+            file={image}
+            onFile={(f) => {
+              setImage(f);
+              if (f) setRemoveImage(false);
+            }}
+            removed={removeImage}
+            onRemove={setRemoveImage}
+            error={errors.backgroundImage}
+          />
+        </FormSection>
 
         <FormSection title="Publication">
           <label className="flex items-start gap-2">

@@ -1,18 +1,21 @@
 // The signed-in user's own account: photo, profile, preferences and activity.
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
 const { z } = require('zod');
 const { AuditLog, Project, Application, GraduatePost } = require('../models');
 const { processPublicImage } = require('../services/publicImages');
-const { requireAuth, requireRole } = require('../middleware/auth');
-const { badRequest, notFound } = require('../middleware/errors');
+const { requireAuth, requireRole, setSessionCookie } = require('../middleware/auth');
+const { badRequest, notFound, HttpError } = require('../middleware/errors');
 const { upload, validatePhoto } = require('../middleware/upload');
-const { uploadLimiter } = require('../middleware/rateLimits');
+const { uploadLimiter, loginLimiter } = require('../middleware/rateLimits');
 const { sendStoredFile } = require('../services/fileDelivery');
 const storage = require('../services/storage');
 const audit = require('../services/audit');
 const { nextStepsFor } = require('../services/nextSteps');
 const { HIDDEN_ACTIONS } = require('../services/memberSummary');
+const { checkPassword, MAX_LENGTH } = require('../services/passwordPolicy');
+const { enqueueEmail } = require('../services/mailer');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -67,6 +70,46 @@ router.patch('/profile', async (req, res) => {
   res.json({ phone });
 });
 
+// Change password (Settings → Security). The current password is required; the
+// new one must meet the password policy. Every other session is signed out
+// (token_version), and this one gets a fresh cookie. Graduates and investors
+// only: admin and staff passwords come from server/.env and the seed resets
+// them on every boot.
+router.post('/password', requireRole('graduate', 'investor'), loginLimiter, async (req, res) => {
+  const data = z
+    .object({
+      currentPassword: z.string().min(1, 'Enter your current password.').max(MAX_LENGTH),
+      password: z.string().max(MAX_LENGTH),
+      confirmPassword: z.string(),
+    })
+    .refine((d) => d.password === d.confirmPassword, { message: 'Passwords do not match.', path: ['confirmPassword'] })
+    .parse(req.body || {});
+  const user = req.user;
+  if (!(await bcrypt.compare(data.currentPassword, user.passwordHash))) {
+    throw new HttpError(400, 'Please correct the highlighted fields.', { fields: { currentPassword: 'Your current password is incorrect.' } });
+  }
+  const problem =
+    checkPassword(data.password, { email: user.email, fullName: user.fullName }) ||
+    (data.password === data.currentPassword ? 'Choose a password different from your current one.' : null);
+  if (problem) throw new HttpError(400, problem, { fields: { password: problem } });
+
+  await user.update({ passwordHash: await bcrypt.hash(data.password, 12), tokenVersion: user.tokenVersion + 1 });
+  setSessionCookie(res, user);
+  await audit.record({ actorId: user.id, action: 'auth.password_changed', entityType: 'user', entityId: user.id, metadata: { via: 'settings' } });
+  await enqueueEmail({
+    eventKey: `password-changed:${user.id}:${Date.now()}`,
+    to: user.email,
+    recipientId: user.id,
+    subject: 'Your ALU Ventures password was changed',
+    paragraphs: [
+      `Hello ${user.fullName},`,
+      'Your password was changed from your account settings and you have been signed out of all other sessions.',
+      'If you did not make this change, reset your password immediately and contact the administrator.',
+    ],
+  });
+  res.json({ message: 'Password changed. Other devices have been signed out.' });
+});
+
 // Account-wide theme preference (applies on every device after sign-in).
 router.patch('/preferences', async (req, res) => {
   const { theme } = z.object({ theme: z.enum(['light', 'dark', 'system'], { message: 'Choose light, dark or system.' }) }).parse(req.body || {});
@@ -79,7 +122,7 @@ const LABEL = {
   'account.email_verified': 'Confirmed alumni email',
   'account.approved': 'Account approved by an administrator',
   'account.rejected': 'Registration not approved',
-  'document.verification_flagged': 'Degree certificate pre-check completed',
+  'document.verification_flagged': 'Document pre-check completed',
   'project.submitted': 'Submitted a project',
   'project.sector_confirmed': 'Confirmed the project sector',
   'project.revised': 'Revised a project',
@@ -91,6 +134,8 @@ const LABEL = {
   'project.mark_funded': 'Project recorded as fully funded',
   'project.archive': 'Project archived',
   'project.restore': 'Project restored',
+  'project.image_removed': 'Background image removed by an administrator',
+  'auth.password_changed': 'Password changed',
   'application.submitted': 'Applied to an opportunity',
   'application.shortlisted': 'Application shortlisted',
   'application.selected': 'Application selected',
@@ -136,7 +181,7 @@ router.get('/activity', async (req, res) => {
       label: LABEL[r.action] || r.action.replace(/[._]/g, ' '),
       subject: r.entityType === 'project' ? titles[r.entityId] || null : null,
       projectId: r.entityType === 'project' ? r.entityId : null,
-      reason: ['project.reject', 'project.request_revision', 'post.removed'].includes(r.action) ? r.reason : null,
+      reason: ['project.reject', 'project.request_revision', 'post.removed', 'project.image_removed'].includes(r.action) ? r.reason : null,
       at: r.createdAt,
     })),
   });

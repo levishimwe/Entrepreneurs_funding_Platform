@@ -14,6 +14,8 @@ const audit = require('../services/audit');
 const { enqueueEmail } = require('../services/mailer');
 const { createWithUniqueCode, suggestSector, findSimilarProjects } = require('../services/categorization');
 const { ownerProject } = require('../services/projectView');
+const { processPublicImage } = require('../services/publicImages');
+const { sendStoredFile } = require('../services/fileDelivery');
 const { enqueueDocumentVerification } = require('../workers/jobs');
 
 const router = express.Router();
@@ -38,6 +40,7 @@ const projectSchema = z
     ideaDeclaration: bool.default(false),
     publicationConsent: bool.default(false),
     similarityAcknowledged: bool.default(false),
+    removeBackgroundImage: bool.default(false),
   })
   .superRefine((d, ctx) => {
     if (d.type === 'company') {
@@ -57,7 +60,14 @@ const projectSchema = z
 const uploadFields = upload.fields([
   { name: 'rdbCertificate', maxCount: 1 },
   { name: 'revenueDocuments', maxCount: 3 },
+  { name: 'backgroundImage', maxCount: 1 },
 ]);
+
+// Optional project background image: JPG, PNG or WebP up to 3 MB, judged by
+// content, re-encoded without EXIF and at most 1600px wide. Returns the
+// processed image or null when none was sent.
+const readBackgroundImage = (req) => processPublicImage(req.files?.backgroundImage?.[0], 'Project background image', { maxWidth: 1600 });
+const storeBackgroundImage = (image) => storage.put(image.buffer, { prefix: 'project-images', mimeType: image.mimeType });
 
 // Sectors come from the administrator-maintained map.
 async function assertKnownSector(sector) {
@@ -160,6 +170,7 @@ router.post('/', requireApprovedGraduate, uploadLimiter, uploadFields, async (re
     });
   }
 
+  const image = await readBackgroundImage(req);
   const files = [];
   if (data.type === 'company') files.push({ file: rdbFile, kind: 'rdb_certificate', label: 'The RDB certificate' });
   for (const file of req.files?.revenueDocuments || []) {
@@ -170,7 +181,9 @@ router.post('/', requireApprovedGraduate, uploadLimiter, uploadFields, async (re
   const flagged = similarity.matches.length > 0;
   const now = new Date();
   let project;
+  let imageKey = null;
   try {
+    if (image) imageKey = await storeBackgroundImage(image);
     project = await sequelize.transaction(async (transaction) => {
       const created = await createWithUniqueCode((projectCode) =>
         Project.create(
@@ -198,6 +211,7 @@ router.post('/', requireApprovedGraduate, uploadLimiter, uploadFields, async (re
             similarityMatches: flagged ? similarity.matches : null,
             clarificationRequestedAt: flagged ? now : null,
             submittedAt: now,
+            imageKey,
           },
           { transaction }
         )
@@ -206,7 +220,7 @@ router.post('/', requireApprovedGraduate, uploadLimiter, uploadFields, async (re
         await Document.create({ ...s, uploaderId: req.user.id, projectId: created.id }, { transaction });
       }
       const base = { actorId: req.user.id, entityType: 'project', entityId: created.id };
-      await audit.record({ ...base, action: 'project.submitted', metadata: { projectCode: created.projectCode, type: data.type } }, { transaction });
+      await audit.record({ ...base, action: 'project.submitted', metadata: { projectCode: created.projectCode, type: data.type, image: Boolean(imageKey) } }, { transaction });
       await audit.record(
         {
           ...base,
@@ -224,7 +238,7 @@ router.post('/', requireApprovedGraduate, uploadLimiter, uploadFields, async (re
       return created;
     });
   } catch (err) {
-    await Promise.all(stored.map((s) => storage.remove(s.storageKey).catch(() => {})));
+    await Promise.all([...stored.map((s) => s.storageKey), ...(imageKey ? [imageKey] : [])].map((k) => storage.remove(k).catch(() => {})));
     throw err;
   }
 
@@ -276,6 +290,13 @@ router.get('/:id', requireRole('graduate'), async (req, res) => {
   res.json({ project });
 });
 
+// The owner's own background image, whatever the project's status.
+router.get('/:id/image', requireRole('graduate'), async (req, res) => {
+  const project = await Project.findOne({ where: { id: req.params.id, ownerId: req.user.id }, attributes: ['id', 'imageKey'] });
+  if (!project?.imageKey) throw notFound('No background image.');
+  await sendStoredFile(res, { storageKey: project.imageKey, mimeType: 'image/jpeg', filename: 'project-image' });
+});
+
 // --- Revision (FR04: material changes trigger renewed review) ---
 router.patch('/:id', requireApprovedGraduate, uploadLimiter, uploadFields, async (req, res) => {
   const project = await loadOwnedProject(req);
@@ -314,6 +335,7 @@ router.patch('/:id', requireApprovedGraduate, uploadLimiter, uploadFields, async
     });
   }
 
+  const image = await readBackgroundImage(req);
   const files = [];
   if (rdbFile && data.type === 'company') files.push({ file: rdbFile, kind: 'rdb_certificate', label: 'The RDB certificate' });
   for (const file of req.files?.revenueDocuments || []) {
@@ -323,8 +345,15 @@ router.patch('/:id', requireApprovedGraduate, uploadLimiter, uploadFields, async
   const flagged = similarity.matches.length > 0;
   const companyChanged = data.companyNumber !== project.companyNumber || data.companyName !== project.companyName;
   const now = new Date();
+  // A new image replaces the old one; "remove" without a new image clears it.
+  const previousImage = project.imageKey;
+  let imageKey = previousImage;
+  let newImageKey = null;
+  const imageChange = image ? (previousImage ? 'replaced' : 'added') : data.removeBackgroundImage && previousImage ? 'removed' : null;
 
   try {
+    if (image) imageKey = newImageKey = await storeBackgroundImage(image);
+    else if (imageChange === 'removed') imageKey = null;
     await sequelize.transaction(async (transaction) => {
       await project.update(
         {
@@ -352,6 +381,7 @@ router.patch('/:id', requireApprovedGraduate, uploadLimiter, uploadFields, async
           clarificationSubmittedAt: flagged ? null : project.clarificationSubmittedAt,
           approvedAt: null,
           submittedAt: now,
+          imageKey,
         },
         { transaction }
       );
@@ -364,15 +394,16 @@ router.patch('/:id', requireApprovedGraduate, uploadLimiter, uploadFields, async
           action: 'project.revised',
           entityType: 'project',
           entityId: project.id,
-          metadata: { newDocuments: stored.map((s) => s.kind), sectorSuggested: suggestion.sector, sectorConfirmed: data.sector },
+          metadata: { newDocuments: stored.map((s) => s.kind), sectorSuggested: suggestion.sector, sectorConfirmed: data.sector, image: imageChange },
         },
         { transaction }
       );
     });
   } catch (err) {
-    await Promise.all(stored.map((s) => storage.remove(s.storageKey).catch(() => {})));
+    await Promise.all([...stored.map((s) => s.storageKey), ...(newImageKey ? [newImageKey] : [])].map((k) => storage.remove(k).catch(() => {})));
     throw err;
   }
+  if (previousImage && previousImage !== imageKey) await storage.remove(previousImage).catch(() => {});
 
   const full = await loadOwnedProject(req);
   // Re-run the RDB pre-check on the latest certificate when evidence or company details changed.

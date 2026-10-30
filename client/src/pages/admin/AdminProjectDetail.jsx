@@ -80,6 +80,7 @@ export default function AdminProjectDetail() {
   const [dialog, setDialog] = useState(null);
   const [preview, setPreview] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [removingImage, setRemovingImage] = useState(false);
   const navigate = useNavigate();
 
   const load = useCallback(
@@ -163,10 +164,24 @@ export default function AdminProjectDetail() {
           ['Submitted', formatDate(project.submittedAt, true)],
           ['Graduate', `${project.owner.name} · ${project.owner.email}`],
           ['Programme', `${project.owner.program} · Class of ${project.owner.cohortYear}`],
-          ['Graduate degree check', <StatusText key="d" status={project.owner.degreeFlag || 'processing'} />],
           ['Confirmed investors', `${project.confirmedInvestors} of 2`],
         ]}
       />
+
+      {project.imageUrl && (
+        <>
+          <h2>Background image</h2>
+          <div className="adm-card max-w-3xl space-y-3 p-4">
+            <img src={project.imageUrl} alt={project.title} className="aspect-[16/5] w-full rounded-lg object-cover" />
+            <p className="adm-hint !mb-0">
+              {project.imagePublic ? 'Shown on the public venture page and cards.' : 'Not public: shown only once the project is approved and published.'}{' '}
+              <button type="button" className="adm-act adm-act-danger" onClick={() => setRemovingImage(true)}>
+                Remove image
+              </button>
+            </p>
+          </div>
+        </>
+      )}
 
       <h2>Description</h2>
       <p className="adm-card whitespace-pre-line p-4">{project.description}</p>
@@ -370,6 +385,20 @@ export default function AdminProjectDetail() {
         onConfirm={async (reason) => {
           await api.post(`/admin/projects/${project.id}/${dialog.key}`, { reason });
           setNotice(`${dialog.action.label} recorded.`);
+          await load();
+        }}
+      />
+      <ReasonDialog
+        open={removingImage}
+        title="Remove the background image?"
+        description="The image is deleted and the graduate is emailed this reason. The project itself is not changed."
+        reason="required"
+        confirmLabel="Remove image"
+        tone="danger"
+        onClose={() => setRemovingImage(false)}
+        onConfirm={async (reason) => {
+          await api.post(`/admin/projects/${project.id}/image/remove`, { reason });
+          setNotice('Background image removed and the graduate emailed.');
           await load();
         }}
       />

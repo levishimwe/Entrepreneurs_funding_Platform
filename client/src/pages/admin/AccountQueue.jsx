@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { formatDate } from '../../components/ui';
-import VerificationChecks from '../../components/VerificationChecks';
 import ReasonDialog from '../../components/ReasonDialog';
 import { AdminPage, DataTable, DeleteDialog, KeyValue, ListLayout, Loading, Messages, SearchInput, SidePanel, StatusPill, StatusSelect } from '../../components/admin';
 
@@ -48,28 +47,22 @@ export default function AccountQueue({ role }) {
   }, [load, copy.title]);
 
   const setTab = (status) => setParams({ status });
-  const facetOf = (row) => (role === 'graduate' ? row.degree?.flag || (row.degree ? 'processing' : 'none') : row.investorType || 'investor');
+  // Investors can be filtered by type. Graduates have no document check: an
+  // administrator approves each one after the alumni-email OTP.
+  const facetOf = (row) => (role === 'graduate' ? '' : row.investorType || 'investor');
   const shown = useMemo(() => {
     const term = q.trim().toLowerCase();
     return (rows || []).filter((r) => (!facet || facetOf(r) === facet) && (!term || `${r.fullName} ${r.email} ${r.organisation || ''} ${r.program || ''}`.toLowerCase().includes(term)));
   }, [rows, q, facet]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const facetOptions =
-    role === 'graduate'
-      ? [
-          ['', 'All'],
-          ['suspicious', 'Suspicious'],
-          ['likely_valid', 'Likely valid'],
-          ['processing', 'Checking'],
-        ]
-      : [
-          ['', 'All'],
-          ['investor', 'Investor'],
-          ['sponsor', 'Sponsor'],
-        ];
+  const facetOptions = [
+    ['', 'All'],
+    ['investor', 'Investor'],
+    ['sponsor', 'Sponsor'],
+  ];
   const count = (key) => (rows ? rows.filter((r) => !key || facetOf(r) === key).length : null);
 
-  const decide = (row, decision) => setDialog({ row, decision, suspicious: role === 'graduate' && row.degree?.flag === 'suspicious' });
+  const decide = (row, decision) => setDialog({ row, decision });
 
   const actions = (row) => (
     <>
@@ -111,9 +104,6 @@ export default function AccountQueue({ role }) {
     role === 'graduate'
       ? { key: 'program', label: 'Programme', render: (r) => `${r.program || '—'}${r.cohortYear ? ` · ${r.cohortYear}` : ''}` }
       : { key: 'org', label: 'Organisation', render: (r) => `${r.organisation || '—'} · ${r.investorType === 'sponsor' ? 'Sponsor' : 'Investor'}` },
-    ...(role === 'graduate'
-      ? [{ key: 'degree', label: 'Degree check', render: (r) => (r.degree ? <StatusPill status={r.degree.flag || 'processing'} /> : <span className="adm-bad">No file</span>) }]
-      : []),
     { key: 'registered', label: 'Registered', render: (r) => formatDate(r.registeredAt) },
     { key: 'status', label: 'Status', render: (r) => <StatusPill status={r.status} /> },
   ];
@@ -131,7 +121,7 @@ export default function AccountQueue({ role }) {
         }
         filters={[
           { title: 'Status', value: tab, onChange: setTab, options: STATUSES },
-          { title: role === 'graduate' ? 'Degree check' : 'Type', value: facet, onChange: setFacet, options: facetOptions.map(([k, l]) => [k, l, count(k)]) },
+          ...(role === 'investor' ? [{ title: 'Type', value: facet, onChange: setFacet, options: facetOptions.map(([k, l]) => [k, l, count(k)]) }] : []),
         ]}
       >
         {!rows ? <Loading /> : <DataTable columns={columns} rows={shown} actions={actions} empty={`No ${STATUSES.find(([k]) => k === tab)[1].toLowerCase()} ${copy.noun}s.`} />}
@@ -184,11 +174,8 @@ export default function AccountQueue({ role }) {
                   ]),
             ]}
           />
-          {role === 'graduate' && (
-            <>
-              <h2>Degree certificate</h2>
-              <VerificationChecks document={viewing.degree} title={`Registered as “${viewing.fullName}”`} />
-            </>
+          {role === 'graduate' && viewing.status === 'pending_review' && (
+            <p className="adm-hint mt-4">Email confirmed with a one-time code sent to this alumni address. Approve to let them submit projects; they are emailed either way.</p>
           )}
         </SidePanel>
       )}
@@ -210,8 +197,7 @@ export default function AccountQueue({ role }) {
               }[dialog.decision]
             : ''
         }
-        warning={dialog?.suspicious && dialog?.decision === 'approve' ? 'The degree check flagged this account as Suspicious. Record why you are approving it.' : undefined}
-        reason={!isDecision ? 'none' : dialog?.decision === 'reject' || dialog?.suspicious ? 'required' : 'optional'}
+        reason={!isDecision ? 'none' : dialog?.decision === 'reject' ? 'required' : 'optional'}
         confirmLabel={dialog ? { approve: 'Approve', reject: 'Reject', archive: 'Archive', unarchive: 'Unarchive' }[dialog.decision] : ''}
         tone={dialog?.decision === 'approve' ? 'success' : ['reject', 'archive'].includes(dialog?.decision) ? 'danger' : 'primary'}
         onClose={() => setDialog(null)}

@@ -85,7 +85,8 @@ async function accountDeletePlan(user) {
   if (!ACCOUNT_ROLES.includes(user.role)) blockers.push('Only graduate and investor accounts can be deleted.');
   if (!wasRejected(user)) blockers.push('Only rejected accounts can be deleted. Archive this account instead.');
 
-  const projects = await Project.findAll({ where: { ownerId: user.id }, attributes: ['id', 'status', 'statusBeforeArchive'] });
+  const projects = await Project.findAll({ where: { ownerId: user.id }, attributes: ['id', 'status', 'statusBeforeArchive', 'imageKey'] });
+  const projectImages = projects.map((p) => p.imageKey).filter(Boolean);
   const projectIds = projects.map((p) => p.id);
   const kept = projects.filter((p) => !wasRejected(p));
   if (kept.length) blockers.push(`It owns ${kept.length} project(s) that were not rejected.`);
@@ -121,14 +122,14 @@ async function accountDeletePlan(user) {
       account: 1,
       projects: projects.length,
       documents: documents.length,
-      files: documents.length + (user.photoKey ? 1 : 0) + attachmentKeys.length,
+      files: documents.length + (user.photoKey ? 1 : 0) + attachmentKeys.length + projectImages.length,
       reviews,
       emails,
       codes: tokens,
       requests: threadIds.length,
       testimonies,
     },
-    _ids: { projectIds, documentIds, threadIds, keys: [...documents.map((d) => d.storageKey), ...(user.photoKey ? [user.photoKey] : []), ...attachmentKeys] },
+    _ids: { projectIds, documentIds, threadIds, keys: [...documents.map((d) => d.storageKey), ...(user.photoKey ? [user.photoKey] : []), ...attachmentKeys, ...projectImages] },
   };
 }
 
@@ -159,8 +160,8 @@ async function projectDeletePlan(project) {
   return {
     allowed: blockers.length === 0,
     blockers,
-    removes: { project: 1, documents: documents.length, files: documents.length, reviews },
-    _ids: { documentIds, keys: documents.map((d) => d.storageKey) },
+    removes: { project: 1, documents: documents.length, files: documents.length + (project.imageKey ? 1 : 0), reviews },
+    _ids: { documentIds, keys: [...documents.map((d) => d.storageKey), ...(project.imageKey ? [project.imageKey] : [])] },
   };
 }
 

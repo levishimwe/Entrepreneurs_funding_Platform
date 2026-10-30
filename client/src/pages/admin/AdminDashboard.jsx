@@ -38,7 +38,7 @@ const COUNTERS = {
 const TONES = {
   projectsByStatus: { submitted: 'amber', approved: 'blue', funded: 'green', limit: 'green-light', rejected: 'grey', archived: 'grey-light' },
   fundingSource: { investor: 'blue', competition: 'green' },
-  degreeChecks: { likely_valid: 'green', suspicious: 'amber', not_checked: 'grey' },
+  verificationChecks: { likely_valid: 'green', suspicious: 'amber', not_checked: 'grey' },
   introductionsByStatus: { requested: 'amber', accepted: 'green', declined: 'grey' },
 };
 const toned = (data, tones) => data.map((d) => ({ ...d, tone: tones[d.key] }));
@@ -230,8 +230,8 @@ export default function AdminDashboard() {
               series={c.registrationsByRole.map((s, i) => ({ ...s, tone: i ? 'green' : 'blue' }))}
             />
           </ChartCard>
-          <ChartCard title="Degree certificate checks" subtitle="Automated document check outcome">
-            <Donut title="Degree certificate checks" data={toned(c.degreeChecks, TONES.degreeChecks)} centerLabel="Certificates" empty="No certificates uploaded yet" />
+          <ChartCard title="RDB and RRA document checks" subtitle="Automated pre-check outcome; an administrator always decides">
+            <Donut title="RDB and RRA document checks" data={toned(c.verificationChecks, TONES.verificationChecks)} centerLabel="Documents" empty="No company documents uploaded yet" />
           </ChartCard>
           <div className="xl:col-span-3">
             <Counters cards={data.cards} keys={COUNTERS.people} />

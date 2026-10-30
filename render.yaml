@@ -31,8 +31,8 @@ services:
         generateValue: true
       - key: SESSION_HOURS
         value: "12"
-      - key: ALUMNI_EMAIL_DOMAINS
-        value: alueducation.com,alustudent.com
+      - key: ALUMNI_EMAIL_DOMAIN
+        value: alumni.alustudent.com
 
       # Aiven MySQL (TLS verified with Aiven's CA certificate)
       - key: DB_HOST

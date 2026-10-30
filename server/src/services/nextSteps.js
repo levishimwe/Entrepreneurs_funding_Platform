@@ -6,15 +6,12 @@ const { isApprovedGraduate } = require('../middleware/auth');
 const LIVE = ['approved', 'funded', 'investor_limit_reached'];
 
 async function nextStepsFor(user) {
-  const [degree, projects] = await Promise.all([
-    Document.count({ where: { uploaderId: user.id, kind: 'degree_certificate' } }),
-    Project.findAll({
-      where: { ownerId: user.id, status: { [Op.ne]: 'archived' } },
-      attributes: ['id', 'type', 'status', 'updatedAt'],
-      include: [{ model: Document, as: 'documents', attributes: ['kind'] }],
-      order: [['updatedAt', 'DESC']],
-    }),
-  ]);
+  const projects = await Project.findAll({
+    where: { ownerId: user.id, status: { [Op.ne]: 'archived' } },
+    attributes: ['id', 'type', 'status', 'updatedAt'],
+    include: [{ model: Document, as: 'documents', attributes: ['kind'] }],
+    order: [['updatedAt', 'DESC']],
+  });
   const approvedAccount = isApprovedGraduate(user);
   const latest = projects[0];
   const companies = projects.filter((p) => p.type === 'company');
@@ -26,13 +23,6 @@ async function nextStepsFor(user) {
       detail: 'Add a profile photo and a phone number.',
       done: Boolean(user.photoKey && user.phone),
       action: { label: 'Complete your profile', to: '/app/settings' },
-    },
-    {
-      key: 'degree',
-      label: 'Degree certificate uploaded',
-      detail: approvedAccount ? 'Checked by an administrator.' : 'An administrator is reviewing it.',
-      done: degree > 0,
-      action: { label: 'Contact the team', to: '/app/contact' },
     },
     {
       key: 'rdb',

@@ -107,11 +107,28 @@ function Spotlight({ tiles }) {
   );
 }
 
+// The venture's background image as a thumbnail; the founder photo or
+// initials when it has none.
+function VentureThumb({ p, size, rounded = 'rounded-lg' }) {
+  const [failed, setFailed] = useState(false);
+  if (!p.imageUrl || failed) return <FounderThumb founder={p.founder} size={size} rounded={rounded} />;
+  return (
+    <img
+      src={p.imageUrl}
+      alt={p.title}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      style={{ width: Math.round(size * 1.5), height: size }}
+      className={`shrink-0 object-cover ring-1 ring-line ${rounded}`}
+    />
+  );
+}
+
 function VentureItem({ p, index }) {
   return (
     <li className="land-rise border-t border-line first:border-0" style={{ '--d': `${Math.min(index, 8) * 40}ms` }}>
       <Link to={`/app/discover/${p.id}`} className="flex gap-4 px-5 py-4 transition-colors hover:bg-subtle">
-        <FounderThumb founder={p.founder} size={44} />
+        <VentureThumb p={p} size={44} rounded={p.imageUrl ? 'rounded-lg' : 'rounded-full'} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3">
             <p className="text-[15px] font-semibold text-ink">{p.title}</p>
@@ -203,7 +220,7 @@ export default function InvestorActivity() {
             {home.mostViewed.map((p) => (
               <li key={p.id}>
                 <Link to={`/app/discover/${p.id}`} className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-subtle">
-                  <FounderThumb founder={p.founder} size={40} rounded="rounded-lg" />
+                  <VentureThumb p={p} size={40} />
                   <span className="min-w-0">
                     <span className="block truncate text-[14px] font-semibold text-ink">{p.title}</span>
                     <span className="block text-[12px] text-muted">

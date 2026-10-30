@@ -11,7 +11,9 @@ const audit = require('../services/audit');
 const { describeDbError, isSchemaMismatch } = require('../db/errors');
 
 // RRA documents are optional evidence (FR16) but are checked when uploaded.
-const VERIFIABLE = new Set(['degree_certificate', 'rdb_certificate', 'rra_certificate']);
+// Degree certificates are no longer collected or checked; ones uploaded before
+// that change are kept but never re-run.
+const VERIFIABLE = new Set(['rdb_certificate', 'rra_certificate']);
 // Matches the OCR thread pool, so a verification never waits on a busy thread.
 const CONCURRENCY = require('../config/env').ocr.poolSize;
 const queue = [];

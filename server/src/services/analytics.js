@@ -130,7 +130,7 @@ async function buildAdmin(period) {
     bySource,
     bySector,
     byStage,
-    degreeChecks,
+    verificationChecks,
     intros,
     introsSeries,
     decision,
@@ -154,7 +154,7 @@ async function buildAdmin(period) {
     grouped("SELECT sector AS k, COUNT(*) AS n FROM projects WHERE status <> 'archived' GROUP BY sector"),
     grouped("SELECT stage AS k, COUNT(*) AS n FROM projects WHERE status <> 'archived' GROUP BY stage"),
     grouped(
-      "SELECT CASE WHEN flag = 'likely_valid' THEN 'likely_valid' WHEN flag = 'suspicious' THEN 'suspicious' ELSE 'not_checked' END AS k, COUNT(*) AS n FROM documents WHERE kind = 'degree_certificate' GROUP BY k"
+      "SELECT CASE WHEN flag = 'likely_valid' THEN 'likely_valid' WHEN flag = 'suspicious' THEN 'suspicious' ELSE 'not_checked' END AS k, COUNT(*) AS n FROM documents WHERE kind IN ('rdb_certificate', 'rra_certificate') GROUP BY k"
     ),
     grouped('SELECT status AS k, COUNT(*) AS n FROM introductions GROUP BY status'),
     series(w, 'introductions', 'created_at'),
@@ -210,10 +210,10 @@ async function buildAdmin(period) {
       ],
       projectsBySector: topBars(bySector),
       projectsByStage: topBars(byStage),
-      degreeChecks: [
-        { key: 'likely_valid', label: 'Likely valid', value: degreeChecks.find((r) => r.key === 'likely_valid')?.value || 0 },
-        { key: 'suspicious', label: 'Suspicious', value: degreeChecks.find((r) => r.key === 'suspicious')?.value || 0 },
-        { key: 'not_checked', label: 'Not checked', value: degreeChecks.find((r) => r.key === 'not_checked')?.value || 0 },
+      verificationChecks: [
+        { key: 'likely_valid', label: 'Likely valid', value: verificationChecks.find((r) => r.key === 'likely_valid')?.value || 0 },
+        { key: 'suspicious', label: 'Suspicious', value: verificationChecks.find((r) => r.key === 'suspicious')?.value || 0 },
+        { key: 'not_checked', label: 'Not checked', value: verificationChecks.find((r) => r.key === 'not_checked')?.value || 0 },
       ],
       introductionsByStatus: ['requested', 'accepted', 'declined'].map((k) => ({
         key: k,

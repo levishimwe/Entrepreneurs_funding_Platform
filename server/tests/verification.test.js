@@ -216,8 +216,25 @@ describe('degree certificate checks', () => {
 describe('re-running checks on an existing submission', () => {
   test('only an administrator can re-run them; the request returns at once and the result is polled', async () => {
     const { client: graduate, user } = await h.approvedGraduate();
+    // An RDB certificate on a company project (degree certificates are no
+    // longer collected, and old ones are never re-checked).
+    const number = String(100000000 + Math.floor(Math.random() * 899999999));
+    const submitted = await graduate
+      .post('/api/projects')
+      .field('title', `AgriFlow cold-chain ${h.unique()}`)
+      .field('type', 'company')
+      .field('sector', 'Agriculture')
+      .field('stage', 'Growth')
+      .field('summary', 'Refrigerated produce transport for Rwandan farming cooperatives.')
+      .field('description', `AgriFlow ${h.unique()} runs refrigerated trucks between cooperatives in the Eastern Province and Kigali markets, cutting post-harvest losses.`)
+      .field('companyName', 'AgriFlow Logistics Ltd')
+      .field('companyNumber', number)
+      .field('relationshipToCompany', 'Founder')
+      .field('similarityAcknowledged', 'true')
+      .attach('rdbCertificate', await rdb({ number, headerAsImage: true, expires: `03/02/${nextYear + 1}` }), 'rdb.pdf');
+    expect(submitted.status).toBe(201);
     await whenIdle();
-    const doc = await Document.findOne({ where: { uploaderId: user.id, kind: 'degree_certificate' } });
+    const doc = await Document.findOne({ where: { uploaderId: user.id, kind: 'rdb_certificate' } });
     await doc.update({ extractionJson: { checks: [] }, flag: 'suspicious' });
 
     expect((await h.agent().post(`/api/admin/documents/${doc.id}/reverify`)).status).toBe(401);
@@ -234,6 +251,20 @@ describe('re-running checks on an existing submission', () => {
     const polled = await admin.get(`/api/admin/documents/${doc.id}`);
     expect(polled.status).toBe(200);
     expect(polled.body.document).toMatchObject({ status: 'processed', flag: 'likely_valid', method: 'pdf-text+ocr' });
+  });
+
+  test('a degree certificate uploaded before registration stopped collecting them is kept, viewable, and never re-checked', async () => {
+    const { user } = await h.approvedGraduate();
+    const legacy = await h.addLegacyDegree(user);
+    const admin = await h.loginAs('admin');
+    const view = await admin.get(`/api/admin/documents/${legacy.id}`);
+    expect(view.status).toBe(200);
+    expect((await admin.get(`/api/admin/documents/${legacy.id}/file`)).status).toBe(200);
+    const rerun = await admin.post(`/api/admin/documents/${legacy.id}/reverify`);
+    expect(rerun.status).toBe(400);
+    expect(rerun.body.error).toMatch(/RDB certificates and RRA documents/);
+    await legacy.reload();
+    expect(legacy.flag).toBe('likely_valid');
   });
 });
 

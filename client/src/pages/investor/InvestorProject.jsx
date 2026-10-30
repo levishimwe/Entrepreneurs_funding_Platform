@@ -51,6 +51,7 @@ export default function InvestorProject() {
     <AdminPage title={p.title} meta={p.status !== 'approved' ? <StatusPill status={p.status} /> : null}>
       <Breadcrumb items={[['Browse projects', '/app/discover'], [p.title]]} />
       <Messages notice={notice} />
+      {p.imageUrl && <img src={p.imageUrl} alt={p.title} className="mb-4 aspect-[16/5] w-full rounded-xl border border-[var(--adm-border)] object-cover" />}
       <div className="adm-card mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
         <span className="adm-muted">{introduction ? INTRO_TEXT[introduction.status] : p.acceptingIntroductions ? 'Open to introductions.' : 'No longer accepting introductions.'}</span>
         <span className="ml-auto">
@@ -98,7 +99,7 @@ export default function InvestorProject() {
 
       <h2>Description</h2>
       <p className="adm-card whitespace-pre-line p-4">{p.description}</p>
-      <p className="adm-hint mt-3">Approved by an ALU Ventures administrator after reviewing the founder’s degree and, for companies, the RDB certificate. Not an investment recommendation.</p>
+      <p className="adm-hint mt-3">Approved by an ALU Ventures administrator, who approved the founder’s account after an alumni-email check and reviewed the venture and, for companies, the RDB certificate. Not an investment recommendation.</p>
 
       <ExpressInterestDialog
         project={expressing ? p : null}

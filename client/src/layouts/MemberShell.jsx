@@ -262,6 +262,12 @@ export default function MemberShell() {
           </div>
         </header>
         <main className="adm min-w-0 flex-1 px-4 py-8 sm:px-6 lg:px-10">
+          {user.role === 'graduate' && !user.approved && (
+            <p className="adm-message mb-6" role="status">
+              <strong>Your account is waiting for admin approval.</strong> An administrator reviews every graduate account after the alumni-email
+              check. You can look around now; you can submit projects once you are approved, and we will email you the decision.
+            </p>
+          )}
           <Outlet />
         </main>
       </div>

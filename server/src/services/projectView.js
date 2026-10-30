@@ -3,7 +3,24 @@
 // code (FR06, FR14). The code is the founder's to share: the public reaches a
 // venture by its id, and only someone who already holds the code can look it
 // up on the Verify page.
+const crypto = require('crypto');
 const { serializeResult } = require('./results');
+
+// The optional background image is public only while the project is
+// "Approved and Seeking Investment" and its owner consented to publication.
+// Investors, the owner and administrators load it through their own routes.
+const isImagePublic = (p) => Boolean(p.imageKey) && p.status === 'approved' && Boolean(p.publicationConsent);
+const IMAGE_ROUTE = {
+  public: (id) => `/api/public/projects/${id}/image`,
+  investor: (id) => `/api/investor/projects/${id}/image`,
+  owner: (id) => `/api/projects/${id}/image`,
+  admin: (id) => `/api/admin/projects/${id}/image`,
+};
+// The version changes whenever the image does, so browsers never show a stale one.
+function projectImageUrl(p, scope) {
+  if (!p.imageKey || (scope === 'public' && !isImagePublic(p))) return null;
+  return `${IMAGE_ROUTE[scope](p.id)}?v=${crypto.createHash('sha256').update(p.imageKey).digest('hex').slice(0, 12)}`;
+}
 
 function publicProject(p) {
   return {
@@ -19,6 +36,7 @@ function publicProject(p) {
     fundingSought: p.fundingSought,
     status: p.status,
     approvedAt: p.approvedAt,
+    imageUrl: projectImageUrl(p, 'public'),
     founder: p.owner
       ? {
           name: p.owner.fullName,
@@ -79,10 +97,11 @@ function ownerProject(p) {
     submittedAt: p.submittedAt,
     approvedAt: p.approvedAt,
     updatedAt: p.updatedAt,
+    imageUrl: projectImageUrl(p, 'owner'),
     documents: (p.documents || []).map(documentSummary),
     funding: p.fundingSource ? { source: p.fundingSource, name: p.fundingName, amount: p.fundingAmount === null ? null : Number(p.fundingAmount), currency: p.fundingCurrency } : null,
     competitionResults: (p.competitionResults || []).map((r) => serializeResult(r)),
   };
 }
 
-module.exports = { publicProject, ownerProject, documentSummary };
+module.exports = { publicProject, ownerProject, documentSummary, projectImageUrl, isImagePublic };

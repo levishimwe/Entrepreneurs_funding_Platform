@@ -9,6 +9,8 @@ const TEST_ACCOUNTS = {
 process.env.NODE_ENV = 'test';
 // Two OCR threads so the pool's concurrency cap is exercised (production default: 1).
 process.env.OCR_POOL_SIZE = '2';
+// The production rule, whatever server/.env says.
+process.env.ALUMNI_EMAIL_DOMAIN = 'alumni.alustudent.com';
 process.env.ADMIN_EMAIL = TEST_ACCOUNTS.admin.email;
 process.env.ADMIN_PASSWORD = TEST_ACCOUNTS.admin.password;
 process.env.STAFF1_EMAIL = TEST_ACCOUNTS.staff1.email;

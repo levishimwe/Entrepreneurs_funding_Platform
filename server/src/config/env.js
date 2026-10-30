@@ -71,7 +71,9 @@ const env = {
     .map((k) => (process.env[k] || '').trim().toLowerCase())
     .filter(Boolean),
 
-  alumniDomains: list(process.env.ALUMNI_EMAIL_DOMAINS || 'alueducation.com').map((d) => d.toLowerCase()),
+  // The one email domain accepted for NEW graduate registrations. Existing
+  // accounts, admin/staff and investors are not affected.
+  alumniDomain: (process.env.ALUMNI_EMAIL_DOMAIN || 'alumni.alustudent.com').trim().toLowerCase().replace(/^@/, ''),
 
   storage: {
     // Tests always use the local driver, whatever server/.env says.

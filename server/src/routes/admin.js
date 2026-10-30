@@ -28,7 +28,8 @@ const { enqueueEmail, retryNotification } = require('../services/mailer');
 const { getDashboardStats } = require('../services/dashboard');
 const { adminDashboard, periodSchema } = require('../services/analytics');
 const { opportunitySchema, serializeOpportunity, stageOf } = require('../services/opportunities');
-const { documentSummary } = require('../services/projectView');
+const { documentSummary, projectImageUrl, isImagePublic } = require('../services/projectView');
+const storage = require('../services/storage');
 const audit = require('../services/audit');
 const { sendStoredFile } = require('../services/fileDelivery');
 const { recordInvestment } = require('../services/funding');
@@ -95,7 +96,7 @@ router.get('/documents/:id', async (req, res) => {
 router.post('/documents/:id/reverify', async (req, res) => {
   const document = await Document.findByPk(req.params.id);
   if (!document) throw notFound('Document not found.');
-  if (!VERIFIABLE.has(document.kind)) throw badRequest('Automated checks only exist for degree and RDB certificates.');
+  if (!VERIFIABLE.has(document.kind)) throw badRequest('Automated checks only exist for RDB certificates and RRA documents.');
   if (document.status !== 'processing') {
     await document.update({ status: 'processing' });
     enqueueDocumentVerification(document.id, { rerun: true });
@@ -135,10 +136,7 @@ router.get('/graduates', async (req, res) => {
   const filter = ACCOUNT_FILTERS[req.query.status] || ACCOUNT_FILTERS.pending;
   const users = await User.findAll({
     where: { role: 'graduate', ...filter },
-    include: [
-      { model: GraduateProfile, as: 'graduateProfile' },
-      { model: Document, as: 'documents', where: { kind: 'degree_certificate' }, required: false },
-    ],
+    include: [{ model: GraduateProfile, as: 'graduateProfile' }],
     order: [['createdAt', 'ASC']],
   });
   res.json({
@@ -154,7 +152,6 @@ router.get('/graduates', async (req, res) => {
       cohortYear: u.graduateProfile?.cohortYear,
       program: u.graduateProfile?.program,
       verificationStatus: u.graduateProfile?.verificationStatus,
-      degree: documentReview([...(u.documents || [])].sort((a, b) => b.id - a.id)[0]),
     })),
   });
 });
@@ -190,22 +187,14 @@ async function decideAccount(req, res, role, decision) {
   const body = z.object({ reason: decision === 'reject' ? requiredReason : reasonField }).parse(req.body || {});
   const user = await User.findOne({
     where: { id: req.params.id, role },
-    include: [
-      { model: GraduateProfile, as: 'graduateProfile' },
-      { model: Document, as: 'documents', where: { kind: 'degree_certificate' }, required: false },
-    ],
+    include: [{ model: GraduateProfile, as: 'graduateProfile' }],
   });
   if (!user) throw notFound('Account not found.');
   if (user.status !== 'pending_review') {
     throw badRequest(`This account is ${user.status === 'pending_email' ? 'still verifying its email' : 'already decided'}.`);
   }
-  // Overriding an automated "Suspicious" flag needs a recorded reason.
-  const degree = [...(user.documents || [])].sort((a, b) => b.id - a.id)[0];
-  if (decision === 'approve' && role === 'graduate' && degree?.flag === 'suspicious' && !body.reason) {
-    throw new HttpError(400, 'Please correct the highlighted fields.', {
-      fields: { reason: 'The degree check was flagged Suspicious — record why you are approving.' },
-    });
-  }
+  // Graduates are approved on the administrator's review of the account after
+  // the alumni-email OTP; no document check is involved.
 
   await sequelize.transaction(async (transaction) => {
     await user.update({ status: decision === 'approve' ? 'active' : 'rejected' }, { transaction });
@@ -222,7 +211,7 @@ async function decideAccount(req, res, role, decision) {
         reason: body.reason,
         target: { type: 'user', id: user.id },
         action: `account.${decision === 'approve' ? 'approved' : 'rejected'}`,
-        metadata: { role, degreeFlag: degree?.flag || null },
+        metadata: { role },
       },
       transaction
     );
@@ -390,10 +379,7 @@ router.get('/projects/:id', async (req, res) => {
         model: User,
         as: 'owner',
         attributes: ['id', 'fullName', 'email', 'status'],
-        include: [
-          { model: GraduateProfile, as: 'graduateProfile' },
-          { model: Document, as: 'documents', where: { kind: 'degree_certificate' }, required: false },
-        ],
+        include: [{ model: GraduateProfile, as: 'graduateProfile' }],
       },
       { model: Document, as: 'documents' },
       { model: Review, as: 'reviews', include: [{ model: User, as: 'reviewer', attributes: ['fullName', 'role'] }] },
@@ -411,7 +397,6 @@ router.get('/projects/:id', async (req, res) => {
     order: [['id', 'DESC']],
     limit: 50,
   });
-  const degree = [...(p.owner.documents || [])].sort((a, b) => b.id - a.id)[0];
   res.json({
     project: {
       id: p.id,
@@ -439,6 +424,8 @@ router.get('/projects/:id', async (req, res) => {
       reviewNote: p.reviewNote,
       submittedAt: p.submittedAt,
       approvedAt: p.approvedAt,
+      imageUrl: projectImageUrl(p, 'admin'),
+      imagePublic: isImagePublic(p),
       funding: {
         source: p.fundingSource,
         name: p.fundingName,
@@ -456,7 +443,6 @@ router.get('/projects/:id', async (req, res) => {
         email: p.owner.email,
         cohortYear: p.owner.graduateProfile?.cohortYear,
         program: p.owner.graduateProfile?.program,
-        degreeFlag: degree?.flag || null,
       },
       documents: p.documents.map(documentReview),
       introductions: p.introductions.map((i) => ({
@@ -590,6 +576,41 @@ router.post('/projects/:id/:action', async (req, res) => {
 
 // Permanent delete: rejected projects only, never with introductions,
 // investments or applications. Files are removed from storage.
+// The project's background image during review, and its removal with a
+// recorded reason (for example an unsuitable picture). The graduate is emailed.
+router.get('/projects/:id/image', async (req, res) => {
+  const project = await Project.findByPk(req.params.id, { attributes: ['id', 'imageKey'] });
+  if (!project?.imageKey) throw notFound('No background image.');
+  await sendStoredFile(res, { storageKey: project.imageKey, mimeType: 'image/jpeg', filename: 'project-image' });
+});
+
+router.post('/projects/:id/image/remove', async (req, res) => {
+  const { reason } = z.object({ reason: requiredReason }).parse(req.body || {});
+  const project = await Project.findByPk(req.params.id, { include: [{ model: User, as: 'owner', attributes: ['id', 'fullName', 'email'] }] });
+  if (!project) throw notFound('Project not found.');
+  if (!project.imageKey) throw badRequest('This project has no background image.');
+  const previous = project.imageKey;
+  await project.update({ imageKey: null });
+  await storage.remove(previous).catch(() => {});
+  await audit.record({ actorId: req.user.id, action: 'project.image_removed', entityType: 'project', entityId: project.id, reason });
+  if (project.owner) {
+    await enqueueEmail({
+      eventKey: `project-image-removed:${project.id}:${Date.now()}`,
+      to: project.owner.email,
+      recipientId: project.owner.id,
+      subject: `Background image removed: ${project.title}`,
+      paragraphs: [
+        `Hello ${project.owner.fullName},`,
+        `An administrator removed the background image from "${project.title}".`,
+        `Reason: ${reason}`,
+        'Your project is otherwise unchanged. You can add a different image when you next edit it.',
+      ],
+      cta: { label: 'View project', url: `${env.clientUrl}/app/projects/${project.id}` },
+    });
+  }
+  res.json({ ok: true });
+});
+
 router.get('/projects/:id/delete-plan', async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw notFound('Project not found.');

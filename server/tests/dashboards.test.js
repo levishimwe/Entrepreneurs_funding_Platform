@@ -93,7 +93,7 @@ describe('admin dashboard', () => {
       expect(Object.keys(res.body.charts).sort()).toEqual(
         [
           'activity',
-          'degreeChecks',
+          'verificationChecks',
           'fundedOverTime',
           'fundingSource',
           'introductionsByStatus',

@@ -114,6 +114,8 @@ const Project = sequelize.define(
     fundingCurrency: { type: DataTypes.STRING(3), field: 'funding_currency' },
     showOnHome: { type: DataTypes.BOOLEAN, defaultValue: false, field: 'show_on_home' },
     showAmount: { type: DataTypes.BOOLEAN, defaultValue: false, field: 'show_amount' },
+    // Optional background image (re-encoded JPEG); public only while the project is.
+    imageKey: { type: DataTypes.STRING(255), field: 'image_key' },
   },
   { tableName: 'projects' }
 );

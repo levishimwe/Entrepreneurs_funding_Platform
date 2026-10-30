@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const request = require('supertest');
 const app = require('../src/app');
-const { Notification, User, GraduateProfile } = require('../src/models');
+const { Notification, User, GraduateProfile, Document } = require('../src/models');
 
 const SAMPLES = path.join(__dirname, '..', 'samples');
 const sample = (name) => fs.readFileSync(path.join(SAMPLES, name));
@@ -30,17 +30,30 @@ async function latestCode(email) {
   return match ? match[1] : null;
 }
 
-async function registerGraduate(client, { fullName = 'Amina Uwase', file = 'degree-amina-uwase.pdf', email } = {}) {
-  const address = email || `grad${unique()}@alustudent.com`;
+// Meets the password policy (services/passwordPolicy.js) for every test name.
+const TEST_PASSWORD = 'Valid#Pass2026';
+const alumniEmail = (prefix = 'grad') => `${prefix}${unique()}@alumni.alustudent.com`;
+
+// Graduate registration needs no documents: alumni email + OTP, then an administrator approves.
+async function registerGraduate(client, { fullName = 'Amina Uwase', email, password = TEST_PASSWORD } = {}) {
+  const address = email || alumniEmail();
   const res = await client
     .post('/api/auth/register/graduate')
     .field('fullName', fullName)
     .field('email', address)
-    .field('password', 'Password123')
+    .field('password', password)
     .field('cohortYear', '2024')
-    .field('program', 'BSc Software Engineering')
-    .attach('degreeCertificate', sample(file), file);
+    .field('program', 'BSc Software Engineering');
   return { res, email: address };
+}
+
+// A degree certificate as uploaded before registration stopped asking for
+// one: those rows and files are kept for existing graduates.
+async function addLegacyDegree(user, file = 'degree-amina-uwase.pdf') {
+  const storage = require('../src/services/storage');
+  const buffer = sample(file);
+  const storageKey = await storage.put(buffer, { prefix: 'degree-certificates', mimeType: 'application/pdf' });
+  return Document.create({ uploaderId: user.id, projectId: null, kind: 'degree_certificate', storageKey, originalName: file, mimeType: 'application/pdf', sizeBytes: buffer.length, status: 'processed', flag: 'likely_valid' });
 }
 
 async function verifyEmail(client, email) {
@@ -70,7 +83,7 @@ async function investorClient({ approved = true } = {}) {
   await client.post('/api/auth/register/investor').send({
     fullName: 'Grace Mutoni',
     email,
-    password: 'Password123',
+    password: TEST_PASSWORD,
     organisation: 'Kigali Angels',
     sectors: ['Agriculture'],
   });
@@ -156,12 +169,15 @@ async function removeRowsSince(marks) {
 }
 
 module.exports = {
+  TEST_PASSWORD,
+  alumniEmail,
   snapshotIds,
   removeRowsSince,
   stubOcr,
   agent,
   latestCode,
   registerGraduate,
+  addLegacyDegree,
   verifyEmail,
   approveGraduateDirectly,
   approvedGraduate,

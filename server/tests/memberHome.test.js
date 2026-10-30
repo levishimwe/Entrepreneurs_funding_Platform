@@ -34,15 +34,16 @@ describe('graduate activity page', () => {
     const { client } = await approvedGraduate('Diane Ingabire');
     const first = (await client.get('/api/account/next-steps')).body;
     const step = (data, key) => data.steps.find((s) => s.key === key);
-    expect(step(first, 'degree').done).toBe(true);
+    // No degree step: graduates register with the alumni-email OTP only.
+    expect(step(first, 'degree')).toBeUndefined();
     expect(step(first, 'profile').done).toBe(false);
     expect(step(first, 'submitted').done).toBe(false);
-    expect(first).toMatchObject({ total: 5, done: 1, current: 'profile' });
+    expect(first).toMatchObject({ total: 4, done: 0, current: 'profile' });
 
     const project = await submitIdea(client);
     const second = (await client.get('/api/account/next-steps')).body;
     expect(step(second, 'rdb').notApplicable).toBe(true);
-    expect(second).toMatchObject({ total: 4, done: 2 });
+    expect(second).toMatchObject({ total: 3, done: 1 });
     await approve(project.id);
     const third = (await client.get('/api/account/next-steps')).body;
     expect(step(third, 'approved')).toMatchObject({ done: true, action: { to: `/app/projects/${project.id}` } });

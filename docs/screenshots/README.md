@@ -9,7 +9,7 @@ Before saving, make sure no real personal data is visible: emails, phone numbers
 | `home.png` | Public home page: banner with live stats, success stories, testimonies |
 | `browse-ventures.png` | Browse ventures with filters and a few venture cards |
 | `verify-project.png` | Verify a Project with a valid code entered and the result shown |
-| `register-graduate.png` | Graduate registration form (alumni email and degree certificate upload) |
+| `register-graduate.png` | Graduate registration form (alumni email and the live password checklist) |
 | `project-form.png` | Graduate project form showing the sector suggestion or similarity warning |
 | `admin-document-checks.png` | Administrator project page with the document viewer and its automated checks (Likely Valid / Suspicious) |
 | `admin-dashboard.png` | Administrator dashboard: Needs attention, KPI cards, Activity chart and donuts |

@@ -2,9 +2,9 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { z } = require('zod');
 const env = require('../config/env');
-const { sequelize, User, GraduateProfile, InvestorProfile, Document } = require('../models');
+const { sequelize, User, GraduateProfile, InvestorProfile } = require('../models');
 const { badRequest, conflict, HttpError } = require('../middleware/errors');
-const { upload, validateDocument, validatePhoto } = require('../middleware/upload');
+const { upload, validatePhoto } = require('../middleware/upload');
 const { loginLimiter, codeLimiter, uploadLimiter } = require('../middleware/rateLimits');
 const {
   setSessionCookie,
@@ -18,7 +18,7 @@ const { enqueueEmail } = require('../services/mailer');
 const storage = require('../services/storage');
 const audit = require('../services/audit');
 const { describeDbError } = require('../db/errors');
-const { enqueueDocumentVerification } = require('../workers/jobs');
+const { checkPassword, clientPolicy, MAX_LENGTH } = require('../services/passwordPolicy');
 
 const router = express.Router();
 
@@ -29,15 +29,26 @@ const email = z
   .toLowerCase()
   .email('Enter a valid email address.')
   .max(254);
-const password = z
-  .string()
-  .min(8, 'Use at least 8 characters.')
-  .max(128)
-  .regex(/[A-Za-z]/, 'Include at least one letter.')
-  .regex(/[0-9]/, 'Include at least one number.');
-const fullName = z.string().trim().min(3, 'Enter your full name as it appears on your documents.').max(150);
+// The strength rule itself (services/passwordPolicy.js) also needs the name
+// and email, so it runs in `strongPassword` below once the form is parsed.
+const password = z.string().max(MAX_LENGTH, `Password must be at most ${MAX_LENGTH} characters.`);
+const fullName = z.string().trim().min(3, 'Enter your full name.').max(150);
 
-const isAlumniEmail = (address) => env.alumniDomains.includes(address.split('@')[1]);
+// Exactly the configured domain after the last "@": look-alikes such as
+// alumni.alustudent.com.evil.com, mail.alumni.alustudent.com or
+// alumni.alustudent.co do not match. The address is already lower-cased.
+const ALUMNI_MESSAGE = `Use your ALU alumni email (name@${env.alumniDomain})`;
+const isAlumniEmail = (address) => {
+  const at = address.lastIndexOf('@');
+  return at > 0 && address.slice(at + 1) === env.alumniDomain;
+};
+
+// Adds the password-policy result as a field error on `password`.
+const strongPassword = (schema) =>
+  schema.superRefine((d, ctx) => {
+    const problem = checkPassword(d.password, { email: d.email, fullName: d.fullName });
+    if (problem) ctx.addIssue({ code: 'custom', path: ['password'], message: problem });
+  });
 
 // Optional (FR02 allows OTP "by email or SMS"; FR12 an "approved phone number").
 // Stored as +<digits>; Rwandan numbers may be entered as 07XXXXXXXX.
@@ -70,18 +81,18 @@ const listField = (schema) =>
     return v ? [v] : [];
   }, schema);
 
-const graduateSchema = z.object({
-  fullName,
-  email: email.refine(isAlumniEmail, {
-    message: `Use your official ALU email address (@${env.alumniDomains.join(' or @')}).`,
-  }),
-  password,
-  phone,
-  cohortYear: z.coerce.number().int().min(2015, 'Enter a valid graduation year.').max(new Date().getFullYear() + 1),
-  program: z.string().trim().min(2, 'Enter your degree programme.').max(150),
-});
+const graduateSchema = strongPassword(
+  z.object({
+    fullName,
+    email: email.refine(isAlumniEmail, { message: ALUMNI_MESSAGE }),
+    password,
+    phone,
+    cohortYear: z.coerce.number().int().min(2015, 'Enter a valid graduation year.').max(new Date().getFullYear() + 1),
+    program: z.string().trim().min(2, 'Enter your degree programme.').max(150),
+  })
+);
 
-const investorSchema = z.object({
+const investorSchema = strongPassword(z.object({
   fullName,
   email,
   password,
@@ -97,7 +108,7 @@ const investorSchema = z.object({
     .or(z.literal('')),
   sectors: listField(z.array(z.string().trim().max(80)).max(15).default([])),
   bio: z.string().trim().max(2000).optional().or(z.literal('')),
-});
+}));
 
 // --- Helpers ---
 function serializeUser(user) {
@@ -184,6 +195,14 @@ async function ensureEmailAvailable(address) {
 }
 
 // --- Registration ---
+// The rules the forms show and check while typing (the server checks again).
+router.get('/policy', (req, res) => {
+  res.json({ alumniEmailDomain: env.alumniDomain, alumniEmailMessage: ALUMNI_MESSAGE, password: clientPolicy() });
+});
+
+// A degree certificate is no longer asked for. A form loaded before that
+// change may still send one: it is accepted here and discarded, never stored
+// or checked. Certificates uploaded earlier stay where they are.
 const graduateUpload = upload.fields([
   { name: 'degreeCertificate', maxCount: 1 },
   { name: 'profilePhoto', maxCount: 1 },
@@ -195,20 +214,17 @@ async function storePhoto(file) {
   return photo ? storage.put(photo.buffer, { prefix: 'profile-photos', mimeType: photo.mimeType }) : null;
 }
 
-// FR02: alumni-domain email + OTP + degree upload; an administrator approves.
+// FR02: alumni-domain email + email OTP; an administrator then approves the
+// account from "Graduates to review" before the graduate can submit projects.
 router.post('/register/graduate', uploadLimiter, graduateUpload, async (req, res) => {
   const data = graduateSchema.parse(req.body);
   await ensureEmailAvailable(data.email);
-  const file = await validateDocument(req.files?.degreeCertificate?.[0], 'Your ALU degree certificate');
   // Validate the photo before storing anything.
   await validatePhoto(req.files?.profilePhoto?.[0]);
 
   const stored = [];
   let user;
-  let document;
   try {
-    const storageKey = await storage.put(file.buffer, { prefix: 'degree-certificates', mimeType: file.mimeType });
-    stored.push(storageKey);
     const photoKey = await storePhoto(req.files?.profilePhoto?.[0]);
     if (photoKey) stored.push(photoKey);
 
@@ -229,18 +245,6 @@ router.post('/register/graduate', uploadLimiter, graduateUpload, async (req, res
         { userId: user.id, cohortYear: data.cohortYear, program: data.program },
         { transaction }
       );
-      document = await Document.create(
-        {
-          uploaderId: user.id,
-          projectId: null,
-          kind: 'degree_certificate',
-          storageKey,
-          originalName: file.originalName,
-          mimeType: file.mimeType,
-          sizeBytes: file.size,
-        },
-        { transaction }
-      );
       await audit.record(
         { actorId: user.id, action: 'account.registered', entityType: 'user', entityId: user.id, metadata: { role: 'graduate', photo: Boolean(photoKey) } },
         { transaction }
@@ -251,7 +255,6 @@ router.post('/register/graduate', uploadLimiter, graduateUpload, async (req, res
     throw err;
   }
 
-  enqueueDocumentVerification(document.id);
   await sendVerificationCode(user);
   res.status(201).json({ message: 'Account created. Check your email for a verification code.', email: user.email });
 });
@@ -402,6 +405,12 @@ router.post('/reset-password', codeLimiter, async (req, res) => {
     .refine((d) => d.password === d.confirmPassword, { message: 'Passwords do not match.', path: ['confirmPassword'] })
     .parse(req.body);
 
+  // Checked before the code is used up, so a weak choice can be corrected.
+  // Only the email the requester typed is used: checking the account's name
+  // here would let anyone probe it without a valid code (the reset form, like
+  // this check, knows only the email).
+  const problem = checkPassword(data.password, { email: data.email });
+  if (problem) throw new HttpError(400, problem, { fields: { password: problem } });
   const user = await User.findOne({ where: { email: data.email } });
   if (!user) throw badRequest('That code is invalid or has expired. Request a new code and try again.');
   await verifyCode(user.id, 'password_reset', data.code);

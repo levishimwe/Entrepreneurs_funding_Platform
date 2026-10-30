@@ -5,6 +5,7 @@ import { api, ApiError } from '../lib/api';
 import { useAuth, homePathFor } from '../context/AuthContext';
 import { Alert, Field } from '../components/ui';
 import { PROGRAMS, SECTORS } from '../lib/constants';
+import { isAlumniEmail, passwordProblem, ruleStates, usePolicy } from '../lib/passwordPolicy';
 
 // Where to go after signing in or verifying: an internal path from ?next=
 // (home-page tiles send visitors here), never an external URL.
@@ -164,27 +165,42 @@ function PasswordInput({ id, value, onChange, error, autoComplete, placeholder }
   );
 }
 
-// The same three rules the server enforces, ticked off while typing.
-const PASSWORD_RULES = [
-  ['At least 8 characters', (v) => v.length >= 8],
-  ['One letter', (v) => /[A-Za-z]/.test(v)],
-  ['One number', (v) => /[0-9]/.test(v)],
-];
-function PasswordRules({ value }) {
+// The server's password rules (lib/passwordPolicy.js), ticked off while
+// typing, plus the name and common-password checks once the rules are met.
+export function PasswordRules({ value, email, fullName, policy: given }) {
+  const loaded = usePolicy();
+  const policy = given || loaded;
+  if (!policy) return null;
+  const rules = ruleStates(policy, value);
+  const problem = value && rules.every((r) => r.met) ? passwordProblem(policy, value, { email, fullName }) : null;
   return (
-    <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px]" aria-label="Password rules">
-      {PASSWORD_RULES.map(([label, test]) => {
-        const ok = test(value);
-        return (
-          <li key={label} className={`flex items-center gap-1.5 ${ok ? 'text-[#15803d]' : 'text-[#5b6676]'}`}>
-            <span className={`h-3 w-3 rounded-full border transition-colors ${ok ? 'border-[#15803d] bg-[#15803d]' : 'border-[#8a94a3]'}`} aria-hidden="true" />
-            {label}
-            <span className="sr-only">{ok ? ' (met)' : ' (not met yet)'}</span>
+    <>
+      <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px]" aria-label="Password rules">
+        {rules.map((r) => (
+          <li key={r.key} className={`flex items-center gap-1.5 ${r.met ? 'text-[#15803d]' : 'text-[#5b6676]'}`}>
+            <span className={`h-3 w-3 rounded-full border transition-colors ${r.met ? 'border-[#15803d] bg-[#15803d]' : 'border-[#8a94a3]'}`} aria-hidden="true" />
+            {r.label}
+            <span className="sr-only">{r.met ? ' (met)' : ' (not met yet)'}</span>
           </li>
-        );
-      })}
-    </ul>
+        ))}
+      </ul>
+      {problem && (
+        <p className="mt-1.5 text-[12px] text-[#b45309]" aria-live="polite">
+          {problem}
+        </p>
+      )}
+    </>
   );
+}
+
+// Client-side check before submitting; the server checks again.
+function localErrors(policy, values, { alumni = false } = {}) {
+  const fields = {};
+  if (alumni && values.email.trim() && !isAlumniEmail(policy, values.email)) fields.email = policy.alumniEmailMessage;
+  const problem = passwordProblem(policy, values.password, { email: values.email, fullName: values.fullName });
+  if (problem) fields.password = problem;
+  if ('confirmPassword' in values && values.confirmPassword !== values.password) fields.confirmPassword = 'Passwords do not match.';
+  if (Object.keys(fields).length) throw new ApiError(400, { error: 'Please correct the highlighted fields.', fields });
 }
 
 function SelectInput({ id, value, onChange, error, children }) {
@@ -444,83 +460,22 @@ function PhoneAndPhoto({ f, prefix }) {
   );
 }
 
-// Degree certificate: click to browse or drop a file. The server checks the
-// real file type and size again.
-const CERT_MAX = 10 * 1024 * 1024;
-const CERT_TYPES = ['application/pdf', 'image/png', 'image/jpeg'];
-function CertificateDrop({ file, onFile, error }) {
-  const [over, setOver] = useState(false);
-  const [local, setLocal] = useState('');
-  const take = (f) => {
-    setLocal('');
-    if (!f) return;
-    if (!CERT_TYPES.includes(f.type)) return setLocal('Choose a PDF, PNG or JPEG file.');
-    if (f.size > CERT_MAX) return setLocal('The certificate must be 10 MB or smaller.');
-    onFile(f);
-  };
-  const message = local || error;
-  return (
-    <div>
-      <label
-        htmlFor="g-file"
-        onDragOver={(e) => {
-          e.preventDefault();
-          setOver(true);
-        }}
-        onDragLeave={() => setOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setOver(false);
-          take(e.dataTransfer.files?.[0] || null);
-        }}
-        className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-[1.5px] border-dashed px-6 py-9 text-center transition-colors focus-within:outline-2 focus-within:outline-[#2563eb] ${
-          over ? 'border-[#2563eb] bg-[#e8efff]' : message ? 'border-[#dc2626] bg-[#fdf6f6]' : 'border-[#c3ccd8] bg-[#f9fafb] hover:border-[#2563eb]'
-        }`}
-      >
-        {file ? (
-          <>
-            <span className="max-w-full truncate text-[14px] font-semibold text-[#111827]">{file.name}</span>
-            <span className="mt-1 text-[12px] text-[#5b6676]">{(file.size / 1024 / 1024).toFixed(1)} MB · Click or drop to replace</span>
-          </>
-        ) : (
-          <>
-            <span className="text-[14px] text-[#111827]">
-              <span className="font-semibold text-[#2563eb]">Browse files</span> or drag and drop your certificate
-            </span>
-            <span className="mt-1 text-[12px] text-[#5b6676]">PDF, PNG or JPEG · up to 10 MB</span>
-          </>
-        )}
-        <input
-          id="g-file"
-          type="file"
-          accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
-          className="sr-only"
-          onChange={(e) => {
-            take(e.target.files?.[0] || null);
-            e.target.value = '';
-          }}
-        />
-      </label>
-      {message && <p className="mt-1.5 text-[12px] text-[#b91c1c]">{message}</p>}
-      <p className="mt-3 text-[12px] text-[#5b6676]">Stored privately. Only ALU Ventures administrators can view it.</p>
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 function GraduateForm({ next }) {
   const navigate = useNavigate();
-  const f = useFormState({ fullName: '', email: '', password: '', phone: '', cohortYear: '', program: '', file: null, photo: null });
+  const f = useFormState({ fullName: '', email: '', password: '', phone: '', cohortYear: '', program: '', photo: null });
   const [helpOpen, setHelpOpen] = useState(false);
+  const policy = usePolicy();
+  const domain = policy?.alumniEmailDomain || 'alumni.alustudent.com';
 
   const submit = (e) => {
     e.preventDefault();
     f.run(async () => {
+      localErrors(policy, f.values, { alumni: true });
       const data = new FormData();
       ['fullName', 'email', 'password', 'cohortYear', 'program'].forEach((k) => data.append(k, f.values[k]));
       // Optional fields go only when filled in.
       if (f.values.phone.trim()) data.append('phone', f.values.phone.trim());
-      if (f.values.file) data.append('degreeCertificate', f.values.file);
       if (f.values.photo) data.append('profilePhoto', f.values.photo);
       const res = await api.upload('/auth/register/graduate', data);
       navigate(withNext(`/verify-email?email=${encodeURIComponent(res.email)}`, next));
@@ -533,7 +488,7 @@ function GraduateForm({ next }) {
     <form onSubmit={submit} className="space-y-6" noValidate>
       <FormAlert>{f.error}</FormAlert>
       <FormSection title="Account details" subtitle="You'll use these to sign in.">
-        <LightField id="g-name" label="Full name" error={f.errors.fullName} help="Exactly as it appears on your degree certificate.">
+        <LightField id="g-name" label="Full name" error={f.errors.fullName} help="Your full name as ALU knows it.">
           <IconInput
             id="g-name"
             autoComplete="name"
@@ -544,13 +499,13 @@ function GraduateForm({ next }) {
           />
         </LightField>
         <div>
-          <LightField id="g-email" label="ALU alumni email" error={f.errors.email} help="Use your official @alueducation.com or @alustudent.com address.">
+          <LightField id="g-email" label="ALU alumni email" error={f.errors.email} help={`Only @${domain} addresses are accepted.`}>
             <IconInput
               id="g-email"
               icon={Mail}
               type="email"
               autoComplete="email"
-              placeholder="you@alueducation.com"
+              placeholder={`name@${domain}`}
               value={f.values.email}
               onChange={f.set('email')}
               error={f.errors.email}
@@ -579,11 +534,11 @@ function GraduateForm({ next }) {
             onChange={f.set('password')}
             error={f.errors.password}
           />
-          <PasswordRules value={f.values.password} />
+          <PasswordRules value={f.values.password} email={f.values.email} fullName={f.values.fullName} policy={policy} />
         </LightField>
       </FormSection>
 
-      <FormSection title="Your ALU studies" subtitle="Must match what's on your degree certificate.">
+      <FormSection title="Your ALU studies" subtitle="Your graduation year and programme at ALU.">
         <div className="grid gap-5 sm:grid-cols-2">
           <LightField id="g-year" label="Graduation year" error={f.errors.cohortYear}>
             <SelectInput id="g-year" value={f.values.cohortYear} onChange={f.set('cohortYear')} error={f.errors.cohortYear}>
@@ -606,17 +561,15 @@ function GraduateForm({ next }) {
         </div>
       </FormSection>
 
-      <FormSection title="Degree certificate" subtitle="We use it to confirm you graduated from ALU.">
-        <CertificateDrop file={f.values.file} onFile={(file) => f.set('file')(file)} error={f.errors.degreeCertificate} />
-      </FormSection>
-
       <PhoneAndPhoto f={f} prefix="g" />
 
       <div className="border-t border-[#e3e8ef] pt-6">
         <button type="submit" className={SUBMIT} disabled={f.busy}>
           {f.busy ? 'Creating account…' : 'Create graduate account'}
         </button>
-        <p className="mt-3 text-center text-[12px] text-[#5b6676]">Next, we&apos;ll email you a 6-digit code to verify your address.</p>
+        <p className="mt-3 text-center text-[12px] text-[#5b6676]">
+          Next, we&apos;ll email you a 6-digit code to verify your address. An administrator then approves your account.
+        </p>
       </div>
     </form>
   );
@@ -636,10 +589,12 @@ function InvestorForm({ next }) {
     phone: '',
   });
   const toggleSector = (s) => f.setValues((v) => ({ ...v, sectors: v.sectors.includes(s) ? v.sectors.filter((x) => x !== s) : [...v.sectors, s] }));
+  const policy = usePolicy();
 
   const submit = (e) => {
     e.preventDefault();
     f.run(async () => {
+      localErrors(policy, f.values);
       const data = new FormData();
       Object.entries(f.values).forEach(([k, v]) => {
         if (k === 'photo') return;
@@ -687,7 +642,7 @@ function InvestorForm({ next }) {
             onChange={f.set('password')}
             error={f.errors.password}
           />
-          <PasswordRules value={f.values.password} />
+          <PasswordRules value={f.values.password} email={f.values.email} fullName={f.values.fullName} policy={policy} />
         </LightField>
       </FormSection>
 
@@ -782,16 +737,16 @@ const JOIN = {
     title: 'Turn your venture into a verified record.',
     lede: 'Verified ALU graduates submit ventures for administrator review, apply to hackathons, grants and competitions, and meet investors through consent-based introductions.',
     steps: [
-      ['Create your account', 'Have your degree certificate ready as a PDF or image.'],
+      ['Create your account', 'Use your ALU alumni email address.'],
       ['Verify your email', 'We send a 6-digit code to your ALU address. It expires after 10 minutes.'],
-      ['Administrator review', 'An administrator checks your certificate, then unlocks full access.'],
+      ['Administrator approval', 'An administrator approves your account, then you can submit projects.'],
     ],
     ready: [
-      ['Your ALU alumni email', '@alueducation.com or @alustudent.com'],
-      ['Your degree certificate', 'PDF, PNG or JPEG, up to 10 MB'],
+      ['Your ALU alumni email', 'name@alumni.alustudent.com'],
+      ['Your graduation year and programme', 'As recorded by ALU'],
       ['A profile photo (optional)', 'JPEG or PNG, up to 5 MB'],
     ],
-    note: 'Your certificate is stored privately and only seen by ALU Ventures administrators.',
+    note: 'No documents are needed to register. RDB and RRA documents are only asked for when you submit a registered company.',
   },
   investor: {
     title: 'Back verified ALU graduate ventures.',
@@ -815,6 +770,9 @@ export function Register() {
   const next = safeNext(params.get('next'));
   const role = params.get('role') === 'investor' ? 'investor' : 'graduate';
   const copy = JOIN[role];
+  // The alumni domain comes from the server (ALUMNI_EMAIL_DOMAIN).
+  const policy = usePolicy();
+  const domainText = (text) => (policy ? text.replace('alumni.alustudent.com', policy.alumniEmailDomain) : text);
 
   useEffect(() => {
     document.title = 'Create your account · ALU Ventures';
@@ -850,7 +808,7 @@ export function Register() {
           <div className="mt-8 rounded-lg border border-white/[0.12] bg-white/[0.05] p-5">
             <p className="text-[13px] font-semibold text-white/85">Before you start, have ready</p>
             <ul className="mt-3 space-y-3">
-              {copy.ready.map(([title, body]) => (
+              {copy.ready.map(([title, rawBody]) => [title, domainText(rawBody)]).map(([title, body]) => (
                 <li key={title}>
                   <span className="block text-[14px] font-semibold">{title}</span>
                   <span className="block text-[12px] text-white/65">{body}</span>
@@ -1021,10 +979,12 @@ export function ResetPassword() {
     password: '',
     confirmPassword: '',
   });
+  const policy = usePolicy();
 
   const submit = (e) => {
     e.preventDefault();
     f.run(async () => {
+      localErrors(policy, f.values);
       await api.post('/auth/reset-password', f.values);
       setUser(null);
       navigate('/password-updated', { replace: true });
@@ -1049,8 +1009,9 @@ export function ResetPassword() {
             onChange={(e) => f.set('code')(e.target.value.replace(/\D/g, ''))}
           />
         </Field>
-        <Field label="New password" htmlFor="rp-password" error={f.errors.password} help="At least 8 characters, including a letter and a number.">
-          <input id="rp-password" type="password" autoComplete="new-password" className="input" value={f.values.password} onChange={f.set('password')} />
+        <Field label="New password" htmlFor="rp-password" error={f.errors.password}>
+          <PasswordInput id="rp-password" autoComplete="new-password" value={f.values.password} onChange={f.set('password')} error={f.errors.password} />
+          <PasswordRules value={f.values.password} email={f.values.email} policy={policy} />
         </Field>
         <Field label="Confirm new password" htmlFor="rp-confirm" error={f.errors.confirmPassword}>
           <input

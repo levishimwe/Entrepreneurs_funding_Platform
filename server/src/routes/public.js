@@ -10,6 +10,7 @@ const { HttpError } = require('../middleware/errors');
 const { lookupLimiter } = require('../middleware/rateLimits');
 const { CODE_PATTERN, normalizeCode, COMPARABLE_STATUSES } = require('../services/categorization');
 const { publicProject } = require('../services/projectView');
+const { sendStoredFile } = require('../services/fileDelivery');
 
 const router = express.Router();
 
@@ -212,6 +213,16 @@ router.get('/projects/:id', async (req, res) => {
     disclaimer:
       'This is an approved record on the ALU Ventures platform. It is not proof of legal registration, investment quality or ALU endorsement.',
   });
+});
+
+// A venture's background image, only while it is public and Approved and
+// Seeking Investment (the same rule as `imageUrl` in publicProject).
+router.get('/projects/:id/image', async (req, res) => {
+  const id = idParam.safeParse(req.params.id);
+  if (!id.success) throw new HttpError(404, 'No image.');
+  const project = await Project.findOne({ where: { id: id.data, status: 'approved', publicationConsent: true }, attributes: ['id', 'imageKey'] });
+  if (!project?.imageKey) throw new HttpError(404, 'No image.');
+  await sendStoredFile(res, { storageKey: project.imageKey, mimeType: 'image/jpeg', filename: 'venture-image' });
 });
 
 router.get('/opportunities', async (req, res) => {

@@ -12,6 +12,8 @@ const { confirmedInvestorCount, INVESTOR_LIMIT } = require('../services/funding'
 const audit = require('../services/audit');
 const { periodSchema } = require('../services/analytics');
 const { investorSummary } = require('../services/memberSummary');
+const { projectImageUrl } = require('../services/projectView');
+const { sendStoredFile } = require('../services/fileDelivery');
 
 const router = express.Router();
 router.use(requireApprovedInvestor);
@@ -53,6 +55,7 @@ function card(p, extra = {}) {
     rdbRegistered: p.type === 'company',
     approvedAt: p.approvedAt,
     status: p.status,
+    imageUrl: projectImageUrl(p, 'investor'),
     founder: p.owner
       ? { name: p.owner.fullName, cohortYear: p.owner.graduateProfile?.cohortYear ?? null, program: p.owner.graduateProfile?.program ?? null, photoUrl: founderPhoto(p), profileId: founderProfile(p) }
       : null,
@@ -206,6 +209,13 @@ router.get('/projects/:code', async (req, res) => {
     },
     introduction: mine ? { id: mine.id, status: mine.status, requestedAt: mine.createdAt } : null,
   });
+});
+
+// A venture's background image, for the investors who can see the venture.
+router.get('/projects/:code/image', async (req, res) => {
+  const project = await findVisibleProject(req.params.code, req.user.id);
+  if (!project?.imageKey) throw notFound('No image.');
+  await sendStoredFile(res, { storageKey: project.imageKey, mimeType: 'image/jpeg', filename: 'venture-image' });
 });
 
 // Express interest = request an introduction (FR07). A duplicate request
