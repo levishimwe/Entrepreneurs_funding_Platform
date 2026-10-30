@@ -1,9 +1,30 @@
 node_modules
-server/.env
-server/certs/
-server/uploads/
+
+# Environment files: secrets never go into git (the .env.example files do).
 .env
-client/dist/
+.env.*
+!.env.example
+server/.env
+
+# Certificates and keys
+server/certs/
+*.pem
+*.key
+
+# Uploaded and generated files
+server/uploads/
 server/uploads-test/
+client/dist/
+
+# OCR language data (downloaded at build time)
 server/.tesseract-cache/
 *.traineddata
+
+# Logs and OS files
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Private notes, not published
+docs/CODE_GUIDE.md

@@ -40,7 +40,7 @@ describe('changing ADMIN_EMAIL', () => {
     expect((await session.get('/api/auth/me')).status).toBe(200);
 
     // An alumni-domain address: that rule applies only to graduate registration.
-    const next = `i.levis.${unique()}@alustudent.com`;
+    const next = `new.admin.${unique()}@alustudent.com`;
     await seedWithAdmin(next);
 
     const after = await activeAdmins();
@@ -89,8 +89,8 @@ describe('changing ADMIN_EMAIL', () => {
   });
 
   test('the alumni-domain rule does not apply to seeded accounts', () => {
-    process.env.ADMIN_EMAIL = 'i.levis@alustudent.com';
-    expect(readAccountConfig()[0]).toMatchObject({ role: 'admin', email: 'i.levis@alustudent.com' });
+    process.env.ADMIN_EMAIL = 'admin.person@alustudent.com';
+    expect(readAccountConfig()[0]).toMatchObject({ role: 'admin', email: 'admin.person@alustudent.com' });
     process.env.ADMIN_EMAIL = 'someone@gmail.com';
     expect(readAccountConfig()[0].email).toBe('someone@gmail.com');
   });
