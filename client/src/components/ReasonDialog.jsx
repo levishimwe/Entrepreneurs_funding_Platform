@@ -71,7 +71,7 @@ export default function ReasonDialog({
         aria-modal="true"
         aria-labelledby="dialog-title"
         onSubmit={submit}
-        className="card w-full max-w-lg p-5 text-[13px] shadow-xl"
+        className="card max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto p-5 text-[13px] shadow-xl"
       >
         <div className="flex items-start justify-between gap-3">
           <h2 id="dialog-title" className="!m-0 text-[16px] font-semibold">

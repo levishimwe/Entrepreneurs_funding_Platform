@@ -364,10 +364,10 @@ const INVESTOR_POINTS = [
 
 const EXAMPLE_VENTURES = [
   {
-    initials: 'AC',
+    initials: 'EV',
     color: '#16a34a',
-    name: 'Apple crops developed',
-    line: 'Affordable apples for every Rwandan household.',
+    name: 'Example venture',
+    line: 'Affordable fresh food for every household.',
     tags: ['Agriculture', 'Idea'],
     primary: true,
   },
@@ -632,11 +632,12 @@ function Opportunities() {
 
 // ---- Introductions ----------------------------------------------------------------------------
 
+// An illustration only: this card is public, so it names no real people or ventures.
 const TIMELINE = [
-  { icon: Send, title: 'Introduction requested', body: 'Investor sent a request · 9 Oct 2026', done: true },
-  { icon: UserCheck, title: 'Founder accepted', body: 'Aziza reviewed the request and accepted · 9 Oct', done: true },
-  { icon: Mail, title: 'Contact details shared', body: "Both sides were emailed each other's details", done: true },
-  { icon: CalendarCheck, title: 'Meeting confirmed', body: 'Recorded by both sides after they meet' },
+  { icon: Send, title: 'Introduction requested', body: 'Investor sent a request · Day 1', done: true },
+  { icon: UserCheck, title: 'Founder accepted', body: 'The founder reviewed the request and accepted · Day 1', done: true },
+  { icon: Mail, title: 'Contact details shared', body: "Both sides were emailed each other's details · Day 1", done: true },
+  { icon: CalendarCheck, title: 'Meeting confirmed', body: 'Recorded by both sides · After they meet' },
 ];
 
 const RECORD_FEATURES = [
@@ -658,11 +659,11 @@ function IntroductionMockup() {
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f472b655] bg-[#f472b626] text-[14px] font-bold text-[#f472b6]"
           aria-hidden="true"
         >
-          IM
+          IV
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
-          <span className="text-[15px] font-semibold text-white">Ingabire Marie Claire</span>
-          <span className="truncate text-[13px] text-white/50">Investor · Rwanda Agriculture Board</span>
+          <span className="text-[15px] font-semibold text-white">Investor flow</span>
+          <span className="truncate text-[13px] text-white/50">Investor</span>
         </span>
         <span
           className={`inline-flex items-center gap-1.5 rounded-full border border-[#4ade8040] bg-[#4ade801a] px-2.5 py-1 text-[12px] font-semibold text-[#4ade80] transition-all delay-[1400ms] duration-500 ${
@@ -674,9 +675,9 @@ function IntroductionMockup() {
         </span>
       </div>
       <div className="flex flex-col gap-2 border-b border-white/[0.08] p-5">
-        <p className="text-[11px] font-semibold uppercase tracking-[1px] text-white/50">Introduction request · Apple crops developed</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[1px] text-white/50">Introduction request · Example venture</p>
         <blockquote className="text-[15px] leading-[1.55] text-white/70">
-          “We fund agriculture ventures that lower food costs in Rwanda. I&apos;d like to learn about your pilot and funding needs.”
+          “We fund ventures that solve a real problem. I&apos;d like to learn about your project and funding needs.”
         </blockquote>
       </div>
       <ol className="flex flex-col px-5 pb-2 pt-5">
@@ -715,6 +716,7 @@ function IntroductionMockup() {
           );
         })}
       </ol>
+      <figcaption className="border-t border-white/[0.08] px-5 py-2.5 text-[11px] font-medium uppercase tracking-[1px] text-white/40">Example flow</figcaption>
     </figure>
   );
 }
@@ -1285,7 +1287,8 @@ export default function Home() {
   // Plans are for investors: shown to visitors and investors, not to other signed-in roles.
   const showPlans = !user || user.role === 'investor';
   return (
-    <div className="min-h-screen bg-[#070d18] font-sans text-white antialiased">
+    // overflow-x-clip: cards sliding in from the side must not make phones scroll sideways.
+    <div className="min-h-screen overflow-x-clip bg-[#070d18] font-sans text-white antialiased">
       <SiteHeader />
       <main>
         <Hero stats={stats} />

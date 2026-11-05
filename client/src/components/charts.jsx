@@ -49,7 +49,7 @@ export function KpiCard({ label, value, hint, change, versus, to, className = ''
   const long = typeof value === 'string' && value.length > 8;
   const pill =
     change === null || change === undefined ? null : (
-      <span className={`adm-pill ${change > 0 ? 'adm-pill-success' : change < 0 ? 'adm-pill-warning' : 'adm-pill-neutral'} mt-2 inline-flex`}>
+      <span className={`adm-pill ${change > 0 ? 'adm-pill-success' : change < 0 ? 'adm-pill-warning' : 'adm-pill-neutral'} mt-2 inline-flex h-auto max-w-full whitespace-normal py-0.5 leading-4`}>
         {change > 0 ? '+' : ''}
         {change}% vs {versus}
       </span>

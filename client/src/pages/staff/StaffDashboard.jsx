@@ -70,7 +70,7 @@ export default function StaffDashboard() {
         <PeriodSelect value={period} onChange={(p) => setParams({ period: p }, { replace: true })} />
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+      <div className="mb-6 grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
         {data.kpis.map(({ key, ...k }) => (
           <KpiCard key={key} {...k} versus={PERIOD_VERSUS[data.period.key]} to={LINKS[key]} />
         ))}

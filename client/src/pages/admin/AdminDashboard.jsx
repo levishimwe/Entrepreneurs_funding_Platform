@@ -101,7 +101,7 @@ function Counters({ cards, keys }) {
   return (
     <section aria-label="More totals">
       <h2 className="adm-muted !mb-2 !mt-2 text-[11px] font-semibold uppercase tracking-[0.06em]">More totals</h2>
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
         {shown.map((c) => (
           <StatTile key={c.key} label={c.hint ? `${c.label} · ${c.hint}` : c.label} value={c.value} to={LINKS[c.key]} />
         ))}
@@ -155,7 +155,7 @@ export default function AdminDashboard() {
         <PeriodSelect value={period} onChange={(p) => update({ period: p })} />
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+      <div className="mb-6 grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
         {data.kpis.map(({ key, ...k }) => (
           <KpiCard key={key} {...k} versus={PERIOD_VERSUS[data.period.key]} to={LINKS[key]} />
         ))}

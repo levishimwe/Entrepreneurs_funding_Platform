@@ -390,4 +390,64 @@
   .adm-message-error {
     border-left-color: var(--adm-danger);
   }
+
+  /* The sidebar menu's own scrollbar: thin and navy so it does not crowd the links. */
+  .adm-side-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 0.25) transparent;
+  }
+
+  /* Phones and tablets (below the fixed sidebar): long words wrap instead of
+     pushing the page sideways, and controls get 44px touch targets. Wide
+     tables keep scrolling inside .adm-table-wrap. */
+  .adm h1,
+  .adm h2 {
+    overflow-wrap: break-word;
+  }
+  .adm img,
+  .adm svg,
+  .adm video {
+    max-width: 100%;
+  }
+  .adm img {
+    height: auto;
+  }
+  @media (max-width: 1023px) {
+    .adm-primary,
+    .adm-secondary,
+    .adm-btn-primary {
+      min-height: 44px;
+    }
+    .adm-input,
+    .adm-field {
+      height: 44px;
+      font-size: 16px; /* stops iOS zooming into the field */
+    }
+    textarea.adm-field {
+      height: auto;
+    }
+    .adm-btn,
+    .adm-act {
+      min-height: 44px;
+    }
+    .adm-filter-group button {
+      min-height: 44px;
+      align-items: center;
+    }
+    .adm-kv th {
+      width: 40%;
+    }
+    /* The first column (usually the title) keeps a readable width; the table
+       scrolls inside its own frame instead. */
+    .adm-table:not(.adm-kv) td:first-child {
+      min-width: 12rem;
+    }
+  }
+  @media (max-width: 479px) {
+    .adm-kv th,
+    .adm-kv td {
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+  }
 }
