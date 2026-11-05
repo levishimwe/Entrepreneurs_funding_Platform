@@ -32,7 +32,7 @@ async function latestCode(email) {
 
 // Meets the password policy (services/passwordPolicy.js) for every test name.
 const TEST_PASSWORD = 'Valid#Pass2026';
-const alumniEmail = (prefix = 'grad') => `${prefix}${unique()}@alumni.alustudent.com`;
+const alumniEmail = (prefix = 'grad', domain = 'alumni.alustudent.com') => `${prefix}${unique()}@${domain}`;
 
 // Graduate registration needs no documents: alumni email + OTP, then an administrator approves.
 async function registerGraduate(client, { fullName = 'Amina Uwase', email, password = TEST_PASSWORD } = {}) {

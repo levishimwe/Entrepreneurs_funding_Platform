@@ -4,6 +4,7 @@ const { sequelize, User, AuditLog } = require('../src/models');
 const { whenIdle } = require('../src/workers/jobs');
 const { checkPassword, clientPolicy, MESSAGE, PERSONAL_MESSAGE, COMMON_MESSAGE } = require('../src/services/passwordPolicy');
 const { TEST_ACCOUNTS } = require('./setupEnv');
+const { isAlumniEmail, alumniEmailMessage } = require('../src/config/alumniDomains');
 const { agent, registerGraduate, verifyEmail, approvedGraduate, investorClient, loginAs, latestCode, alumniEmail, unique, snapshotIds, removeRowsSince, TEST_PASSWORD } = require('./helpers');
 
 let marks;
@@ -53,14 +54,27 @@ describe('password policy', () => {
     // The client file has no imports, so it loads here as-is (ES module).
     const url = require('url').pathToFileURL(path.join(__dirname, '..', '..', 'client', 'src', 'lib', 'passwordRules.js')).href;
     const client = await import(url);
-    const policy = { alumniEmailDomain: 'alumni.alustudent.com', password: clientPolicy() };
+    const policy = { alumniEmailDomains: ['alumni.alustudent.com', 'alumni.alueducation.com'], password: clientPolicy() };
     const ctx = { email: 'kalisa.b@alumni.alustudent.com', fullName: 'Amina Uwase' };
     for (const password of ['Lavy250@', 'lavy250', 'Lavyabcd', '12345678', 'Amina#2026x', 'Kalisa#2026', 'P@ssw0rd!', 'Welcome2026!', TEST_PASSWORD, 'Ab1@xyz', 'x'.repeat(129) + 'A1@']) {
       expect({ password, client: client.passwordProblem(policy, password, ctx) }).toEqual({ password, client: checkPassword(password, ctx) });
     }
-    for (const email of ['a@alumni.alustudent.com', 'A@ALUMNI.ALUSTUDENT.COM', 'a@alustudent.com', 'a@alumni.alustudent.com.evil.com', 'a@mail.alumni.alustudent.com']) {
-      expect({ email, ok: client.isAlumniEmail(policy, email) }).toEqual({ email, ok: email.toLowerCase().endsWith('@alumni.alustudent.com') });
+    for (const email of [
+      'a@alumni.alustudent.com',
+      'A@ALUMNI.ALUSTUDENT.COM',
+      'a@Alumni.AluEducation.com',
+      'a@alustudent.com',
+      'a@alueducation.com',
+      'a@gmail.com',
+      'a@alumni.alustudent.com.evil.com',
+      'a@mail.alumni.alustudent.com',
+      'a@mail.alumni.alueducation.com',
+      'a@alumni.alueducation.co',
+      'a@alumni.alueducation.com@evil.com',
+    ]) {
+      expect({ email, client: client.isAlumniEmail(policy, email) }).toEqual({ email, client: isAlumniEmail(email, policy.alumniEmailDomains) });
     }
+    expect(client.alumniHint(policy.alumniEmailDomains)).toBe(alumniEmailMessage(policy.alumniEmailDomains));
   });
 });
 

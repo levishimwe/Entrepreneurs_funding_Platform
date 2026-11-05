@@ -5,7 +5,7 @@ import { api, ApiError } from '../lib/api';
 import { useAuth, homePathFor } from '../context/AuthContext';
 import { Alert, Field } from '../components/ui';
 import { PROGRAMS, SECTORS } from '../lib/constants';
-import { isAlumniEmail, passwordProblem, ruleStates, usePolicy } from '../lib/passwordPolicy';
+import { alumniHint, DEFAULT_ALUMNI_DOMAINS, isAlumniEmail, passwordProblem, ruleStates, usePolicy } from '../lib/passwordPolicy';
 
 // Where to go after signing in or verifying: an internal path from ?next=
 // (home-page tiles send visitors here), never an external URL.
@@ -466,7 +466,9 @@ function GraduateForm({ next }) {
   const f = useFormState({ fullName: '', email: '', password: '', phone: '', cohortYear: '', program: '', photo: null });
   const [helpOpen, setHelpOpen] = useState(false);
   const policy = usePolicy();
-  const domain = policy?.alumniEmailDomain || 'alumni.alustudent.com';
+  // The allowed domains and the hint come from the server (ALUMNI_EMAIL_DOMAINS).
+  const domains = policy?.alumniEmailDomains || DEFAULT_ALUMNI_DOMAINS;
+  const emailHint = policy?.alumniEmailMessage || alumniHint(domains);
 
   const submit = (e) => {
     e.preventDefault();
@@ -499,13 +501,13 @@ function GraduateForm({ next }) {
           />
         </LightField>
         <div>
-          <LightField id="g-email" label="ALU alumni email" error={f.errors.email} help={`Only @${domain} addresses are accepted.`}>
+          <LightField id="g-email" label="ALU alumni email" error={f.errors.email} help={emailHint}>
             <IconInput
               id="g-email"
               icon={Mail}
               type="email"
               autoComplete="email"
-              placeholder={`name@${domain}`}
+              placeholder={`name@${domains[0]}`}
               value={f.values.email}
               onChange={f.set('email')}
               error={f.errors.email}
@@ -521,7 +523,7 @@ function GraduateForm({ next }) {
           </button>
           {helpOpen && (
             <p className="mt-1.5 rounded-md bg-[#e8efff] px-3 py-2 text-[12px] leading-[1.5] text-[#1e3a8a]">
-              Ask ALU IT support to restore it first; graduate accounts need the official address.
+              Ask ALU IT support to restore it first; graduate accounts need an official {domains.map((d) => `@${d}`).join(' or ')} address.
             </p>
           )}
         </div>
@@ -742,7 +744,7 @@ const JOIN = {
       ['Administrator approval', 'An administrator approves your account, then you can submit projects.'],
     ],
     ready: [
-      ['Your ALU alumni email', 'name@alumni.alustudent.com'],
+      ['Your ALU alumni email', DEFAULT_ALUMNI_DOMAINS.map((d) => `name@${d}`).join(' or ')],
       ['Your graduation year and programme', 'As recorded by ALU'],
       ['A profile photo (optional)', 'JPEG or PNG, up to 5 MB'],
     ],
@@ -770,9 +772,11 @@ export function Register() {
   const next = safeNext(params.get('next'));
   const role = params.get('role') === 'investor' ? 'investor' : 'graduate';
   const copy = JOIN[role];
-  // The alumni domain comes from the server (ALUMNI_EMAIL_DOMAIN).
+  // The alumni domains come from the server (ALUMNI_EMAIL_DOMAINS).
   const policy = usePolicy();
-  const domainText = (text) => (policy ? text.replace('alumni.alustudent.com', policy.alumniEmailDomain) : text);
+  const defaultList = DEFAULT_ALUMNI_DOMAINS.map((d) => `name@${d}`).join(' or ');
+  const domainText = (text) =>
+    policy?.alumniEmailDomains ? text.replace(defaultList, policy.alumniEmailDomains.map((d) => `name@${d}`).join(' or ')) : text;
 
   useEffect(() => {
     document.title = 'Create your account · ALU Ventures';

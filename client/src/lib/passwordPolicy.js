@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { api } from './api';
 
-export { isAlumniEmail, passwordProblem, ruleStates } from './passwordRules';
+export { alumniHint, DEFAULT_ALUMNI_DOMAINS, isAlumniEmail, passwordProblem, ruleStates } from './passwordRules';
 
 let cached = null;
 const loadPolicy = () => {

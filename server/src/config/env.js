@@ -1,4 +1,5 @@
 const path = require('path');
+const { alumniDomainsFrom } = require('./alumniDomains');
 
 const SERVER_ROOT = path.resolve(__dirname, '..', '..');
 require('dotenv').config({ path: path.join(SERVER_ROOT, '.env'), quiet: true });
@@ -71,9 +72,10 @@ const env = {
     .map((k) => (process.env[k] || '').trim().toLowerCase())
     .filter(Boolean),
 
-  // The one email domain accepted for NEW graduate registrations. Existing
-  // accounts, admin/staff and investors are not affected.
-  alumniDomain: (process.env.ALUMNI_EMAIL_DOMAIN || 'alumni.alustudent.com').trim().toLowerCase().replace(/^@/, ''),
+  // The email domains accepted for NEW graduate registrations
+  // (ALUMNI_EMAIL_DOMAINS, falling back to the older ALUMNI_EMAIL_DOMAIN).
+  // Existing accounts, admin/staff and investors are not affected.
+  alumniDomains: alumniDomainsFrom(process.env),
 
   storage: {
     // Tests always use the local driver, whatever server/.env says.

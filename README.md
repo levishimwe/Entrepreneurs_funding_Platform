@@ -44,7 +44,7 @@ ALU graduates build ventures, but they have no verified, trusted place to show t
 
 ALU Ventures is a web platform that:
 
-- **verifies people and ventures**: graduates register with an `@alumni.alustudent.com` email confirmed by a one-time code, and an administrator then approves each graduate account; registered companies also upload an RDB certificate. Automated checks read each company document and label it *Likely Valid* or *Suspicious*. An administrator always makes the final decision;
+- **verifies people and ventures**: graduates register with an `@alumni.alustudent.com` or `@alumni.alueducation.com` email confirmed by a one-time code, and an administrator then approves each graduate account; registered companies also upload an RDB certificate. Automated checks read each company document and label it *Likely Valid* or *Suspicious*. An administrator always makes the final decision;
 - **lists approved ventures** publicly (only with the founder's consent) and for approved investors, with filters;
 - **connects investors and founders through consent**: an investor requests an introduction, and contact details are shared only after the graduate accepts;
 - **runs opportunities**: staff propose hackathons, grants and competitions, the administrator publishes them, graduates apply with an approved project, staff record selection decisions and results, and the administrator approves the results;
@@ -54,7 +54,7 @@ ALU Ventures is a web platform that:
 
 | Role | How the account is created | What they do |
 | --- | --- | --- |
-| **Graduate** | Self-registration with an `@alumni.alustudent.com` email and an email code; the administrator approves the account before projects can be submitted | Submit and revise ventures, answer similarity clarifications, accept or decline introductions, apply to opportunities, publish a public profile and short posts, contact the administrator |
+| **Graduate** | Self-registration with an `@alumni.alustudent.com` or `@alumni.alueducation.com` email and an email code; the administrator approves the account before projects can be submitted | Submit and revise ventures, answer similarity clarifications, accept or decline introductions, apply to opportunities, publish a public profile and short posts, contact the administrator |
 | **Investor / Sponsor** | Self-registration with organisation, website and interests; approved by the administrator | Browse and filter approved ventures, request introductions, confirm meetings and investments, view graduate profiles and posts, report a post |
 | **Administrator** | Provisioned by the seed script from environment variables (never self-assigned) | Approve accounts and projects, review document checks and similarity flags, publish opportunities, approve competition results, record investments, moderate testimonies and posts, manage the email outbox, rules and records, and view dashboards |
 | **Staff** | Provisioned by the seed script (two staff accounts) | Propose opportunities, review applicants and record shortlist / selected / not-selected decisions, mark events completed, record results, and view the staff dashboard |
@@ -88,7 +88,7 @@ Status is based on what the code and the automated tests actually do. FR/NFR num
 | Planned Feature | Intended Purpose | Current Status | Evidence |
 | --- | --- | --- | --- |
 | FR01 Free platform access, billing placeholder | No role is charged; premium plans shown only as "Coming soon" | **Completed** | `client/src/pages/investor/Billing.jsx` · screenshot `docs/screenshots/investor-billing.png` |
-| FR02 Graduate registration (alumni domain, OTP, admin approval) | Only real ALU graduates get graduate status | **Partial**: the OTP is sent by email only; SMS delivery was not built because no SMS gateway was set up for the pilot. On the supervisor's advice the degree-certificate upload and its automated check were removed: only `@alumni.alustudent.com` addresses are accepted (checked on the server), and the administrator approves each graduate after the OTP. Certificates uploaded earlier are kept but no longer used | `server/src/routes/auth.js`, `server/src/services/otp.js`, `server/tests/auth.test.js`, `server/tests/uploads.test.js` · `docs/screenshots/register-graduate.png` |
+| FR02 Graduate registration (alumni domain, OTP, admin approval) | Only real ALU graduates get graduate status | **Partial**: the OTP is sent by email only; SMS delivery was not built because no SMS gateway was set up for the pilot. On the supervisor's advice the degree-certificate upload and its automated check were removed: only `@alumni.alustudent.com` and `@alumni.alueducation.com` addresses are accepted (exact domain match, checked on the server), and the administrator approves each graduate after the OTP. Certificates uploaded earlier are kept but no longer used | `server/src/routes/auth.js`, `server/src/services/otp.js`, `server/tests/auth.test.js`, `server/tests/uploads.test.js` · `docs/screenshots/register-graduate.png` |
 | FR03 Investor registration and controlled staff provisioning | Vetted investors; no self-assigned privileged roles | **Completed** | `server/src/routes/auth.js` (`/register/investor`), `server/scripts/seed.js`, `server/tests/seed.test.js`, `server/tests/access.test.js` |
 | FR04 Project submission and revision | Idea or company ventures with evidence; changes trigger renewed review | **Completed** | `server/src/routes/projects.js`, `client/src/pages/graduate/ProjectForm.jsx`, `server/tests/projects.test.js` · `docs/screenshots/project-form.png` |
 | FR05 OCR-assisted RDB certificate review | Flag registration certificates as Likely Valid / Suspicious for the admin | **Completed**, extended: Gemini can be the primary reader, and Tesseract always runs as the fallback | `server/src/services/verification/documentVerifier.js`, `server/tests/verification.test.js`, `server/tests/gemini.test.js` · `docs/screenshots/admin-document-checks.png` |
@@ -312,7 +312,7 @@ cd client
 npm run dev            # web app on http://localhost:5173
 ```
 
-Open **http://localhost:5173**. Sign in with the admin account from your `.env`, or register a graduate (an address at `ALUMNI_EMAIL_DOMAIN`, default `alumni.alustudent.com`) or an investor. Sample synthetic certificates for testing uploads are in `server/samples/` (regenerate them with `npm run samples` in `server/`).
+Open **http://localhost:5173**. Sign in with the admin account from your `.env`, or register a graduate (an address at one of the `ALUMNI_EMAIL_DOMAINS`, default `alumni.alustudent.com` and `alumni.alueducation.com`) or an investor. Sample synthetic certificates for testing uploads are in `server/samples/` (regenerate them with `npm run samples` in `server/`).
 
 ### 5.7 Run the tests
 
@@ -343,7 +343,7 @@ All variables belong to `server/.env` (locally) or the Render service (productio
 | `CLIENT_URL` | Allowed browser origin(s), comma-separated; the first is used in email links | Optional (default `http://localhost:5173`) |
 | `JWT_SECRET` | Signs session tokens and keys the OTP hash | **Required** |
 | `SESSION_HOURS` | Session length in hours | Optional (default `12`) |
-| `ALUMNI_EMAIL_DOMAIN` | The only email domain accepted for new graduate registrations (exact match, case-insensitive). Existing accounts, admin, staff and investors are not affected | Optional (default `alumni.alustudent.com`) |
+| `ALUMNI_EMAIL_DOMAINS` | Comma-separated email domains accepted for new graduate registrations (exact match after the last `@`, case-insensitive). The older single `ALUMNI_EMAIL_DOMAIN` is used only when this is not set. Existing accounts, admin, staff and investors are not affected | Optional (default `alumni.alustudent.com,alumni.alueducation.com`) |
 | `TRUST_PROXY` | Number of proxies in front of Express (`2` behind Vercel + Render) | Optional (default `1`) |
 | `COOKIE_SECURE` | Force the cookie's `Secure` flag (`true`/`false`) | Optional (default: on in production) |
 | `COOKIE_SAMESITE` | Cookie `SameSite` value | Optional (default `lax`) |
@@ -528,7 +528,7 @@ After deploying, check `https://entrepreneurs-funding-platform.onrender.com/api/
 
 ## 12. Test accounts
 
-No passwords are published in this repository. To try the administrator, staff, graduate or investor views on the live site, **please request test credentials from the author**, Levis Ishimwe. You can also register your own graduate account (an `@alumni.alustudent.com` email is required) or investor account; an administrator then approves it.
+No passwords are published in this repository. To try the administrator, staff, graduate or investor views on the live site, **please request test credentials from the author**, Levis Ishimwe. You can also register your own graduate account (an `@alumni.alustudent.com` or `@alumni.alueducation.com` email is required) or investor account; an administrator then approves it.
 
 ---
 

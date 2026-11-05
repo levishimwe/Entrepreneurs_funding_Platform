@@ -29,10 +29,14 @@ export function passwordProblem(policy, value, { email, fullName } = {}) {
   return null;
 }
 
-// Exactly the configured domain after the last "@", like the server.
+// Shown only until the policy has loaded; the server's list then replaces it.
+export const DEFAULT_ALUMNI_DOMAINS = ['alumni.alustudent.com', 'alumni.alueducation.com'];
+export const alumniHint = (domains) => `Use your ALU alumni email (${domains.map((d) => `name@${d}`).join(' or ')}).`;
+
+// Exactly one of the server's domains after the last "@", like the server.
 export function isAlumniEmail(policy, email) {
   if (!policy) return true;
   const v = String(email || '').trim().toLowerCase();
   const at = v.lastIndexOf('@');
-  return at > 0 && v.slice(at + 1) === policy.alumniEmailDomain;
+  return at > 0 && (policy.alumniEmailDomains || []).includes(v.slice(at + 1));
 }

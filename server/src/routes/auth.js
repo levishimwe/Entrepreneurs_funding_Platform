@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { z } = require('zod');
 const env = require('../config/env');
+const { isAlumniEmail: isAlumniAddress, alumniEmailMessage } = require('../config/alumniDomains');
 const { sequelize, User, GraduateProfile, InvestorProfile } = require('../models');
 const { badRequest, conflict, HttpError } = require('../middleware/errors');
 const { upload, validatePhoto } = require('../middleware/upload');
@@ -34,14 +35,10 @@ const email = z
 const password = z.string().max(MAX_LENGTH, `Password must be at most ${MAX_LENGTH} characters.`);
 const fullName = z.string().trim().min(3, 'Enter your full name.').max(150);
 
-// Exactly the configured domain after the last "@": look-alikes such as
-// alumni.alustudent.com.evil.com, mail.alumni.alustudent.com or
-// alumni.alustudent.co do not match. The address is already lower-cased.
-const ALUMNI_MESSAGE = `Use your ALU alumni email (name@${env.alumniDomain})`;
-const isAlumniEmail = (address) => {
-  const at = address.lastIndexOf('@');
-  return at > 0 && address.slice(at + 1) === env.alumniDomain;
-};
+// Exactly one of the configured domains after the last "@" (see
+// config/alumniDomains.js); look-alike domains do not match.
+const ALUMNI_MESSAGE = alumniEmailMessage(env.alumniDomains);
+const isAlumniEmail = (address) => isAlumniAddress(address, env.alumniDomains);
 
 // Adds the password-policy result as a field error on `password`.
 const strongPassword = (schema) =>
@@ -197,7 +194,7 @@ async function ensureEmailAvailable(address) {
 // --- Registration ---
 // The rules the forms show and check while typing (the server checks again).
 router.get('/policy', (req, res) => {
-  res.json({ alumniEmailDomain: env.alumniDomain, alumniEmailMessage: ALUMNI_MESSAGE, password: clientPolicy() });
+  res.json({ alumniEmailDomains: env.alumniDomains, alumniEmailMessage: ALUMNI_MESSAGE, password: clientPolicy() });
 });
 
 // A degree certificate is no longer asked for. A form loaded before that

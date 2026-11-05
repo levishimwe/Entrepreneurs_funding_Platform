@@ -1,7 +1,9 @@
+const bcrypt = require('bcryptjs');
 const { sequelize, User, GraduateProfile, Document, AuthToken } = require('../src/models');
+const { alumniDomainsFrom, isAlumniEmail, DEFAULT_ALUMNI_DOMAINS } = require('../src/config/alumniDomains');
 const { whenIdle } = require('../src/workers/jobs');
 const { shutdown } = require('../src/services/verification/textExtraction');
-const { agent, latestCode, registerGraduate, verifyEmail, unique, sample, alumniEmail, TEST_PASSWORD } = require('./helpers');
+const { agent, latestCode, registerGraduate, verifyEmail, unique, sample, alumniEmail, snapshotIds, removeRowsSince, TEST_PASSWORD } = require('./helpers');
 
 require('./helpers').stubOcr();
 
@@ -13,10 +15,10 @@ afterAll(async () => {
 
 const otherCode = (code) => (code === '123456' ? '654321' : '123456');
 
-const ALUMNI_MESSAGE = 'Use your ALU alumni email (name@alumni.alustudent.com)';
+const ALUMNI_MESSAGE = 'Use your ALU alumni email (name@alumni.alustudent.com or name@alumni.alueducation.com).';
 
 describe('graduate registration (FR02)', () => {
-  test('only @alumni.alustudent.com is accepted: other domains and look-alikes are rejected on the server', async () => {
+  test('only @alumni.alustudent.com and @alumni.alueducation.com are accepted: other domains and look-alikes are rejected on the server', async () => {
     const id = unique();
     for (const email of [
       `someone${id}@gmail.com`,
@@ -26,25 +28,87 @@ describe('graduate registration (FR02)', () => {
       `someone${id}@mail.alumni.alustudent.com`,
       `someone${id}@alumni.alustudent.co`,
       `someone${id}@alumni-alustudent.com`,
+      `someone${id}@alumni.alueducation.com.evil.com`,
+      `someone${id}@mail.alumni.alueducation.com`,
+      `someone${id}@alumni.alueducation.co`,
     ]) {
       const { res } = await registerGraduate(agent(), { email });
       expect({ email, status: res.status }).toEqual({ email, status: 400 });
       expect(res.body.fields.email).toBe(ALUMNI_MESSAGE);
       expect(await User.count({ where: { email } })).toBe(0);
     }
+    // An allowed domain followed by another "@": the part after the last "@" decides.
+    const sneaky = `someone${id}@alumni.alueducation.com@evil.com`;
+    const { res } = await registerGraduate(agent(), { email: sneaky });
+    expect(res.status).toBe(400);
+    expect(res.body.fields.email).toBeTruthy();
+    expect(await User.count({ where: { email: sneaky } })).toBe(0);
+    expect(isAlumniEmail(sneaky, DEFAULT_ALUMNI_DOMAINS)).toBe(false);
   });
 
-  test('the domain match is case-insensitive and the address is stored in lower case', async () => {
-    const email = `Grad${unique()}@ALUMNI.AluStudent.COM`;
+  test.each([
+    ['alumni.alustudent.com', 'ALUMNI.AluStudent.COM'],
+    ['alumni.alueducation.com', 'Alumni.ALUEducation.com'],
+  ])('@%s is accepted, case-insensitively, and stored in lower case', async (_, domain) => {
+    const email = `Grad${unique()}@${domain}`;
     const { res } = await registerGraduate(agent(), { email });
     expect(res.status).toBe(201);
     expect(res.body.email).toBe(email.toLowerCase());
+    const user = await User.findOne({ where: { email: email.toLowerCase() } });
+    expect(user).toMatchObject({ role: 'graduate', status: 'pending_email' });
+  });
+
+  test('the same name at the two domains is two different people', async () => {
+    const name = `twin${unique()}`;
+    const a = await registerGraduate(agent(), { email: `${name}@alumni.alustudent.com` });
+    const b = await registerGraduate(agent(), { email: `${name}@alumni.alueducation.com` });
+    expect([a.res.status, b.res.status]).toEqual([201, 201]);
+    expect(await User.count({ where: { email: [`${name}@alumni.alustudent.com`, `${name}@alumni.alueducation.com`] } })).toBe(2);
+  });
+
+  test('ALUMNI_EMAIL_DOMAINS is read as a trimmed, lower-cased list; the old single ALUMNI_EMAIL_DOMAIN is only a fallback', () => {
+    expect(alumniDomainsFrom({})).toEqual(['alumni.alustudent.com', 'alumni.alueducation.com']);
+    expect(alumniDomainsFrom({ ALUMNI_EMAIL_DOMAINS: ' Alumni.ALUStudent.com , @alumni.alueducation.com ,' })).toEqual([
+      'alumni.alustudent.com',
+      'alumni.alueducation.com',
+    ]);
+    expect(alumniDomainsFrom({ ALUMNI_EMAIL_DOMAIN: 'Alumni.AluStudent.com' })).toEqual(['alumni.alustudent.com']);
+    expect(alumniDomainsFrom({ ALUMNI_EMAIL_DOMAIN: 'old.example.org', ALUMNI_EMAIL_DOMAINS: 'alumni.alueducation.com' })).toEqual(['alumni.alueducation.com']);
+    expect(alumniDomainsFrom({ ALUMNI_EMAIL_DOMAIN: '  ', ALUMNI_EMAIL_DOMAINS: '' })).toEqual(['alumni.alustudent.com', 'alumni.alueducation.com']);
+    // With the fallback only that domain matches.
+    const legacy = alumniDomainsFrom({ ALUMNI_EMAIL_DOMAIN: 'alumni.alustudent.com' });
+    expect(isAlumniEmail('a@alumni.alustudent.com', legacy)).toBe(true);
+    expect(isAlumniEmail('a@alumni.alueducation.com', legacy)).toBe(false);
+  });
+
+  test('existing accounts at other domains still sign in, and investor registration is unaffected', async () => {
+    const marks = await snapshotIds();
+    const id = unique();
+    const old = [];
+    for (const [email, role] of [
+      [`legacy${id}@alueducation.com`, 'graduate'],
+      [`legacy${id}@alustudent.com`, 'graduate'],
+      [`legacy-investor${id}@gmail.com`, 'investor'],
+    ]) {
+      old.push(await User.create({ email, fullName: 'Legacy Member', role, status: 'active', emailVerifiedAt: new Date(), passwordHash: await bcrypt.hash(TEST_PASSWORD, 4) }));
+    }
+    for (const user of old) {
+      const res = await agent().post('/api/auth/login').send({ email: user.email, password: TEST_PASSWORD });
+      expect({ email: user.email, status: res.status }).toEqual({ email: user.email, status: 200 });
+    }
+    const email = `investor${id}@gmail.com`;
+    const res = await agent()
+      .post('/api/auth/register/investor')
+      .send({ fullName: 'Grace Mutoni', email, password: TEST_PASSWORD, organisation: 'Kigali Angels', sectors: ['Agriculture'] });
+    expect(res.status).toBe(201);
+    // These users, their sign-in records and the investor, removed by id.
+    await removeRowsSince(marks);
   });
 
   test('the registration rules are published for the forms', async () => {
     const res = await agent().get('/api/auth/policy');
     expect(res.status).toBe(200);
-    expect(res.body.alumniEmailDomain).toBe('alumni.alustudent.com');
+    expect(res.body.alumniEmailDomains).toEqual(['alumni.alustudent.com', 'alumni.alueducation.com']);
     expect(res.body.alumniEmailMessage).toBe(ALUMNI_MESSAGE);
     expect(res.body.password.rules.map((r) => r.key)).toEqual(['length', 'upper', 'lower', 'digit', 'special']);
   });

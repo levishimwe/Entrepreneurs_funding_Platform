@@ -263,7 +263,7 @@ const TRUST = [
     eyebrow: 'Verified graduates',
     title: 'Every founder is a real ALU graduate',
     body: 'Each founder registers with an ALU alumni email confirmed by a one-time code, and an administrator approves the account.',
-    steps: ['@alumni.alustudent.com address', 'One-time code verified', 'Administrator approved'],
+    steps: ['@alumni.alustudent.com or @alumni.alueducation.com address', 'One-time code verified', 'Administrator approved'],
   },
   {
     icon: FileSearch,
