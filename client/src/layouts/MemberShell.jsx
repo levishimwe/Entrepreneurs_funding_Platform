@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ChevronRight, CircleHelp, FileText, Handshake, House, Mail, Menu, PenLine, Search, Settings, Trophy, User, Medal, X } from 'lucide-react';
 import { useAuth, homePathFor } from '../context/AuthContext';
 import { initials } from '../components/Avatar';
+import Logo from '../components/site/Logo';
 
 // Shell for graduates and investors: a light sidebar of text links (one thin
 // grey outline icon each), a top bar with search, Explore, one outlined
@@ -220,9 +221,7 @@ export default function MemberShell() {
             >
               <Menu className="h-5 w-5" strokeWidth={1.5} />
             </button>
-            <Link to={homePathFor(user)} className="shrink-0 lg:hidden" aria-label="ALU Ventures home">
-              <img src="/alu-logo.png" alt="African Leadership University" className="h-7 w-auto max-w-none rounded-[3px]" />
-            </Link>
+            <Logo to={homePathFor(user)} size={28} name={null} label="ALU Ventures home" className="shrink-0 lg:hidden" />
             <form
               role="search"
               className="relative hidden w-full max-w-[300px] sm:block"

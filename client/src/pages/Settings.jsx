@@ -481,10 +481,10 @@ export default function Settings() {
   }, [current]);
 
   const tab = ({ isActive }) =>
-    `border-b-2 py-2 text-[13px] ${isActive ? 'border-[var(--adm-accent)] font-semibold' : 'adm-muted border-transparent hover:text-[var(--adm-text)]'}`;
+    `flex min-h-11 shrink-0 items-center border-b-2 text-[13px] ${isActive ? 'border-[var(--adm-accent)] font-semibold' : 'adm-muted border-transparent hover:text-[var(--adm-text)]'}`;
   return (
     <AdminPage title="Account settings">
-      <nav className="mb-4 flex gap-6 border-b border-[var(--adm-border)]" aria-label="Settings">
+      <nav className="mb-4 flex gap-6 overflow-x-auto whitespace-nowrap border-b border-[var(--adm-border)]" aria-label="Settings">
         <NavLink to="/app/settings" end className={tab}>
           Profile
         </NavLink>
@@ -502,7 +502,7 @@ export default function Settings() {
           </NavLink>
         )}
         {member && (
-          <Link to="/app/contact" className="adm-muted border-b-2 border-transparent py-2 text-[13px] hover:text-[var(--adm-text)]">
+          <Link to="/app/contact" className="adm-muted flex min-h-11 shrink-0 items-center border-b-2 border-transparent text-[13px] hover:text-[var(--adm-text)]">
             Contact admin
           </Link>
         )}

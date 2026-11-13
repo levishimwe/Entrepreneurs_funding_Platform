@@ -80,18 +80,18 @@ function DarkField({ id, label, error, help, children }) {
 // phone; everything else is text.
 
 const INPUT =
-  'h-10 w-full rounded-md border bg-white px-3 text-[14px] text-[#111827] outline-none transition-[border-color,box-shadow] placeholder:text-[#8a94a3] focus:border-[#2563eb] focus:ring-[3px] focus:ring-[#2563eb]/15';
-const inputTone = (error) => (error ? 'border-[#dc2626]' : 'border-[#d9dfe7] hover:border-[#c3ccd8]');
+  'h-11 w-full rounded-md border bg-s-card px-3 lg:h-10 text-[14px] text-s-ink outline-none transition-[border-color,box-shadow] placeholder:text-s-faint focus:border-[#2563eb] focus:ring-[3px] focus:ring-[#2563eb]/15';
+const inputTone = (error) => (error ? 'border-[#dc2626] dark:border-[#f87171]' : 'border-s-line-2 hover:border-s-line-3');
 const SUBMIT =
   'inline-flex h-11 w-full items-center justify-center rounded-md bg-[#2563eb] text-[14px] font-semibold text-white transition-colors hover:bg-[#1d4ed8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb] disabled:cursor-not-allowed disabled:opacity-60';
-const LINK = 'font-semibold text-[#2563eb] hover:underline';
+const LINK = 'font-semibold text-s-link hover:underline';
 
 function FormAlert({ tone = 'error', children }) {
   if (!children) return null;
   const tones = {
-    error: 'border-[#f5c2c2] bg-[#fdeaea] text-[#991b1b]',
-    success: 'border-[#bfe5cb] bg-[#e7f6ec] text-[#166534]',
-    info: 'border-[#c7d7fe] bg-[#e8efff] text-[#1e40af]',
+    error: 'border-[#f5c2c2] dark:border-[#7f1d1d] bg-[#fdeaea] dark:bg-[#3a1717] text-[#991b1b] dark:text-[#fca5a5]',
+    success: 'border-[#bfe5cb] dark:border-[#14532d] bg-[#e7f6ec] dark:bg-[#13301f] text-[#166534] dark:text-[#86efac]',
+    info: 'border-[#c7d7fe] dark:border-[#1e3a8a] bg-s-accent-soft text-s-accent',
   };
   return (
     <div role={tone === 'error' ? 'alert' : 'status'} className={`rounded-md border px-3 py-2.5 text-[13px] ${tones[tone]}`}>
@@ -105,18 +105,18 @@ function LightField({ id, label, error, help, aside, children }) {
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between gap-3">
-        <label htmlFor={id} className="text-[13px] font-semibold text-[#111827]">
+        <label htmlFor={id} className="text-[13px] font-semibold text-s-ink">
           {label}
         </label>
         {aside}
       </div>
       {children}
       {error ? (
-        <p id={`${id}-error`} className="mt-1.5 text-[12px] text-[#b91c1c]">
+        <p id={`${id}-error`} className="mt-1.5 text-[12px] text-[#b91c1c] dark:text-[#f87171]">
           {error}
         </p>
       ) : (
-        help && <p className="mt-1.5 text-[12px] leading-[1.5] text-[#5b6676]">{help}</p>
+        help && <p className="mt-1.5 text-[12px] leading-[1.5] text-s-muted">{help}</p>
       )}
     </div>
   );
@@ -126,7 +126,7 @@ function LightField({ id, label, error, help, aside, children }) {
 function IconInput({ icon: Icon, error, trailing, className = '', ...props }) {
   return (
     <div className="relative">
-      {Icon && <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8a94a3]" aria-hidden="true" />}
+      {Icon && <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-s-faint" aria-hidden="true" />}
       <input
         className={`${INPUT} ${inputTone(error)} ${Icon ? 'pl-9' : ''} ${trailing ? 'pr-10' : ''} ${className}`}
         aria-invalid={error ? true : undefined}
@@ -154,7 +154,7 @@ function PasswordInput({ id, value, onChange, error, autoComplete, placeholder }
         <button
           type="button"
           onClick={() => setShown((s) => !s)}
-          className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded text-[#5b6676] hover:text-[#111827] focus-visible:outline-2 focus-visible:outline-[#2563eb]"
+          className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded text-s-muted lg:right-1 lg:h-9 lg:w-9 hover:text-s-ink focus-visible:outline-2 focus-visible:outline-[#2563eb]"
           aria-label={shown ? 'Hide password' : 'Show password'}
           aria-pressed={shown}
         >
@@ -177,7 +177,7 @@ export function PasswordRules({ value, email, fullName, policy: given }) {
     <>
       <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px]" aria-label="Password rules">
         {rules.map((r) => (
-          <li key={r.key} className={`flex items-center gap-1.5 ${r.met ? 'text-[#15803d]' : 'text-[#5b6676]'}`}>
+          <li key={r.key} className={`flex items-center gap-1.5 ${r.met ? 'text-[#15803d] dark:text-[#4ade80]' : 'text-s-muted'}`}>
             <span className={`h-3 w-3 rounded-full border transition-colors ${r.met ? 'border-[#15803d] bg-[#15803d]' : 'border-[#8a94a3]'}`} aria-hidden="true" />
             {r.label}
             <span className="sr-only">{r.met ? ' (met)' : ' (not met yet)'}</span>
@@ -185,7 +185,7 @@ export function PasswordRules({ value, email, fullName, policy: given }) {
         ))}
       </ul>
       {problem && (
-        <p className="mt-1.5 text-[12px] text-[#b45309]" aria-live="polite">
+        <p className="mt-1.5 text-[12px] text-[#b45309] dark:text-[#fbbf24]" aria-live="polite">
           {problem}
         </p>
       )}
@@ -209,20 +209,20 @@ function SelectInput({ id, value, onChange, error, children }) {
       <select id={id} value={value} onChange={onChange} className={`${INPUT} ${inputTone(error)} appearance-none pr-9`} aria-invalid={error ? true : undefined}>
         {children}
       </select>
-      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5b6676]" aria-hidden="true" />
+      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-s-muted" aria-hidden="true" />
     </div>
   );
 }
 
 function FormSection({ title, subtitle, optional, children }) {
   return (
-    <section className="border-t border-[#e3e8ef] pt-6 first:border-t-0 first:pt-0">
+    <section className="border-t border-s-line pt-6 first:border-t-0 first:pt-0">
       <div className="mb-5 flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-[16px] font-semibold text-[#111827]">{title}</h2>
-          {subtitle && <p className="mt-0.5 text-[13px] text-[#5b6676]">{subtitle}</p>}
+          <h2 className="text-[16px] font-semibold text-s-ink">{title}</h2>
+          {subtitle && <p className="mt-0.5 text-[13px] text-s-muted">{subtitle}</p>}
         </div>
-        {optional && <span className="rounded-full bg-[#eef1f5] px-2 py-0.5 text-[11px] font-medium text-[#5b6676]">Optional</span>}
+        {optional && <span className="rounded-full bg-s-fill px-2 py-0.5 text-[11px] font-medium text-s-muted">Optional</span>}
       </div>
       <div className="space-y-5">{children}</div>
     </section>
@@ -256,7 +256,7 @@ function SplitPage({ panel, children }) {
   return (
     <div className="flex flex-1 flex-col lg:flex-row">
       {panel}
-      <div className="flex flex-1 justify-center bg-[#f4f6f9] px-4 py-12 sm:px-8 lg:py-[72px]">{children}</div>
+      <div className="flex flex-1 justify-center bg-s-canvas px-4 py-12 sm:px-8 lg:py-[72px]">{children}</div>
     </div>
   );
 }
@@ -318,9 +318,9 @@ export function SignIn() {
       }
     >
       <div className="w-full max-w-[440px] self-center">
-        <h1 className="text-[30px] font-semibold tracking-[-0.6px] text-[#111827]">Sign in</h1>
-        <p className="mt-1.5 text-[14px] text-[#5b6676]">For graduates, investors, sponsors and ALU staff.</p>
-        <div className="mt-7 rounded-lg border border-[#e3e8ef] bg-white p-6 shadow-[0_1px_2px_rgba(16,24,40,0.04)] sm:p-8">
+        <h1 className="text-[30px] font-semibold tracking-[-0.6px] text-s-ink">Sign in</h1>
+        <p className="mt-1.5 text-[14px] text-s-muted">For graduates, investors, sponsors and ALU staff.</p>
+        <div className="mt-7 rounded-lg border border-s-line bg-s-card p-6 shadow-[0_1px_2px_rgba(16,24,40,0.04)] sm:p-8">
           <form onSubmit={submit} className="space-y-5" noValidate>
             <FormAlert>{f.error}</FormAlert>
             {location.state?.message && <FormAlert tone="success">{location.state.message}</FormAlert>}
@@ -342,7 +342,7 @@ export function SignIn() {
               label="Password"
               error={f.errors.password}
               aside={
-                <Link to="/forgot-password" className="text-[12px] font-semibold text-[#2563eb] hover:underline">
+                <Link to="/forgot-password" className="-my-3 inline-flex min-h-11 items-center text-[12px] font-semibold text-s-link hover:underline lg:my-0 lg:min-h-0">
                   Forgot password?
                 </Link>
               }
@@ -360,19 +360,19 @@ export function SignIn() {
               {f.busy ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
-          <div className="my-6 flex items-center gap-3 text-[12px] text-[#5b6676]">
-            <span className="h-px flex-1 bg-[#e3e8ef]" />
+          <div className="my-6 flex items-center gap-3 text-[12px] text-s-muted">
+            <span className="h-px flex-1 bg-s-fill-2" />
             New to ALU Ventures?
-            <span className="h-px flex-1 bg-[#e3e8ef]" />
+            <span className="h-px flex-1 bg-s-fill-2" />
           </div>
           <Link
             to={withNext('/register', next)}
-            className="inline-flex h-11 w-full items-center justify-center rounded-md border border-[#d9dfe7] bg-white text-[14px] font-semibold text-[#111827] transition-colors hover:border-[#c3ccd8] hover:bg-[#f9fafb]"
+            className="inline-flex h-11 w-full items-center justify-center rounded-md border border-s-line-2 bg-s-card text-[14px] font-semibold text-s-ink transition-colors hover:border-s-line-3 hover:bg-s-subtle"
           >
             Create a free account
           </Link>
         </div>
-        <p className="mt-6 text-[13px] leading-[1.55] text-[#5b6676]">
+        <p className="mt-6 text-[13px] leading-[1.55] text-s-muted">
           Haven&apos;t verified your email yet? Sign in as usual and we&apos;ll send you a new 6-digit code.
         </p>
       </div>
@@ -413,16 +413,16 @@ function PhoneAndPhoto({ f, prefix }) {
           />
         </LightField>
         <div>
-          <p className="mb-1.5 text-[13px] font-semibold text-[#111827]">Profile photo</p>
+          <p className="mb-1.5 text-[13px] font-semibold text-s-ink">Profile photo</p>
           <div className="flex items-center gap-3">
             {preview ? (
-              <img src={preview} alt="Selected profile photo" className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-[#e3e8ef]" />
+              <img src={preview} alt="Selected profile photo" className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-s-line" />
             ) : (
-              <span className="h-10 w-10 shrink-0 rounded-full bg-[#eef1f5] ring-1 ring-[#e3e8ef]" aria-hidden="true" />
+              <span className="h-10 w-10 shrink-0 rounded-full bg-s-fill ring-1 ring-s-line" aria-hidden="true" />
             )}
             <label
               htmlFor={`${prefix}-photo`}
-              className="inline-flex h-9 cursor-pointer items-center rounded-md border border-[#d9dfe7] bg-white px-3 text-[13px] font-semibold text-[#111827] transition-colors hover:bg-[#f9fafb] focus-within:outline-2 focus-within:outline-[#2563eb]"
+              className="inline-flex h-9 cursor-pointer items-center rounded-md border border-s-line-2 bg-s-card px-3 text-[13px] font-semibold text-s-ink transition-colors hover:bg-s-subtle focus-within:outline-2 focus-within:outline-[#2563eb]"
             >
               {f.values.photo ? 'Change photo' : 'Upload photo'}
               <input
@@ -439,7 +439,7 @@ function PhoneAndPhoto({ f, prefix }) {
             {f.values.photo && (
               <button
                 type="button"
-                className="text-[13px] font-semibold text-[#b91c1c] hover:underline"
+                className="text-[13px] font-semibold text-[#b91c1c] dark:text-[#f87171] hover:underline"
                 onClick={() => {
                   f.set('photo')(null);
                   setPreview(null);
@@ -450,9 +450,9 @@ function PhoneAndPhoto({ f, prefix }) {
             )}
           </div>
           {photoError || f.errors.profilePhoto ? (
-            <p className="mt-1.5 text-[12px] text-[#b91c1c]">{photoError || f.errors.profilePhoto}</p>
+            <p className="mt-1.5 text-[12px] text-[#b91c1c] dark:text-[#f87171]">{photoError || f.errors.profilePhoto}</p>
           ) : (
-            <p className="mt-1.5 text-[12px] text-[#5b6676]">JPEG or PNG, up to 5 MB.</p>
+            <p className="mt-1.5 text-[12px] text-s-muted">JPEG or PNG, up to 5 MB.</p>
           )}
         </div>
       </div>
@@ -515,14 +515,14 @@ function GraduateForm({ next }) {
           </LightField>
           <button
             type="button"
-            className="mt-1.5 text-[12px] font-semibold text-[#2563eb] hover:underline"
+            className="inline-flex min-h-11 items-center text-[12px] font-semibold text-s-link hover:underline lg:mt-1.5 lg:min-h-0"
             aria-expanded={helpOpen}
             onClick={() => setHelpOpen((o) => !o)}
           >
             No access to your alumni email?
           </button>
           {helpOpen && (
-            <p className="mt-1.5 rounded-md bg-[#e8efff] px-3 py-2 text-[12px] leading-[1.5] text-[#1e3a8a]">
+            <p className="mt-1.5 rounded-md bg-s-accent-soft px-3 py-2 text-[12px] leading-[1.5] text-s-accent">
               Ask ALU IT support to restore it first; graduate accounts need an official {domains.map((d) => `@${d}`).join(' or ')} address.
             </p>
           )}
@@ -565,11 +565,11 @@ function GraduateForm({ next }) {
 
       <PhoneAndPhoto f={f} prefix="g" />
 
-      <div className="border-t border-[#e3e8ef] pt-6">
+      <div className="border-t border-s-line pt-6">
         <button type="submit" className={SUBMIT} disabled={f.busy}>
           {f.busy ? 'Creating account…' : 'Create graduate account'}
         </button>
-        <p className="mt-3 text-center text-[12px] text-[#5b6676]">
+        <p className="mt-3 text-center text-[12px] text-s-muted">
           Next, we&apos;ll email you a 6-digit code to verify your address. An administrator then approves your account.
         </p>
       </div>
@@ -650,7 +650,7 @@ function InvestorForm({ next }) {
 
       <FormSection title="Your organisation" subtitle="An administrator reviews these details before approving access.">
         <fieldset>
-          <legend className="mb-1.5 text-[13px] font-semibold text-[#111827]">I am joining as</legend>
+          <legend className="mb-1.5 text-[13px] font-semibold text-s-ink">I am joining as</legend>
           <div className="grid grid-cols-2 gap-2">
             {[
               ['investor', 'Investor'],
@@ -658,10 +658,10 @@ function InvestorForm({ next }) {
             ].map(([value, label]) => (
               <label
                 key={value}
-                className={`flex h-10 cursor-pointer items-center justify-center rounded-md border text-[13px] transition-colors focus-within:outline-2 focus-within:outline-[#2563eb] ${
+                className={`flex h-11 cursor-pointer items-center justify-center rounded-md border text-[13px] lg:h-10 transition-colors focus-within:outline-2 focus-within:outline-[#2563eb] ${
                   f.values.investorType === value
-                    ? 'border-[#2563eb] bg-[#e8efff] font-semibold text-[#1d4ed8]'
-                    : 'border-[#d9dfe7] bg-white text-[#5b6676] hover:border-[#c3ccd8]'
+                    ? 'border-[#2563eb] bg-s-accent-soft font-semibold text-s-accent'
+                    : 'border-s-line-2 bg-s-card text-s-muted hover:border-s-line-3'
                 }`}
               >
                 <input
@@ -689,7 +689,7 @@ function InvestorForm({ next }) {
 
       <FormSection title="Interests" subtitle="Helps you find ventures that fit.">
         <fieldset>
-          <legend className="mb-1.5 text-[13px] font-semibold text-[#111827]">Sectors of interest</legend>
+          <legend className="mb-1.5 text-[13px] font-semibold text-s-ink">Sectors of interest</legend>
           <div className="flex flex-wrap gap-2">
             {SECTORS.map((s) => {
               const on = f.values.sectors.includes(s);
@@ -699,8 +699,8 @@ function InvestorForm({ next }) {
                   key={s}
                   aria-pressed={on}
                   onClick={() => toggleSector(s)}
-                  className={`rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors ${
-                    on ? 'border-[#2563eb] bg-[#e8efff] text-[#1d4ed8]' : 'border-[#d9dfe7] bg-white text-[#5b6676] hover:text-[#111827]'
+                  className={`inline-flex min-h-11 items-center rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors lg:min-h-0 ${
+                    on ? 'border-[#2563eb] bg-s-accent-soft text-s-accent' : 'border-s-line-2 bg-s-card text-s-muted hover:text-s-ink'
                   }`}
                 >
                   {s}
@@ -708,7 +708,7 @@ function InvestorForm({ next }) {
               );
             })}
           </div>
-          {f.errors.sectors && <p className="mt-1.5 text-[12px] text-[#b91c1c]">{f.errors.sectors}</p>}
+          {f.errors.sectors && <p className="mt-1.5 text-[12px] text-[#b91c1c] dark:text-[#f87171]">{f.errors.sectors}</p>}
         </fieldset>
         <LightField id="i-bio" label="About you (optional)" error={f.errors.bio}>
           <textarea
@@ -724,11 +724,11 @@ function InvestorForm({ next }) {
 
       <PhoneAndPhoto f={f} prefix="i" />
 
-      <div className="border-t border-[#e3e8ef] pt-6">
+      <div className="border-t border-s-line pt-6">
         <button type="submit" className={SUBMIT} disabled={f.busy}>
           {f.busy ? 'Creating account…' : 'Request investor access'}
         </button>
-        <p className="mt-3 text-center text-[12px] text-[#5b6676]">Next, we&apos;ll email you a 6-digit code to verify your address.</p>
+        <p className="mt-3 text-center text-[12px] text-s-muted">Next, we&apos;ll email you a 6-digit code to verify your address.</p>
       </div>
     </form>
   );
@@ -824,11 +824,11 @@ export function Register() {
       }
     >
       <div className="w-full max-w-[600px]">
-        <h1 className="text-[30px] font-semibold tracking-[-0.6px] text-[#111827]">Create your account</h1>
-        <p className="mt-1.5 text-[14px] text-[#5b6676]">An administrator reviews every account before granting full access.</p>
+        <h1 className="text-[30px] font-semibold tracking-[-0.6px] text-s-ink">Create your account</h1>
+        <p className="mt-1.5 text-[14px] text-s-muted">An administrator reviews every account before granting full access.</p>
 
         <fieldset className="mt-7">
-          <legend className="mb-2 text-[13px] font-semibold text-[#111827]">I&apos;m joining as</legend>
+          <legend className="mb-2 text-[13px] font-semibold text-s-ink">I&apos;m joining as</legend>
           <div className="grid gap-3 sm:grid-cols-2">
             {[
               ['graduate', 'ALU graduate', 'Showcase a venture and apply to opportunities.'],
@@ -838,13 +838,13 @@ export function Register() {
               return (
                 <label
                   key={value}
-                  className={`flex cursor-pointer items-start justify-between gap-3 rounded-lg border-[1.5px] bg-white p-4 transition-[border-color,box-shadow] focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#2563eb] ${
-                    on ? 'border-[#2563eb] bg-[#f5f8ff] shadow-[0_0_0_3px_rgba(37,99,235,0.12)]' : 'border-[#e3e8ef] hover:border-[#c3ccd8]'
+                  className={`flex cursor-pointer items-start justify-between gap-3 rounded-lg border-[1.5px] bg-s-card p-4 transition-[border-color,box-shadow] focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#2563eb] ${
+                    on ? 'border-[#2563eb] bg-[#f5f8ff] dark:bg-[#0f1b33] shadow-[0_0_0_3px_rgba(37,99,235,0.12)]' : 'border-s-line hover:border-s-line-3'
                   }`}
                 >
                   <span>
-                    <span className="block text-[14px] font-semibold text-[#111827]">{label}</span>
-                    <span className="mt-0.5 block text-[12px] leading-[1.5] text-[#5b6676]">{body}</span>
+                    <span className="block text-[14px] font-semibold text-s-ink">{label}</span>
+                    <span className="mt-0.5 block text-[12px] leading-[1.5] text-s-muted">{body}</span>
                   </span>
                   <input
                     type="radio"
@@ -860,10 +860,10 @@ export function Register() {
           </div>
         </fieldset>
 
-        <div className="mt-6 rounded-lg border border-[#e3e8ef] bg-white p-6 shadow-[0_1px_2px_rgba(16,24,40,0.04)] sm:p-8">
+        <div className="mt-6 rounded-lg border border-s-line bg-s-card p-6 shadow-[0_1px_2px_rgba(16,24,40,0.04)] sm:p-8">
           {role === 'graduate' ? <GraduateForm key="g" next={next} /> : <InvestorForm key="i" next={next} />}
         </div>
-        <p className="mt-6 text-center text-[13px] text-[#5b6676]">
+        <p className="mt-6 text-center text-[13px] text-s-muted">
           Already have an account?{' '}
           <Link to={withNext('/signin', next)} className={LINK}>
             Sign in
@@ -945,7 +945,7 @@ export function ForgotPassword() {
       title="Reset your password"
       subtitle="Enter the email address on your account and we will send you a one-time reset code."
       footer={
-        <Link to="/signin" className="adm-a">
+        <Link to="/signin" className="adm-a inline-flex min-h-11 items-center">
           Back to sign in
         </Link>
       }

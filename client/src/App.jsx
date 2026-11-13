@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext';
 import PublicLayout from './layouts/PublicLayout';
 import AppShell from './layouts/AppShell';
 import RequireAuth from './components/RequireAuth';
+import ScrollToTop from './components/ScrollToTop';
 import { EmptyState } from './components/ui';
 import Home from './pages/Home';
 import { ForgotPassword, PasswordUpdated, Register, ResetPassword, SignIn, VerifyEmail } from './pages/auth';
@@ -10,7 +11,8 @@ import GraduateOverview from './pages/GraduateOverview';
 import MyProjects from './pages/graduate/MyProjects';
 import ProjectForm from './pages/graduate/ProjectForm';
 import ProjectDetail from './pages/graduate/ProjectDetail';
-import { PublicOpportunities, PublicProject, Ventures, VerifyProject } from './pages/public';
+import { PublicOpportunities, PublicOpportunity, PublicProject, Ventures, VerifyProject } from './pages/public';
+import About from './pages/About';
 import Opportunities from './pages/graduate/Opportunities';
 import Settings from './pages/Settings';
 import Contact from './pages/Contact';
@@ -64,6 +66,7 @@ function NotFound() {
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <AuthProvider>
         <Routes>
           <Route element={<PublicLayout />}>
@@ -78,6 +81,8 @@ export default function App() {
             <Route path="ventures/:id" element={<PublicProject />} />
             <Route path="verify" element={<VerifyProject />} />
             <Route path="opportunities" element={<PublicOpportunities />} />
+            <Route path="opportunities/:id" element={<PublicOpportunity />} />
+            <Route path="about" element={<About />} />
             <Route path="graduates/:id" element={<GraduateRedirect />} />
             <Route path="*" element={<NotFound />} />
           </Route>

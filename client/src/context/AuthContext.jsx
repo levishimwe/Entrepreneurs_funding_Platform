@@ -3,8 +3,10 @@ import { api } from '../lib/api';
 
 const AuthContext = createContext(null);
 
-// Applies the account-wide theme preference to the whole document.
-function applyTheme(theme) {
+// Applies the account-wide theme preference to the whole document. The
+// signed-in app calls it (layouts/AppShell.jsx); public pages use the
+// visitor's site theme instead (lib/siteTheme.js).
+export function applyTheme(theme) {
   const root = document.documentElement;
   const resolve = () =>
     theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
@@ -38,8 +40,6 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     refresh();
   }, [refresh]);
-
-  useEffect(() => applyTheme(user?.theme || 'light'), [user?.theme]);
 
   const logout = useCallback(async () => {
     await api.post('/auth/logout').catch(() => {});

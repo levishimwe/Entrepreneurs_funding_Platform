@@ -27,6 +27,31 @@
   --color-cta-strong: var(--accent-strong);
   --color-alu-navy: var(--navy);
   --color-alu-red: #d71d38;
+
+  /* Public site (home, ventures, opportunities, about, sign-in): light by
+     default, dark with data-theme="dark". See the --s-* tokens below. */
+  --color-s-bg: var(--s-bg);
+  --color-s-canvas: var(--s-canvas);
+  --color-s-raised: var(--s-raised);
+  --color-s-card: var(--s-card);
+  --color-s-ink: var(--s-ink);
+  --color-s-ink-2: var(--s-ink-2);
+  --color-s-soft: var(--s-soft);
+  --color-s-muted: var(--s-muted);
+  --color-s-faint: var(--s-faint);
+  --color-s-line: var(--s-line);
+  --color-s-line-2: var(--s-line-2);
+  --color-s-line-3: var(--s-line-3);
+  --color-s-fill: var(--s-fill);
+  --color-s-fill-2: var(--s-fill-2);
+  --color-s-subtle: var(--s-subtle);
+  --color-s-accent: var(--s-accent);
+  --color-s-link: var(--s-link);
+  --color-s-accent-soft: var(--s-accent-soft);
+  --color-s-green: var(--s-green);
+  --color-s-amber: var(--s-amber);
+  --color-s-red: var(--s-red);
+  --color-s-pink: var(--s-pink);
 }
 
 :root {
@@ -49,6 +74,34 @@
   --chart-3: #c9764f; /* soft clay */
   --chart-4: #0b1f3a; /* deep navy */
   --chart-1-soft: color-mix(in srgb, var(--chart-1) 50%, var(--surface));
+
+  /* Public site tokens, light. Text contrast on white: ink 17.6, ink-2 14.7,
+     soft 10.3, muted 7.6, faint 5.6, accent 6.7, link 5.2, green 5.0;
+     all of them stay at 4.5 or more on the canvas and fill greys too. */
+  --s-bg: #ffffff;
+  --s-canvas: #f4f6f9;
+  --s-raised: #f6f8fb;
+  --s-card: #ffffff;
+  --s-ink: #0b1424;
+  --s-ink-2: #1f2937;
+  --s-soft: #374151;
+  --s-muted: #4b5563;
+  --s-faint: #5f6877;
+  --s-line: #e3e8ef;
+  --s-line-2: #d5dce6;
+  --s-line-3: #b9c3d1;
+  --s-fill: #f1f4f8;
+  --s-fill-2: #e6ebf2;
+  --s-subtle: #f9fafb;
+  --s-accent: #1d4ed8;
+  --s-link: #2563eb;
+  --s-accent-soft: #e8efff;
+  --s-green: #15803d;
+  --s-amber: #b45309;
+  --s-red: #b91c1c;
+  --s-pink: #be185d;
+  --s-header: rgb(255 255 255 / 0.88);
+  --s-focus: #2563eb;
   color-scheme: light;
 }
 
@@ -67,6 +120,33 @@
   --chart-2: #6fb3ad;
   --chart-3: #e39a74;
   --chart-4: #f0d9a8; /* warm sand */
+
+  /* Public site tokens, dark (the original public design). Contrast on
+     #070d18: ink 19.3, soft 10.9, muted 8.0, faint 5.9, accent 7.6. */
+  --s-bg: #070d18;
+  --s-canvas: #070d18;
+  --s-raised: #0b1424;
+  --s-card: #0d1727;
+  --s-ink: #ffffff;
+  --s-ink-2: rgb(255 255 255 / 0.88);
+  --s-soft: rgb(255 255 255 / 0.72);
+  --s-muted: rgb(255 255 255 / 0.6);
+  --s-faint: rgb(255 255 255 / 0.48);
+  --s-line: rgb(255 255 255 / 0.08);
+  --s-line-2: rgb(255 255 255 / 0.16);
+  --s-line-3: rgb(255 255 255 / 0.28);
+  --s-fill: rgb(255 255 255 / 0.04);
+  --s-fill-2: rgb(255 255 255 / 0.09);
+  --s-subtle: rgb(255 255 255 / 0.03);
+  --s-accent: #60a5fa;
+  --s-link: #60a5fa;
+  --s-accent-soft: rgb(59 130 246 / 0.16);
+  --s-green: #4ade80;
+  --s-amber: #fbbf24;
+  --s-red: #f87171;
+  --s-pink: #f472b6;
+  --s-header: rgb(7 13 24 / 0.85);
+  --s-focus: #60a5fa;
   color-scheme: dark;
 }
 
@@ -74,6 +154,22 @@ html,
 body,
 #root {
   min-height: 100%;
+}
+
+/* Public pages on phones and tablets: form controls and buttons on the
+   console-styled pages (password reset, verify, not found) are 44px tall. */
+@media (max-width: 1023px) {
+  .site-public .input,
+  .site-public .btn,
+  .site-public .btn-primary,
+  .site-public .btn-secondary {
+    min-height: 44px;
+  }
+}
+
+/* In-page #anchors land below the sticky 72px site header. */
+html {
+  scroll-padding-top: 88px;
 }
 
 body {

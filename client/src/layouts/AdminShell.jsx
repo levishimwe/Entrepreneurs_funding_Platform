@@ -4,6 +4,7 @@ import { ChevronDown, Menu, X } from 'lucide-react';
 import { useAuth, homePathFor } from '../context/AuthContext';
 import { MemberAvatar } from './MemberShell';
 import { ShellSearchBox, ShellSearchProvider } from '../components/shellSearch';
+import Logo from '../components/site/Logo';
 
 // The console shell for administrators and staff: a navy sidebar that opens
 // with the signed-in person's profile and lists text links under small group
@@ -89,13 +90,19 @@ function UserMenu({ user, onSignOut }) {
   );
 }
 
+// The ALU logo on the navy sidebar; the product name gives way first.
 function Brand({ user }) {
   return (
-    <Link to={homePathFor(user)} className="flex min-w-0 items-center gap-2.5 text-white" aria-label={`${PRODUCT[user.role] || 'ALU Ventures'} home`}>
-      {/* The institutionally approved logo, used as-is; the product name gives way first. */}
-      <img src="/alu-logo.png" alt="African Leadership University" className="h-7 w-auto max-w-none shrink-0 rounded-[3px]" />
-      <span className="min-w-0 truncate border-l border-white/20 pl-2.5 text-[13px] font-semibold">{PRODUCT[user.role] || 'Ventures'}</span>
-    </Link>
+    <Logo
+      to={homePathFor(user)}
+      on="dark"
+      size={28}
+      name={PRODUCT[user.role] || 'Ventures'}
+      label={`${PRODUCT[user.role] || 'ALU Ventures'} home`}
+      className="gap-2.5 text-white"
+      nameClassName="gap-2.5"
+      textClassName="text-[13px]"
+    />
   );
 }
 
@@ -239,10 +246,15 @@ export default function AdminShell() {
             </button>
             {/* On phones the logo sits in the top bar; on wide screens it heads the sidebar. */}
             {/* The product name hides first on very narrow screens; the logo and menu stay. */}
-            <Link to={homePathFor(user)} className="flex shrink-0 items-center gap-2 lg:hidden" aria-label={`${PRODUCT[user.role] || 'ALU Ventures'} home`}>
-              <img src="/alu-logo.png" alt="African Leadership University" className="h-6 w-auto max-w-none rounded-[3px] sm:h-7" />
-              <span className="hidden truncate border-l border-[var(--adm-border)] pl-2 text-[13px] font-semibold min-[480px]:inline">{PRODUCT[user.role] || 'Ventures'}</span>
-            </Link>
+            <Logo
+              to={homePathFor(user)}
+              size={26}
+              name={PRODUCT[user.role] || 'Ventures'}
+              label={`${PRODUCT[user.role] || 'ALU Ventures'} home`}
+              className="shrink-0 gap-2 lg:hidden"
+              nameClassName="hidden gap-2 min-[480px]:flex"
+              textClassName="text-[13px]"
+            />
             <div className="min-w-0 flex-1">
               <ShellSearchBox />
             </div>

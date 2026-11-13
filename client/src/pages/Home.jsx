@@ -43,9 +43,9 @@ import { ARROW, GHOST, PRIMARY, SiteFooter, SiteHeader, useGated } from '../comp
 // (venture list, opportunity card, introduction) are labelled examples.
 // Motion is decoration only and switches off with reduced motion.
 
-const CARD = 'rounded-2xl border border-white/[0.08] bg-white/[0.03]';
-const EYEBROW = 'text-[12px] font-semibold uppercase tracking-[1.6px] text-[#60a5fa]';
-const H2 = 'text-[36px] font-medium leading-[1.08] tracking-[-1.2px] text-white sm:text-[44px] lg:text-[52px] lg:tracking-[-1.6px]';
+const CARD = 'rounded-2xl border border-s-line bg-s-fill';
+const EYEBROW = 'text-[12px] font-semibold uppercase tracking-[1.6px] text-s-accent';
+const H2 = 'text-[36px] font-medium leading-[1.08] tracking-[-1.2px] text-s-ink sm:text-[44px] lg:text-[52px] lg:tracking-[-1.6px]';
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -185,7 +185,7 @@ const HEADLINE = 'Where verified ALU graduate ventures meet investors';
 function Hero({ stats }) {
   const gated = useGated();
   return (
-    <section className="relative overflow-hidden bg-[#070d18] px-4 pb-24 pt-20 sm:px-8 lg:px-16 lg:pb-24 lg:pt-28">
+    <section className="relative overflow-hidden bg-s-bg px-4 pb-24 pt-20 sm:px-8 lg:px-16 lg:pb-24 lg:pt-28">
       <div
         className="land-glow pointer-events-none absolute left-1/2 top-0 h-[120%] w-[130%] -translate-x-1/2"
         style={{ background: 'radial-gradient(50% 50% at 50% 0%, rgba(37,99,235,0.22), rgba(37,99,235,0) 100%)' }}
@@ -193,7 +193,7 @@ function Hero({ stats }) {
       />
       <div className="relative mx-auto flex max-w-[1120px] flex-col items-center text-center">
         <p
-          className={`inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] py-1.5 pl-2.5 pr-3.5 text-[13px] font-medium text-white/70 transition-opacity duration-700 ${
+          className={`inline-flex items-center gap-2 rounded-full border border-s-line bg-s-fill py-1.5 pl-2.5 pr-3.5 text-[13px] font-medium text-s-soft transition-opacity duration-700 ${
             stats ? 'opacity-100' : 'opacity-0'
           }`}
           aria-hidden={!stats}
@@ -201,7 +201,7 @@ function Hero({ stats }) {
           <LiveDot />
           {stats ? `${plural(stats.verifiedGraduates, 'verified graduate')} · ${plural(stats.approvedProjects, 'approved venture')}` : 'Loading'}
         </p>
-        <h1 className="mt-7 max-w-[1000px] text-[44px] font-medium leading-[1.04] tracking-[-1.4px] text-white sm:text-[60px] sm:tracking-[-2px] lg:text-[76px] lg:tracking-[-2.6px]">
+        <h1 className="mt-7 max-w-[1000px] text-[44px] font-medium leading-[1.04] tracking-[-1.4px] text-s-ink sm:text-[60px] sm:tracking-[-2px] lg:text-[76px] lg:tracking-[-2.6px]">
           {HEADLINE.split(' ').map((w, i) => (
             <span key={i}>
               <span className="land-word" style={{ '--d': `${120 + i * 70}ms` }}>
@@ -210,7 +210,7 @@ function Hero({ stats }) {
             </span>
           ))}
         </h1>
-        <p className="land-rise mt-6 max-w-[700px] text-[17px] leading-[1.55] text-white/70 sm:text-[19px]" style={{ '--d': '650ms' }}>
+        <p className="land-rise mt-6 max-w-[700px] text-[17px] leading-[1.55] text-s-soft sm:text-[19px]" style={{ '--d': '650ms' }}>
           Present reviewed ventures, reach investors and sponsors through consent-based introductions, and apply to hackathons and funding calls.
         </p>
         <div className="land-rise mt-10 flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center" style={{ '--d': '800ms' }}>
@@ -223,28 +223,28 @@ function Hero({ stats }) {
           </Link>
         </div>
         <div className="land-rise mt-7 flex flex-wrap items-center justify-center gap-2.5" style={{ '--d': '950ms' }}>
-          <span className="text-[13px] text-white/50">I want to</span>
+          <span className="text-[13px] text-s-muted">I want to</span>
           {QUICK_PATHS.map((q) => (
             <Link
               key={q.label}
               to={q.gated ? gated(q.gated) : q.to}
-              className="group inline-flex h-[34px] items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 text-[13px] font-medium text-white/70 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#3b82f655] hover:bg-[#3b82f61f] hover:text-white"
+              className="group inline-flex h-11 items-center gap-2 rounded-full border border-s-line bg-s-fill px-3.5 lg:h-[34px] text-[13px] font-medium text-s-soft transition-all duration-300 hover:-translate-y-0.5 hover:border-[#3b82f655] hover:bg-[#3b82f61f] hover:text-s-ink"
             >
-              <q.icon className="h-3.5 w-3.5 text-[#60a5fa] transition-transform duration-300 group-hover:scale-110" aria-hidden="true" />
+              <q.icon className="h-3.5 w-3.5 text-s-accent transition-transform duration-300 group-hover:scale-110" aria-hidden="true" />
               {q.label}
             </Link>
           ))}
         </div>
 
-        <dl className="mt-16 grid w-full grid-cols-2 border-t border-white/[0.08] py-7 text-left lg:mt-[88px] lg:grid-cols-4">
+        <dl className="mt-16 grid w-full grid-cols-2 border-t border-s-line py-7 text-left lg:mt-[88px] lg:grid-cols-4">
           {PROOF.map((p, i) => (
             <Reveal
               key={p.label}
               delay={i * 90}
-              className={`flex flex-col-reverse gap-2 px-4 py-3 sm:px-7 lg:py-0 ${i % 2 ? 'border-l border-white/[0.08]' : ''} ${i === 2 ? 'lg:border-l lg:border-white/[0.08]' : ''}`}
+              className={`flex flex-col-reverse gap-2 px-4 py-3 sm:px-7 lg:py-0 ${i % 2 ? 'border-l border-s-line' : ''} ${i === 2 ? 'lg:border-l lg:border-s-line' : ''}`}
             >
-              <dt className="text-[13px] leading-[1.45] text-white/50">{p.label}</dt>
-              <dd className="text-[32px] font-medium tracking-[-1.2px] text-white sm:text-[40px]">
+              <dt className="text-[13px] leading-[1.45] text-s-muted">{p.label}</dt>
+              <dd className="text-[32px] font-medium tracking-[-1.2px] text-s-ink sm:text-[40px]">
                 {p.text || <CountUp value={p.value} prefix={p.prefix} suffix={p.suffix} />}
               </dd>
             </Reveal>
@@ -294,7 +294,7 @@ function SectionHeading({ eyebrow, title, children, width = 620 }) {
       <p className={EYEBROW}>{eyebrow}</p>
       <h2 className={H2}>{title}</h2>
       {children && (
-        <p className="text-[17px] leading-[1.55] text-white/70" style={{ maxWidth: width }}>
+        <p className="text-[17px] leading-[1.55] text-s-soft" style={{ maxWidth: width }}>
           {children}
         </p>
       )}
@@ -313,20 +313,20 @@ function TrustCard({ c, index }) {
       >
         <div className="flex flex-col gap-4">
           <span className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-[#3b82f633] bg-[#3b82f61f] transition-transform duration-500 group-hover:rotate-[-6deg] group-hover:scale-110">
-            <c.icon className="h-5 w-5 text-[#60a5fa]" aria-hidden="true" />
+            <c.icon className="h-5 w-5 text-s-accent" aria-hidden="true" />
           </span>
-          <p className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#60a5fa]">{c.eyebrow}</p>
-          <h3 className="text-[21px] font-medium leading-[1.25] tracking-[-0.4px] text-white">{c.title}</h3>
-          <p className="text-[14px] leading-[1.55] text-white/70">{c.body}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[1.2px] text-s-accent">{c.eyebrow}</p>
+          <h3 className="text-[21px] font-medium leading-[1.25] tracking-[-0.4px] text-s-ink">{c.title}</h3>
+          <p className="text-[14px] leading-[1.55] text-s-soft">{c.body}</p>
         </div>
-        <ul className="flex flex-col gap-2.5 border-t border-white/[0.08] pt-4">
+        <ul className="flex flex-col gap-2.5 border-t border-s-line pt-4">
           {c.steps.map((s, i) => (
             <li
               key={s}
-              className={`flex items-center gap-2.5 text-[13px] text-white/70 transition-all duration-500 motion-reduce:transition-none ${inView ? 'translate-x-0 opacity-100' : '-translate-x-2 opacity-0'}`}
+              className={`flex items-center gap-2.5 text-[13px] text-s-soft transition-all duration-500 motion-reduce:transition-none ${inView ? 'translate-x-0 opacity-100' : '-translate-x-2 opacity-0'}`}
               style={{ transitionDelay: `${index * 110 + 300 + i * 160}ms` }}
             >
-              <CircleCheck className="h-[15px] w-[15px] shrink-0 text-[#4ade80]" aria-hidden="true" />
+              <CircleCheck className="h-[15px] w-[15px] shrink-0 text-s-green" aria-hidden="true" />
               {s}
             </li>
           ))}
@@ -338,7 +338,7 @@ function TrustCard({ c, index }) {
 
 function WhyAluVentures() {
   return (
-    <section id="why" className="scroll-mt-20 bg-[#070d18] px-4 py-20 sm:px-8 lg:px-16 lg:py-[120px]">
+    <section id="why" className="scroll-mt-20 bg-s-bg px-4 py-20 sm:px-8 lg:px-16 lg:py-[120px]">
       <div className="mx-auto flex max-w-[1312px] flex-col gap-14">
         <SectionHeading eyebrow="Why ALU Ventures" title="Trust is built into every step">
           Founders are verified, documents are checked and contact is shared only with consent, so investors can act with confidence.
@@ -379,11 +379,11 @@ function Chip({ label, active }) {
   return (
     <span
       className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-medium ${
-        active ? 'border-[#3b82f655] bg-[#3b82f61f] text-[#60a5fa]' : 'border-white/[0.08] bg-white/[0.03] text-white/70'
+        active ? 'border-[#3b82f655] bg-[#3b82f61f] text-s-accent' : 'border-s-line bg-s-fill text-s-soft'
       }`}
     >
       {label}
-      {active ? <X className="h-3 w-3" aria-hidden="true" /> : <ChevronDown className="h-3 w-3 text-white/50" aria-hidden="true" />}
+      {active ? <X className="h-3 w-3" aria-hidden="true" /> : <ChevronDown className="h-3 w-3 text-s-muted" aria-hidden="true" />}
     </span>
   );
 }
@@ -395,17 +395,17 @@ function BrowseMockup() {
     <figure
       ref={ref}
       aria-label="Example: how investors browse verified ventures"
-      className="w-full overflow-hidden rounded-2xl border border-white/[0.16] bg-[#0b1424] shadow-[0_30px_80px_#00000080]"
+      className="w-full overflow-hidden rounded-2xl border border-s-line-2 bg-s-raised shadow-[0_30px_80px_#00000080]"
     >
-      <div className="flex items-center gap-3 border-b border-white/[0.08] px-5 py-4">
-        <span className="text-[14px] font-semibold text-white">Ventures</span>
-        <span className="rounded-full bg-[#3b82f61f] px-2 py-0.5 text-[11px] font-semibold text-[#60a5fa]">Verified</span>
-        <span className="flex h-[34px] min-w-0 flex-1 items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3">
-          <Search className="h-3.5 w-3.5 shrink-0 text-white/50" aria-hidden="true" />
-          <span className="truncate text-[13px] text-white/50">Search ventures, sectors or countries</span>
+      <div className="flex items-center gap-3 border-b border-s-line px-5 py-4">
+        <span className="text-[14px] font-semibold text-s-ink">Ventures</span>
+        <span className="rounded-full bg-[#3b82f61f] px-2 py-0.5 text-[11px] font-semibold text-s-accent">Verified</span>
+        <span className="flex h-[34px] min-w-0 flex-1 items-center gap-2 rounded-lg border border-s-line bg-s-fill px-3">
+          <Search className="h-3.5 w-3.5 shrink-0 text-s-muted" aria-hidden="true" />
+          <span className="truncate text-[13px] text-s-muted">Search ventures, sectors or countries</span>
         </span>
       </div>
-      <div className="flex flex-wrap gap-2 border-b border-white/[0.08] px-5 py-3.5">
+      <div className="flex flex-wrap gap-2 border-b border-s-line px-5 py-3.5">
         {[
           ['Agriculture', true],
           ['Any stage', false],
@@ -427,7 +427,7 @@ function BrowseMockup() {
             key={v.name}
             onMouseEnter={() => setHovered(i)}
             className={`flex items-center gap-3.5 rounded-[10px] border p-3.5 transition-colors duration-300 ${
-              hovered === i ? 'border-white/[0.08] bg-white/[0.06]' : 'border-transparent'
+              hovered === i ? 'border-s-line bg-s-fill' : 'border-transparent'
             } ${inView ? 'land-rise' : 'opacity-0'}`}
             style={{ '--d': `${i * 120 + 450}ms` }}
           >
@@ -439,22 +439,22 @@ function BrowseMockup() {
               {v.initials}
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
-              <span className="flex items-center gap-2 text-[14px] font-semibold text-white">
+              <span className="flex items-center gap-2 text-[14px] font-semibold text-s-ink">
                 <span className="truncate">{v.name}</span>
-                <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-[#60a5fa]" aria-label="Verified" />
+                <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-s-accent" aria-label="Verified" />
               </span>
-              <span className="truncate text-[13px] text-white/50">{v.line}</span>
+              <span className="truncate text-[13px] text-s-muted">{v.line}</span>
             </span>
             <span className="hidden items-center gap-1.5 sm:flex">
               {v.tags.map((t) => (
-                <span key={t} className="whitespace-nowrap rounded-md bg-white/[0.06] px-2 py-[3px] text-[12px] text-white/70">
+                <span key={t} className="whitespace-nowrap rounded-md bg-s-fill px-2 py-[3px] text-[12px] text-s-soft">
                   {t}
                 </span>
               ))}
             </span>
             <span
               className={`inline-flex h-[30px] shrink-0 items-center rounded-full border px-3 text-[12px] font-semibold transition-colors duration-300 ${
-                hovered === i ? 'border-[#2563eb] bg-[#2563eb] text-white' : 'border-white/[0.08] bg-white/[0.03] text-white/70'
+                hovered === i ? 'border-[#2563eb] bg-[#2563eb] text-white' : 'border-s-line bg-s-fill text-s-soft'
               }`}
             >
               {v.primary || hovered === i ? 'Request intro' : 'View'}
@@ -462,8 +462,8 @@ function BrowseMockup() {
           </li>
         ))}
       </ul>
-      <figcaption className="flex items-center gap-2 border-t border-white/[0.08] px-5 py-3.5 text-[12px] text-white/50">
-        <ShieldCheck className="h-3.5 w-3.5 text-[#4ade80]" aria-hidden="true" />
+      <figcaption className="flex items-center gap-2 border-t border-s-line px-5 py-3.5 text-[12px] text-s-muted">
+        <ShieldCheck className="h-3.5 w-3.5 text-s-green" aria-hidden="true" />
         Contact details stay private until the founder accepts.
       </figcaption>
     </figure>
@@ -472,23 +472,23 @@ function BrowseMockup() {
 
 function ForInvestors() {
   return (
-    <section id="investors" className="scroll-mt-20 bg-[#070d18] px-4 py-20 sm:px-8 lg:px-16 lg:py-[120px]">
+    <section id="investors" className="scroll-mt-20 bg-s-bg px-4 py-20 sm:px-8 lg:px-16 lg:py-[120px]">
       <div className="mx-auto flex max-w-[1312px] flex-col items-center gap-14 lg:flex-row lg:gap-20">
         <Reveal from="left" className="flex w-full flex-col gap-6 lg:w-[480px] lg:shrink-0">
           <p className={EYEBROW}>For investors and sponsors</p>
           <h2 className={H2}>Find ventures worth backing</h2>
-          <p className="text-[17px] leading-[1.55] text-white/70">
+          <p className="text-[17px] leading-[1.55] text-s-soft">
             Approved investors find ventures by keyword, sector, stage, country and registration, then request an introduction.
           </p>
           <ul className="flex flex-col gap-[18px] py-2">
             {INVESTOR_POINTS.map(([b, r], i) => (
               <Reveal as="li" key={b} delay={150 + i * 90} className="flex gap-3">
                 <span className="mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-[#3b82f61f]">
-                  <Check className="h-[13px] w-[13px] text-[#60a5fa]" aria-hidden="true" />
+                  <Check className="h-[13px] w-[13px] text-s-accent" aria-hidden="true" />
                 </span>
                 <span className="flex flex-col gap-0.5">
-                  <span className="text-[15px] font-semibold text-white">{b}</span>
-                  <span className="text-[14px] text-white/50">{r}</span>
+                  <span className="text-[15px] font-semibold text-s-ink">{b}</span>
+                  <span className="text-[14px] text-s-muted">{r}</span>
                 </span>
               </Reveal>
             ))}
@@ -529,7 +529,7 @@ function OpportunityStages() {
 
   return (
     <div ref={ref} className={`${CARD} flex w-full flex-col gap-2.5 p-5`} onMouseLeave={() => setHold(false)}>
-      <p className="text-[11px] font-semibold uppercase tracking-[1.2px] text-white/50">Opportunity stages</p>
+      <p className="text-[11px] font-semibold uppercase tracking-[1.2px] text-s-muted">Opportunity stages</p>
       <ol className="flex flex-col gap-2.5">
         {STAGES.map((s, i) => {
           const on = i === active;
@@ -542,20 +542,20 @@ function OpportunityStages() {
               }}
               aria-current={on ? 'step' : undefined}
               className={`flex items-center gap-4 rounded-xl p-4 transition-all duration-500 ${
-                on ? 'border-[1.5px] border-[#2563eb] bg-[#3b82f61a] shadow-[0_0_24px_#2563eb40]' : 'border-[1.5px] border-white/[0.08] bg-white/[0.03]'
+                on ? 'border-[1.5px] border-[#2563eb] bg-[#3b82f61a] shadow-[0_0_24px_#2563eb40]' : 'border-[1.5px] border-s-line bg-s-fill'
               }`}
             >
               <span
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors duration-500 ${on ? 'bg-[#2563eb]' : 'bg-white/[0.06]'}`}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors duration-500 ${on ? 'bg-[#2563eb]' : 'bg-s-fill'}`}
               >
-                <s.icon className={`h-[18px] w-[18px] transition-colors duration-500 ${on ? 'text-white' : 'text-white/70'}`} aria-hidden="true" />
+                <s.icon className={`h-[18px] w-[18px] transition-colors duration-500 ${on ? 'text-s-ink' : 'text-s-soft'}`} aria-hidden="true" />
               </span>
               <span className="flex min-w-0 flex-col gap-[3px]">
                 <span className="flex flex-wrap items-center gap-2">
-                  <span className="text-[15px] font-semibold text-white">{s.title}</span>
+                  <span className="text-[15px] font-semibold text-s-ink">{s.title}</span>
                   {s.badge && <span className="rounded-full bg-[#2563eb] px-2 py-0.5 text-[11px] font-semibold text-white">{s.badge}</span>}
                 </span>
-                <span className="text-[13px] text-white/50">{s.body}</span>
+                <span className="text-[13px] text-s-muted">{s.body}</span>
               </span>
             </li>
           );
@@ -569,31 +569,31 @@ function OpportunityCard() {
   return (
     <figure
       aria-label="Example opportunity"
-      className="flex w-full flex-col gap-5 rounded-2xl border border-white/[0.16] bg-[#0b1424] p-7 shadow-[0_24px_60px_#00000066] transition-transform duration-500 hover:-translate-y-1.5 lg:w-[400px] lg:shrink-0"
+      className="flex w-full flex-col gap-5 rounded-2xl border border-s-line-2 bg-s-raised p-7 shadow-[0_24px_60px_#00000066] transition-transform duration-500 hover:-translate-y-1.5 lg:w-[400px] lg:shrink-0"
     >
       <div className="flex items-center justify-between gap-3">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#f59e0b40] bg-[#f59e0b1f] px-2.5 py-1 text-[12px] font-semibold text-[#fbbf24]">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-[#f59e0b40] bg-[#f59e0b1f] px-2.5 py-1 text-[12px] font-semibold text-s-amber">
           <Zap className="h-3 w-3" aria-hidden="true" />
           Hackathon
         </span>
-        <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#f87171]">
+        <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-s-red">
           <Hourglass className="land-flip h-[13px] w-[13px]" aria-hidden="true" />
           Closes in 3 days
         </span>
       </div>
       <div className="flex flex-col gap-1.5">
-        <p className="text-[24px] font-medium tracking-[-0.5px] text-white">Seed prize</p>
-        <p className="text-[14px] text-white/50">UK sponsorship program</p>
+        <p className="text-[24px] font-medium tracking-[-0.5px] text-s-ink">Seed prize</p>
+        <p className="text-[14px] text-s-muted">UK sponsorship program</p>
       </div>
-      <p className="text-[14px] leading-[1.55] text-white/70">Sponsorship for a graduate-led agriculture business with a strong community impact in Rwanda.</p>
-      <dl className="grid grid-cols-2 border-y border-white/[0.08] py-4">
+      <p className="text-[14px] leading-[1.55] text-s-soft">Sponsorship for a graduate-led agriculture business with a strong community impact in Rwanda.</p>
+      <dl className="grid grid-cols-2 border-y border-s-line py-4">
         {[
           ['Prize', 'To be announced'],
           ['Closes', '30 Oct 2026, 17:44'],
         ].map(([l, v]) => (
           <div key={l} className="flex flex-col-reverse gap-1">
-            <dd className="text-[14px] font-medium text-white">{v}</dd>
-            <dt className="text-[11px] font-semibold uppercase tracking-[1px] text-white/50">{l}</dt>
+            <dd className="text-[14px] font-medium text-s-ink">{v}</dd>
+            <dt className="text-[11px] font-semibold uppercase tracking-[1px] text-s-muted">{l}</dt>
           </div>
         ))}
       </dl>
@@ -601,7 +601,7 @@ function OpportunityCard() {
         Apply with your venture
         <ArrowRight className="h-[15px] w-[15px] transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true" />
       </Link>
-      <figcaption className="text-[12px] text-white/50">Eligibility is checked when you apply.</figcaption>
+      <figcaption className="text-[12px] text-s-muted">Eligibility is checked when you apply.</figcaption>
     </figure>
   );
 }
@@ -611,7 +611,7 @@ function Opportunities() {
     <section
       id="opportunities"
       className="scroll-mt-20 px-4 py-20 sm:px-8 lg:px-16 lg:py-[120px]"
-      style={{ background: 'radial-gradient(45% 40% at 50% 75%, rgba(37,99,235,0.12), rgba(37,99,235,0) 100%), #070d18' }}
+      style={{ background: 'radial-gradient(45% 40% at 50% 75%, rgba(37,99,235,0.12), rgba(37,99,235,0) 100%), var(--s-bg)' }}
     >
       <div className="mx-auto flex max-w-[1120px] flex-col gap-14">
         <SectionHeading eyebrow="Hackathons, grants and competitions" title="From open call to confirmed result" width={640}>
@@ -652,21 +652,21 @@ function IntroductionMockup() {
     <figure
       ref={ref}
       aria-label="Example: an introduction from request to meeting"
-      className="w-full overflow-hidden rounded-2xl border border-white/[0.16] bg-[#0b1424] shadow-[0_30px_80px_#00000080]"
+      className="w-full overflow-hidden rounded-2xl border border-s-line-2 bg-s-raised shadow-[0_30px_80px_#00000080]"
     >
-      <div className="flex items-center gap-3.5 border-b border-white/[0.08] p-5">
+      <div className="flex items-center gap-3.5 border-b border-s-line p-5">
         <span
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f472b655] bg-[#f472b626] text-[14px] font-bold text-[#f472b6]"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f472b655] bg-[#f472b626] text-[14px] font-bold text-s-pink"
           aria-hidden="true"
         >
           IV
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
-          <span className="text-[15px] font-semibold text-white">Investor flow</span>
-          <span className="truncate text-[13px] text-white/50">Investor</span>
+          <span className="text-[15px] font-semibold text-s-ink">Investor flow</span>
+          <span className="truncate text-[13px] text-s-muted">Investor</span>
         </span>
         <span
-          className={`inline-flex items-center gap-1.5 rounded-full border border-[#4ade8040] bg-[#4ade801a] px-2.5 py-1 text-[12px] font-semibold text-[#4ade80] transition-all delay-[1400ms] duration-500 ${
+          className={`inline-flex items-center gap-1.5 rounded-full border border-[#4ade8040] bg-[#4ade801a] px-2.5 py-1 text-[12px] font-semibold text-s-green transition-all delay-[1400ms] duration-500 ${
             inView ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
           }`}
         >
@@ -674,9 +674,9 @@ function IntroductionMockup() {
           Introduced
         </span>
       </div>
-      <div className="flex flex-col gap-2 border-b border-white/[0.08] p-5">
-        <p className="text-[11px] font-semibold uppercase tracking-[1px] text-white/50">Introduction request · Example venture</p>
-        <blockquote className="text-[15px] leading-[1.55] text-white/70">
+      <div className="flex flex-col gap-2 border-b border-s-line p-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[1px] text-s-muted">Introduction request · Example venture</p>
+        <blockquote className="text-[15px] leading-[1.55] text-s-soft">
           “We fund ventures that solve a real problem. I&apos;d like to learn about your project and funding needs.”
         </blockquote>
       </div>
@@ -689,18 +689,18 @@ function IntroductionMockup() {
               <span className="flex flex-col items-center gap-1">
                 <span
                   className={`flex h-[30px] w-[30px] items-center justify-center rounded-full border transition-colors duration-500 ${
-                    lit ? 'border-[#4ade8055] bg-[#4ade801f]' : 'border-white/[0.16] bg-white/[0.03]'
+                    lit ? 'border-[#4ade8055] bg-[#4ade801f]' : 'border-s-line-2 bg-s-fill'
                   }`}
                   style={{ transitionDelay: `${300 + i * 350}ms` }}
                 >
                   <s.icon
-                    className={`h-3.5 w-3.5 transition-colors duration-500 ${lit ? 'text-[#4ade80]' : 'text-white/50'}`}
+                    className={`h-3.5 w-3.5 transition-colors duration-500 ${lit ? 'text-s-green' : 'text-s-muted'}`}
                     style={{ transitionDelay: `${300 + i * 350}ms` }}
                     aria-hidden="true"
                   />
                 </span>
                 {!last && (
-                  <span className="relative h-[26px] w-[1.5px] overflow-hidden bg-white/[0.08]" aria-hidden="true">
+                  <span className="relative h-[26px] w-[1.5px] overflow-hidden bg-s-fill-2" aria-hidden="true">
                     <span
                       className={`absolute inset-0 origin-top bg-[#4ade8055] transition-transform duration-500 ${lit ? 'scale-y-100' : 'scale-y-0'}`}
                       style={{ transitionDelay: `${450 + i * 350}ms` }}
@@ -709,21 +709,21 @@ function IntroductionMockup() {
                 )}
               </span>
               <span className="flex flex-col gap-0.5 pb-2 pt-[5px]">
-                <span className={`text-[14px] font-semibold ${s.done ? 'text-white' : 'text-white/50'}`}>{s.title}</span>
-                <span className="text-[13px] text-white/50">{s.body}</span>
+                <span className={`text-[14px] font-semibold ${s.done ? 'text-s-ink' : 'text-s-muted'}`}>{s.title}</span>
+                <span className="text-[13px] text-s-muted">{s.body}</span>
               </span>
             </li>
           );
         })}
       </ol>
-      <figcaption className="border-t border-white/[0.08] px-5 py-2.5 text-[11px] font-medium uppercase tracking-[1px] text-white/40">Example flow</figcaption>
+      <figcaption className="border-t border-s-line px-5 py-2.5 text-[11px] font-medium uppercase tracking-[1px] text-s-faint">Example flow</figcaption>
     </figure>
   );
 }
 
 function Introductions() {
   return (
-    <section id="introductions" className="scroll-mt-20 bg-[#070d18] px-4 py-20 sm:px-8 lg:px-16 lg:py-[120px]">
+    <section id="introductions" className="scroll-mt-20 bg-s-bg px-4 py-20 sm:px-8 lg:px-16 lg:py-[120px]">
       <div className="mx-auto flex max-w-[1312px] flex-col gap-[72px]">
         <div className="flex flex-col-reverse items-center gap-14 lg:flex-row lg:gap-20">
           <Reveal from="left" className="w-full min-w-0 flex-1">
@@ -732,21 +732,21 @@ function Introductions() {
           <Reveal from="right" delay={120} className="flex w-full flex-col gap-6 lg:w-[480px] lg:shrink-0">
             <p className={EYEBROW}>Consent-based introductions</p>
             <h2 className={H2}>Introductions happen on the founder&apos;s terms</h2>
-            <p className="text-[17px] leading-[1.55] text-white/70">
+            <p className="text-[17px] leading-[1.55] text-s-soft">
               Investors request an introduction. Contact details are shared only after the founder accepts, and every step is recorded.
             </p>
           </Reveal>
         </div>
-        <div className="grid gap-8 border-t border-white/[0.08] pt-10 md:grid-cols-3 md:gap-5">
+        <div className="grid gap-8 border-t border-s-line pt-10 md:grid-cols-3 md:gap-5">
           {RECORD_FEATURES.map((f, i) => {
             const inner = (
               <>
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-white/[0.08] bg-white/[0.06] transition-[transform,border-color] duration-500 group-hover:-translate-y-0.5 group-hover:border-[#3b82f655]">
-                  <f.icon className="h-[18px] w-[18px] text-[#60a5fa]" aria-hidden="true" />
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-s-line bg-s-fill transition-[transform,border-color] duration-500 group-hover:-translate-y-0.5 group-hover:border-[#3b82f655]">
+                  <f.icon className="h-[18px] w-[18px] text-s-accent" aria-hidden="true" />
                 </span>
                 <span className="flex flex-col gap-1.5">
-                  <span className="text-[16px] font-semibold text-white">{f.title}</span>
-                  <span className="text-[14px] leading-[1.55] text-white/50">{f.body}</span>
+                  <span className="text-[16px] font-semibold text-s-ink">{f.title}</span>
+                  <span className="text-[14px] leading-[1.55] text-s-muted">{f.body}</span>
                 </span>
               </>
             );
@@ -775,10 +775,10 @@ function Introductions() {
 
 function WayRow({ a, b }) {
   return (
-    <li className="flex items-start gap-3 border-t border-white/[0.08] py-3.5 text-[15px] sm:items-center">
-      <Check className="mt-1 h-4 w-4 shrink-0 text-[#60a5fa] sm:mt-0" aria-hidden="true" />
+    <li className="flex items-start gap-3 border-t border-s-line py-3.5 text-[15px] sm:items-center">
+      <Check className="mt-1 h-4 w-4 shrink-0 text-s-accent sm:mt-0" aria-hidden="true" />
       <span>
-        <span className="font-semibold text-white">{a}</span> <span className="text-white/50">· {b}</span>
+        <span className="font-semibold text-s-ink">{a}</span> <span className="text-s-muted">· {b}</span>
       </span>
     </li>
   );
@@ -786,22 +786,22 @@ function WayRow({ a, b }) {
 
 function TwoWays() {
   return (
-    <section id="two-ways" className="scroll-mt-20 bg-[#070d18] px-4 py-20 sm:px-8 lg:px-16 lg:py-[120px]">
+    <section id="two-ways" className="scroll-mt-20 bg-s-bg px-4 py-20 sm:px-8 lg:px-16 lg:py-[120px]">
       <div className="mx-auto flex max-w-[1120px] flex-col gap-14">
         <SectionHeading eyebrow="Graduates and investors" title="Two ways to take part" />
         <div className="grid gap-5 md:grid-cols-2">
           <Reveal from="left">
             <article
               className="group flex h-full flex-col gap-7 rounded-[20px] border border-[#3b82f655] p-7 transition-[transform,box-shadow] duration-500 hover:-translate-y-1.5 hover:shadow-[0_30px_70px_-25px_#2563eb88] sm:p-9"
-              style={{ background: 'radial-gradient(80% 70% at 0% 0%, rgba(37,99,235,0.18), rgba(37,99,235,0) 100%), rgba(255,255,255,0.03)' }}
+              style={{ background: 'radial-gradient(80% 70% at 0% 0%, rgba(37,99,235,0.18), rgba(37,99,235,0) 100%), var(--s-fill)' }}
             >
               <div className="flex items-center gap-3.5">
                 <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#2563eb] transition-transform duration-500 group-hover:rotate-[-8deg]">
-                  <GraduationCap className="h-5 w-5 text-white" aria-hidden="true" />
+                  <GraduationCap className="h-5 w-5 text-s-ink" aria-hidden="true" />
                 </span>
-                <p className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#60a5fa]">For graduates</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[1.2px] text-s-accent">For graduates</p>
               </div>
-              <h3 className="text-[28px] font-medium leading-[1.15] tracking-[-0.9px] text-white sm:text-[32px]">Turn your venture into a verified record.</h3>
+              <h3 className="text-[28px] font-medium leading-[1.15] tracking-[-0.9px] text-s-ink sm:text-[32px]">Turn your venture into a verified record.</h3>
               <ul className="flex flex-col">
                 <WayRow a="Submit and verify projects" b="reviewed by an administrator" />
                 <WayRow a="Apply for opportunities" b="hackathons, grants and competitions" />
@@ -815,15 +815,15 @@ function TwoWays() {
           </Reveal>
           <Reveal from="right" delay={120}>
             <article
-              className={`${CARD} group flex h-full flex-col gap-7 rounded-[20px] p-7 transition-[transform,border-color] duration-500 hover:-translate-y-1.5 hover:border-white/[0.16] sm:p-9`}
+              className={`${CARD} group flex h-full flex-col gap-7 rounded-[20px] p-7 transition-[transform,border-color] duration-500 hover:-translate-y-1.5 hover:border-s-line-2 sm:p-9`}
             >
               <div className="flex items-center gap-3.5">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.06] transition-transform duration-500 group-hover:rotate-[-8deg]">
-                  <Briefcase className="h-5 w-5 text-[#60a5fa]" aria-hidden="true" />
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-s-line bg-s-fill transition-transform duration-500 group-hover:rotate-[-8deg]">
+                  <Briefcase className="h-5 w-5 text-s-accent" aria-hidden="true" />
                 </span>
-                <p className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#60a5fa]">For investors and sponsors</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[1.2px] text-s-accent">For investors and sponsors</p>
               </div>
-              <h3 className="text-[28px] font-medium leading-[1.15] tracking-[-0.9px] text-white sm:text-[32px]">
+              <h3 className="text-[28px] font-medium leading-[1.15] tracking-[-0.9px] text-s-ink sm:text-[32px]">
                 Back ALU graduate founders with confidence.
               </h3>
               <ul className="flex flex-col">
@@ -866,7 +866,8 @@ function Mission() {
         aria-hidden="true"
       />
       <Reveal className="flex max-w-[860px] flex-col items-center gap-6 text-center">
-        <p className={EYEBROW}>Our mission</p>
+        {/* On the photo: the dark-theme eyebrow colour in both themes. */}
+        <p className={`${EYEBROW} !text-[#60a5fa]`}>Our mission</p>
         <h2 className="text-[38px] font-medium leading-[1.08] tracking-[-1.2px] text-white sm:text-[48px] lg:text-[56px] lg:tracking-[-1.8px]">
           Let&apos;s help graduates navigate real-world solutions
         </h2>
@@ -907,7 +908,7 @@ const PLANS = [
 
 function Plans() {
   return (
-    <section id="plans" className="scroll-mt-20 bg-[#070d18] px-4 py-20 sm:px-8 lg:px-16 lg:py-[120px]">
+    <section id="plans" className="scroll-mt-20 bg-s-bg px-4 py-20 sm:px-8 lg:px-16 lg:py-[120px]">
       <div className="mx-auto flex max-w-[1120px] flex-col gap-14">
         <SectionHeading eyebrow="For investors" title="Free during the pilot" width={720}>
           All services are free today. Paid plans are future work and take no payments.
@@ -917,34 +918,34 @@ function Plans() {
             <Reveal key={p.name} delay={i * 110} className="h-full">
               <article
                 className={`flex h-full flex-col gap-6 rounded-[20px] p-8 transition-[transform,box-shadow] duration-500 hover:-translate-y-1.5 md:min-h-[440px] ${
-                  p.available ? 'border-[1.5px] border-[#2563eb] hover:shadow-[0_30px_70px_-25px_#2563eb88]' : 'border border-white/[0.08] bg-white/[0.03]'
+                  p.available ? 'border-[1.5px] border-[#2563eb] hover:shadow-[0_30px_70px_-25px_#2563eb88]' : 'border border-s-line bg-s-fill'
                 }`}
                 style={p.available ? { background: 'linear-gradient(180deg, #2563eb24 0%, #2563eb00 70%), rgba(255,255,255,0.03)' } : undefined}
               >
                 <div className="flex items-center justify-between">
-                  <h3 className="text-[16px] font-semibold text-white">{p.name}</h3>
+                  <h3 className="text-[16px] font-semibold text-s-ink">{p.name}</h3>
                   {p.available ? (
-                    <span className="rounded-full border border-[#4ade8040] bg-[#4ade801a] px-2.5 py-[3px] text-[12px] font-semibold text-[#4ade80]">
+                    <span className="rounded-full border border-[#4ade8040] bg-[#4ade801a] px-2.5 py-[3px] text-[12px] font-semibold text-s-green">
                       Available
                     </span>
                   ) : (
-                    <span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-2.5 py-[3px] text-[12px] font-semibold text-white/50">
+                    <span className="rounded-full border border-s-line bg-s-fill px-2.5 py-[3px] text-[12px] font-semibold text-s-muted">
                       Coming soon
                     </span>
                   )}
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <p
-                    className={p.available ? 'text-[48px] font-medium tracking-[-1.4px] text-white' : 'text-[30px] font-medium tracking-[-1.4px] text-white/70'}
+                    className={p.available ? 'text-[48px] font-medium tracking-[-1.4px] text-s-ink' : 'text-[30px] font-medium tracking-[-1.4px] text-s-soft'}
                   >
                     {p.price}
                   </p>
-                  <p className="text-[14px] text-white/50">{p.note}</p>
+                  <p className="text-[14px] text-s-muted">{p.note}</p>
                 </div>
-                <ul className="flex flex-col gap-3 border-t border-white/[0.08] pt-5">
+                <ul className="flex flex-col gap-3 border-t border-s-line pt-5">
                   {p.items.map((it) => (
-                    <li key={it} className={`flex items-center gap-2.5 text-[14px] ${p.available ? 'text-white/70' : 'text-white/50'}`}>
-                      <Check className={`h-[15px] w-[15px] shrink-0 ${p.available ? 'text-[#60a5fa]' : 'text-white/50'}`} aria-hidden="true" />
+                    <li key={it} className={`flex items-center gap-2.5 text-[14px] ${p.available ? 'text-s-soft' : 'text-s-muted'}`}>
+                      <Check className={`h-[15px] w-[15px] shrink-0 ${p.available ? 'text-s-accent' : 'text-s-muted'}`} aria-hidden="true" />
                       {it}
                     </li>
                   ))}
@@ -958,7 +959,7 @@ function Plans() {
                     <button
                       type="button"
                       disabled
-                      className="h-11 w-full cursor-not-allowed rounded-full border border-white/[0.08] bg-white/[0.03] text-[14px] font-semibold text-white/50"
+                      className="h-11 w-full cursor-not-allowed rounded-full border border-s-line bg-s-fill text-[14px] font-semibold text-s-muted"
                     >
                       Not yet available
                     </button>
@@ -977,7 +978,7 @@ function Plans() {
 
 function BuiltBy() {
   return (
-    <section className="bg-[#070d18] px-4 pb-20 sm:px-8 lg:px-16 lg:pb-[120px]">
+    <section className="bg-s-bg px-4 pb-20 sm:px-8 lg:px-16 lg:pb-[120px]">
       <Reveal className="mx-auto max-w-[1120px]">
         <figure className={`${CARD} group flex flex-col items-center gap-8 rounded-[20px] p-7 sm:flex-row sm:gap-12 sm:p-10`}>
           <div className="h-[200px] w-[160px] shrink-0 overflow-hidden rounded-[14px]">
@@ -990,14 +991,14 @@ function BuiltBy() {
             />
           </div>
           <div className="flex flex-col gap-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[1.4px] text-[#60a5fa]">Built by an ALU graduate</p>
-            <blockquote className="text-[19px] leading-[1.5] tracking-[-0.3px] text-white sm:text-[22px]">
+            <p className="text-[11px] font-semibold uppercase tracking-[1.4px] text-s-accent">Built by an ALU graduate</p>
+            <blockquote className="text-[19px] leading-[1.5] tracking-[-0.3px] text-s-ink sm:text-[22px]">
               Levis designed and built ALU Ventures: graduate and investor registration with administrator review, project submission with document checks,
               investor introductions, and the hackathon, grant and competition workflow.
             </blockquote>
             <figcaption className="flex flex-col gap-1">
-              <span className="text-[15px] font-semibold text-white">Levis Ishimwe</span>
-              <span className="text-[14px] text-white/50">BSc Software Engineering · African Leadership University</span>
+              <span className="text-[15px] font-semibold text-s-ink">Levis Ishimwe</span>
+              <span className="text-[14px] text-s-muted">BSc Software Engineering · African Leadership University</span>
             </figcaption>
           </div>
         </figure>
@@ -1174,7 +1175,7 @@ function HeroSlider({ stats }) {
                   onClick={() => go(i)}
                   aria-label={`Show slide ${i + 1}: ${s.tab}`}
                   aria-current={on ? 'true' : undefined}
-                  className="group flex w-[140px] flex-col gap-2.5 text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white sm:w-[180px]"
+                  className="group flex min-h-11 w-[140px] flex-col gap-2.5 text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white sm:w-[180px]"
                 >
                   <span
                     className="relative h-[3px] w-full overflow-hidden rounded-full bg-white/20 transition-colors group-hover:bg-white/35"
@@ -1288,7 +1289,7 @@ export default function Home() {
   const showPlans = !user || user.role === 'investor';
   return (
     // overflow-x-clip: cards sliding in from the side must not make phones scroll sideways.
-    <div className="min-h-screen overflow-x-clip bg-[#070d18] font-sans text-white antialiased">
+    <div className="min-h-screen overflow-x-clip bg-s-bg font-sans text-s-ink antialiased">
       <SiteHeader />
       <main>
         <Hero stats={stats} />
