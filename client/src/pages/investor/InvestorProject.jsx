@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { formatDate } from '../../components/ui';
-import { Breadcrumb } from '../../components/kit';
-import { AdminPage, KeyValue, Loading, Messages, StatusPill } from '../../components/admin';
+import { Messages, StatusPill } from '../../components/admin';
+import { Avatar, DecisionPanel, DetailHeader, DetailLayout, DetailSkeleton, FieldGrid, InfoCard, LongText } from '../../components/detail';
 import { ExpressInterestDialog } from './Discover';
 
 const INTRO_TEXT = {
@@ -12,7 +12,7 @@ const INTRO_TEXT = {
   declined: 'The founder declined this introduction. No contact details were shared.',
 };
 
-// Project detail for investors: one key-value table and the description.
+// Project detail for investors: header, venture and founder cards, and the introduction panel.
 export default function InvestorProject() {
   const { code } = useParams();
   const [data, setData] = useState(null);
@@ -37,69 +37,89 @@ export default function InvestorProject() {
 
   if (error) {
     return (
-      <AdminPage title="Project">
-        <Breadcrumb items={[['Browse projects', '/app/discover'], ['Venture']]} />
+      <div className="adm">
+        <DetailHeader back={{ to: '/app/discover', label: 'Browse projects' }} title="Venture" />
         <Messages error={error} />
-      </AdminPage>
+      </div>
     );
   }
-  if (!data) return <AdminPage title="Project"><Loading /></AdminPage>;
+  if (!data) return <DetailSkeleton aside />;
   const { project: p, introduction } = data;
   const f = p.founder || {};
+  const cta = introduction ? (
+    <Link to="/app/introductions" className="adm-secondary">
+      View introduction
+    </Link>
+  ) : (
+    p.acceptingIntroductions && (
+      <button type="button" className="adm-primary" onClick={() => setExpressing(true)}>
+        Request introduction
+      </button>
+    )
+  );
 
   return (
-    <AdminPage title={p.title} meta={p.status !== 'approved' ? <StatusPill status={p.status} /> : null}>
-      <Breadcrumb items={[['Browse projects', '/app/discover'], [p.title]]} />
-      <Messages notice={notice} />
-      {p.imageUrl && <img src={p.imageUrl} alt={p.title} className="mb-4 aspect-[16/5] w-full rounded-xl border border-[var(--adm-border)] object-cover" />}
-      <div className="adm-card mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-        <span className="adm-muted">{introduction ? INTRO_TEXT[introduction.status] : p.acceptingIntroductions ? 'Open to introductions.' : 'No longer accepting introductions.'}</span>
-        <span className="ml-auto">
-          {introduction ? (
-            <Link to="/app/introductions" className="adm-secondary">
-              View introduction
-            </Link>
-          ) : (
-            p.acceptingIntroductions && (
-              <button type="button" className="adm-primary" onClick={() => setExpressing(true)}>
-                Request introduction
-              </button>
-            )
-          )}
-        </span>
-      </div>
-
-      <KeyValue
-        rows={[
-          ['Summary', p.summary],
-          ['Sector', p.sector],
-          ['Stage', p.stage],
-          ['Country', p.country],
-          ['Seeking', p.fundingSought],
-          ['Entity', p.rdbRegistered ? `${p.companyName} · RDB ${p.companyNumber}` : 'Idea stage, not yet registered'],
-          [
-            'Founder',
-            <span key="f">
-              {`${f.name || '—'}${f.cohortYear ? ` · Class of ${f.cohortYear}` : ''}${f.program ? ` · ${f.program}` : ''}`}
-              {f.profileId && (
-                <>
-                  {' · '}
-                  <Link to={`/app/graduates/${f.profileId}`} className="adm-a">
-                    View profile
-                  </Link>
-                </>
-              )}
-            </span>,
-          ],
-          ['Founder contact', introduction?.status === 'accepted' ? 'Shared with you' : 'After the founder accepts an introduction'],
-          ['Confirmed investors', `${p.confirmedInvestors} of ${p.investorLimit}`],
-          ['Approved', formatDate(p.approvedAt)],
-        ]}
+    <div className="adm">
+      <DetailHeader
+        back={{ to: '/app/discover', label: 'Browse projects', current: p.title }}
+        title={p.title}
+        avatar={<Avatar name={p.title} src={p.imageUrl} size={52} square />}
+        status={p.status !== 'approved' ? <StatusPill status={p.status} /> : <StatusPill status="approved" label="Seeking investment" />}
+        meta={[p.sector, p.stage, p.country].filter(Boolean).join(' · ')}
+        actions={cta || <span className="text-[13px] text-muted">No longer accepting introductions.</span>}
       />
+      <Messages notice={notice} />
 
-      <h2>Description</h2>
-      <p className="adm-card whitespace-pre-line p-4">{p.description}</p>
-      <p className="adm-hint mt-3">Approved by an ALU Ventures administrator, who approved the founder’s account after an alumni-email check and reviewed the venture and, for companies, the RDB certificate. Not an investment recommendation.</p>
+      <DetailLayout
+        aside={
+          <DecisionPanel title="Introduction" help={introduction ? INTRO_TEXT[introduction.status] : p.acceptingIntroductions ? 'Open to introductions. The founder accepts or declines before contact details are shared.' : 'No longer accepting introductions.'}>
+            <FieldGrid
+              columns={1}
+              fields={[
+                ['Founder contact', introduction?.status === 'accepted' ? 'Shared with you' : 'After the founder accepts an introduction'],
+                ['Confirmed investors', `${p.confirmedInvestors} of ${p.investorLimit}`],
+              ]}
+            />
+            {cta && <div className="flex flex-wrap gap-2">{cta}</div>}
+          </DecisionPanel>
+        }
+      >
+        {p.imageUrl && <img src={p.imageUrl} alt={p.title} className="aspect-[16/5] w-full rounded-xl border border-line object-cover" />}
+        <InfoCard title="Venture">
+          <FieldGrid
+            fields={[
+              ['Summary', p.summary, { wide: true }],
+              ['Sector', p.sector],
+              ['Stage', p.stage],
+              ['Country', p.country],
+              ['Seeking', p.fundingSought],
+              ['Entity', p.rdbRegistered ? `${p.companyName} · RDB ${p.companyNumber}` : 'Idea stage, not yet registered'],
+              ['Approved', formatDate(p.approvedAt)],
+            ]}
+          />
+        </InfoCard>
+        <InfoCard title="Founder">
+          <div className="flex flex-wrap items-center gap-3">
+            <Avatar name={f.name} src={f.photoUrl} size={44} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[14px] font-semibold text-ink">{f.name || 'Founder'}</p>
+              <p className="text-[13px] text-muted">{[f.cohortYear && `Class of ${f.cohortYear}`, f.program].filter(Boolean).join(' · ') || 'Verified ALU graduate'}</p>
+            </div>
+            {f.profileId && (
+              <Link to={`/app/graduates/${f.profileId}`} className="adm-act inline-flex min-h-11 items-center lg:min-h-9">
+                View profile
+              </Link>
+            )}
+          </div>
+        </InfoCard>
+        <InfoCard title="Description">
+          <LongText>{p.description}</LongText>
+        </InfoCard>
+        <p className="adm-hint">
+          Approved by an ALU Ventures administrator, who approved the founder’s account after an alumni-email check and reviewed the venture and, for companies, the RDB certificate. Not
+          an investment recommendation.
+        </p>
+      </DetailLayout>
 
       <ExpressInterestDialog
         project={expressing ? p : null}
@@ -109,6 +129,6 @@ export default function InvestorProject() {
           load();
         }}
       />
-    </AdminPage>
+    </div>
   );
 }

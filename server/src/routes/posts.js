@@ -29,11 +29,61 @@ function ownView(p) {
   };
 }
 
+// Approved investors and sponsors, and active staff and administrators, read
+// the feed and may report a post. Graduates see their own posts (GET /mine);
+// other graduates' posts are shown only to the audience they consented to.
+const isActiveStaffOrAdmin = (u) => ['staff', 'admin'].includes(u?.role) && u.status === 'active';
+const canReadFeed = (u) => isApprovedInvestor(u) || isActiveStaffOrAdmin(u);
+const FEED_PAGE = 10;
+
 async function ownPost(req) {
   const post = await GraduatePost.findOne({ where: { id: req.params.id, graduateId: req.user.id } });
   if (!post) throw notFound('Post not found.');
   return post;
 }
+
+// The posts feed: newest first, ten per page, never removed posts, and only
+// from approved graduates who consented to be shown to investors and sponsors.
+router.get('/', async (req, res) => {
+  if (!canReadFeed(req.user)) throw forbidden('The posts feed is for approved investors and sponsors and ALU staff.');
+  const { page } = z.object({ page: z.coerce.number().int().min(1).max(1000).default(1) }).parse(req.query);
+  const { rows, count } = await GraduatePost.findAndCountAll({
+    where: { removedAt: null },
+    include: [
+      {
+        model: User,
+        as: 'graduate',
+        required: true,
+        where: { role: 'graduate', status: 'active' },
+        attributes: ['id', 'fullName', 'role', 'status'],
+        include: [
+          {
+            model: GraduateProfile,
+            as: 'graduateProfile',
+            required: true,
+            where: { verificationStatus: 'approved', publicProfileConsent: true },
+            attributes: ['verificationStatus', 'publicProfileConsent', 'publicImageKey'],
+          },
+        ],
+      },
+    ],
+    order: [
+      ['createdAt', 'DESC'],
+      ['id', 'DESC'],
+    ],
+    limit: FEED_PAGE,
+    offset: (page - 1) * FEED_PAGE,
+    distinct: true,
+  });
+  res.json({
+    posts: rows.map((p) => serializePost(p, { graduate: p.graduate })),
+    page,
+    pageSize: FEED_PAGE,
+    total: count,
+    hasMore: page * FEED_PAGE < count,
+    canReport: true,
+  });
+});
 
 router.get('/mine', requireRole('graduate'), async (req, res) => {
   const posts = await GraduatePost.findAll({ where: { graduateId: req.user.id }, order: [['createdAt', 'DESC']], limit: 50 });
@@ -110,9 +160,11 @@ router.get('/:id/image', async (req, res) => {
   await sendStoredFile(res, { storageKey: post.imageKey, mimeType: 'image/jpeg', filename: 'post' });
 });
 
-// An investor or sponsor flags a post for the administrator.
+// An investor, sponsor or staff member flags a post for the administrator.
 router.post('/:id/report', async (req, res) => {
-  if (!isApprovedInvestor(req.user)) throw forbidden('Only approved investors and sponsors can report posts.');
+  if (!isApprovedInvestor(req.user) && !(req.user.role === 'staff' && req.user.status === 'active')) {
+    throw forbidden('Only approved investors and sponsors and ALU staff can report posts.');
+  }
   const { reason } = z
     .object({ reason: z.string().trim().max(500).optional().or(z.literal('')).transform((v) => v || null) })
     .parse(req.body || {});

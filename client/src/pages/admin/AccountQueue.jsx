@@ -3,7 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { formatDate } from '../../components/ui';
 import ReasonDialog from '../../components/ReasonDialog';
-import { AdminPage, DataTable, DeleteDialog, KeyValue, ListLayout, Loading, Messages, SearchInput, SidePanel, StatusPill, StatusSelect } from '../../components/admin';
+import { AdminPage, DataTable, DeleteDialog, ListLayout, Loading, Messages, SearchInput, SidePanel, StatusPill, StatusSelect } from '../../components/admin';
+import { Avatar, DecisionPanel, FieldGrid, InfoCard } from '../../components/detail';
 
 const STATUSES = [
   ['pending', 'Pending review'],
@@ -32,6 +33,9 @@ export default function AccountQueue({ role }) {
   const [viewing, setViewing] = useState(null);
   const [dialog, setDialog] = useState(null);
   const [deleting, setDeleting] = useState(null);
+  const [reason, setReason] = useState('');
+  // A reason typed for one person never carries over to the next.
+  useEffect(() => setReason(''), [viewing?.id]);
 
   const load = useCallback(() => {
     setRows(null);
@@ -64,14 +68,16 @@ export default function AccountQueue({ role }) {
 
   const decide = (row, decision) => setDialog({ row, decision });
 
-  const actions = (row) => (
+  const actions = (row, { inPanel = false } = {}) => (
     <>
-      <button type="button" className="adm-act" onClick={() => setViewing(row)}>
-        View
-      </button>
+      {!inPanel && (
+        <button type="button" className="adm-act" onClick={() => setViewing(row)}>
+          View
+        </button>
+      )}
       {row.status === 'pending_review' && (
         <>
-          <button type="button" className="adm-act" onClick={() => decide(row, 'approve')}>
+          <button type="button" className={inPanel ? 'adm-primary' : 'adm-act'} onClick={() => decide(row, 'approve')}>
             Approve
           </button>
           <button type="button" className="adm-act adm-act-danger" onClick={() => decide(row, 'reject')}>
@@ -129,54 +135,99 @@ export default function AccountQueue({ role }) {
 
       {viewing && (
         <SidePanel title={viewing.fullName} onClose={() => setViewing(null)}>
-          <p className="mb-4">{actions(viewing)}</p>
-          <KeyValue
-            rows={[
-              ['Status', <StatusPill key="s" status={viewing.status} />],
-              ['Email', viewing.email],
-              ['Phone', viewing.phone],
-              ['Registered', formatDate(viewing.registeredAt, true)],
-              ...(viewing.hasPhoto ? [['Profile photo', <img key="p" src={`/api/admin/users/${viewing.id}/photo`} alt="" className="h-16 w-16 rounded-lg object-cover" />]] : []),
-              ...(role === 'graduate'
-                ? [
+          <div className="space-y-4">
+            <header className="card flex items-start gap-4 p-4 sm:p-5">
+              <Avatar name={viewing.fullName} src={viewing.hasPhoto ? `/api/admin/users/${viewing.id}/photo` : null} size={56} />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-[17px] font-semibold text-ink [overflow-wrap:anywhere]">{viewing.fullName}</p>
+                  <StatusPill status={viewing.status} />
+                </div>
+                <p className="mt-1 text-[13px] text-muted [overflow-wrap:anywhere]">
+                  {role === 'graduate'
+                    ? [viewing.program, viewing.cohortYear && `Class of ${viewing.cohortYear}`].filter(Boolean).join(' · ') || 'Graduate'
+                    : [viewing.organisation, viewing.investorType === 'sponsor' ? 'Sponsor' : 'Investor'].filter(Boolean).join(' · ')}
+                </p>
+              </div>
+            </header>
+
+            <InfoCard title="Contact">
+              <FieldGrid
+                fields={[
+                  ['Email', viewing.email],
+                  ['Phone', viewing.phone],
+                  ['Registered', formatDate(viewing.registeredAt, true)],
+                ]}
+              />
+            </InfoCard>
+
+            {role === 'graduate' ? (
+              <InfoCard title="Graduate">
+                <FieldGrid
+                  fields={[
                     ['Programme', viewing.program],
                     ['Cohort', viewing.cohortYear],
-                  ]
-                : [
+                  ]}
+                />
+              </InfoCard>
+            ) : (
+              <InfoCard title="Organisation">
+                <FieldGrid
+                  fields={[
                     ['Organisation', viewing.organisation],
                     ['Type', viewing.investorType === 'sponsor' ? 'Sponsor' : 'Investor'],
                     ['Website', viewing.website ? <a key="w" className="adm-a" href={viewing.website} target="_blank" rel="noreferrer">{viewing.website}</a> : null],
                     ['Sectors', viewing.sectors?.length ? viewing.sectors.join(', ') : null],
-                    ['About', viewing.bio],
-                    [
-                      'Home page',
-                      <label key="h" className="inline-flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(viewing.showOnHome)}
-                          disabled={viewing.status !== 'active'}
-                          onChange={async (e) => {
-                            const showOnHome = e.target.checked;
-                            setError('');
-                            try {
-                              await api.patch(`/admin/investors/${viewing.id}/home`, { showOnHome });
-                              setViewing({ ...viewing, showOnHome });
-                              setRows((rs) => rs?.map((r) => (r.id === viewing.id ? { ...r, showOnHome } : r)));
-                              setNotice(showOnHome ? `${viewing.fullName} now shows on the home page (name, organisation, sectors, bio).` : `${viewing.fullName} no longer shows on the home page.`);
-                            } catch (err) {
-                              setError(err.message);
-                            }
-                          }}
-                        />
-                        Show on home page
-                      </label>,
-                    ],
-                  ]),
-            ]}
-          />
-          {role === 'graduate' && viewing.status === 'pending_review' && (
-            <p className="adm-hint mt-4">Email confirmed with a one-time code sent to this alumni address. Approve to let them submit projects; they are emailed either way.</p>
-          )}
+                    ['About', viewing.bio, { wide: true }],
+                  ]}
+                />
+                <label className="mt-4 flex min-h-11 items-center gap-2 border-t border-line pt-3 text-[14px]">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(viewing.showOnHome)}
+                    disabled={viewing.status !== 'active'}
+                    onChange={async (e) => {
+                      const showOnHome = e.target.checked;
+                      setError('');
+                      try {
+                        await api.patch(`/admin/investors/${viewing.id}/home`, { showOnHome });
+                        setViewing({ ...viewing, showOnHome });
+                        setRows((rs) => rs?.map((r) => (r.id === viewing.id ? { ...r, showOnHome } : r)));
+                        setNotice(showOnHome ? `${viewing.fullName} now shows on the home page (name, organisation, sectors, bio).` : `${viewing.fullName} no longer shows on the home page.`);
+                      } catch (err) {
+                        setError(err.message);
+                      }
+                    }}
+                  />
+                  Show on home page
+                </label>
+              </InfoCard>
+            )}
+
+            <DecisionPanel
+              status={<StatusPill status={viewing.status} />}
+              help={
+                role === 'graduate' && viewing.status === 'pending_review'
+                  ? 'Email confirmed with a one-time code sent to this alumni address. Approve to let them submit projects; they are emailed either way.'
+                  : null
+              }
+            >
+              {viewing.status === 'pending_review' && (
+                <label className="block text-[13px] font-medium text-ink">
+                  Reason
+                  <textarea
+                    className="adm-field mt-1"
+                    rows={3}
+                    maxLength={1000}
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Required to reject; emailed to them."
+                  />
+                </label>
+              )}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 [&_.adm-act]:min-h-11 lg:[&_.adm-act]:min-h-9">{actions(viewing, { inPanel: true })}</div>
+            </DecisionPanel>
+          </div>
         </SidePanel>
       )}
 
@@ -198,6 +249,7 @@ export default function AccountQueue({ role }) {
             : ''
         }
         reason={!isDecision ? 'none' : dialog?.decision === 'reject' ? 'required' : 'optional'}
+        initialReason={viewing && dialog?.row.id === viewing.id ? reason : ''}
         confirmLabel={dialog ? { approve: 'Approve', reject: 'Reject', archive: 'Archive', unarchive: 'Unarchive' }[dialog.decision] : ''}
         tone={dialog?.decision === 'approve' ? 'success' : ['reject', 'archive'].includes(dialog?.decision) ? 'danger' : 'primary'}
         onClose={() => setDialog(null)}
@@ -205,6 +257,7 @@ export default function AccountQueue({ role }) {
           await api.post(`/admin/${copy.endpoint}/${dialog.row.id}/${dialog.decision}`, isDecision ? { reason } : {});
           setNotice(`${dialog.row.fullName}: ${{ approve: 'approved and emailed', reject: 'rejected and emailed', archive: 'archived', unarchive: 'unarchived' }[dialog.decision]}.`);
           setViewing(null);
+          setReason('');
           load();
         }}
       />

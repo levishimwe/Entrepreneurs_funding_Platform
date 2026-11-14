@@ -167,6 +167,31 @@ body,
   }
 }
 
+/* Native selects everywhere. The option list is drawn by the browser from
+   color-scheme (set per theme on :root above) and the option colours below;
+   without them a transparent select with light text (the dark public pages)
+   opened a light list with light text, so only the highlighted option showed. */
+select {
+  color-scheme: inherit;
+}
+select option,
+select optgroup {
+  background-color: var(--surface);
+  color: var(--ink);
+}
+select option:checked {
+  background-color: var(--accent-soft);
+  color: var(--ink);
+}
+select option:disabled {
+  color: var(--muted);
+}
+.site-public select option,
+.site-public select optgroup {
+  background-color: var(--s-card);
+  color: var(--s-ink);
+}
+
 /* In-page #anchors land below the sticky 72px site header. */
 html {
   scroll-padding-top: 88px;

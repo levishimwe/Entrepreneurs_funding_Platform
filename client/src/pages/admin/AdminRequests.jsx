@@ -4,6 +4,7 @@ import { api, qs } from '../../lib/api';
 import { Field, formatDate } from '../../components/ui';
 import ReasonDialog from '../../components/ReasonDialog';
 import { AdminPage, DataTable, KeyValue, ListLayout, Loading, Messages, SearchInput, SidePanel, StatusPill, StatusSelect } from '../../components/admin';
+import { DecisionPanel } from '../../components/detail';
 
 const STATUSES = [
   ['open', 'Open'],
@@ -82,7 +83,9 @@ function ThreadPanel({ id, onClose, onChanged }) {
             ]}
           />
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4">
+          <DecisionPanel status={<StatusPill status={thread.status} />}>
+          <div className="flex flex-wrap items-center gap-2">
             {nameChange && !thread.nameAppliedAt && (
               <button type="button" className="adm-primary" disabled={busy} onClick={() => setDialog('apply')}>
                 Apply change
@@ -112,15 +115,17 @@ function ThreadPanel({ id, onClose, onChanged }) {
               </>
             )}
           </div>
+          </DecisionPanel>
+          </div>
 
           <h2 className="mt-6">Conversation</h2>
           <ol className="mt-2 space-y-2" aria-label="Messages">
             {thread.messages.map((m) => (
-              <li key={m.id} className={`adm-card p-3 ${m.authorRole === 'admin' ? 'bg-[var(--adm-accent-soft)]' : ''}`}>
+              <li key={m.id} className={`card p-4 ${m.authorRole === 'admin' ? 'bg-[var(--adm-accent-soft)]' : ''}`}>
                 <p className="adm-muted text-[12px]">
                   <strong className="text-[var(--adm-text)]">{m.authorRole === 'admin' ? 'Administrator' : thread.user?.name}</strong> · {formatDate(m.createdAt, true)}
                 </p>
-                <p className="mt-1 whitespace-pre-line">{m.body}</p>
+                <p className="mt-1 max-w-[72ch] whitespace-pre-line leading-6">{m.body}</p>
                 {m.attachment && (
                   <a href={`/api/admin/requests/attachments/${m.id}`} target="_blank" rel="noreferrer" className="mt-2 block w-fit">
                     <img src={`/api/admin/requests/attachments/${m.id}`} alt={m.attachment.name} className="max-h-56 rounded border border-[var(--adm-border)]" loading="lazy" />

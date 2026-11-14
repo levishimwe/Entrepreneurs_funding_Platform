@@ -18,6 +18,8 @@ export default function ReasonDialog({
   children,
   // e.g. a delete that the server says is blocked
   confirmDisabled = false,
+  // A reason already typed elsewhere (e.g. a review page's decision panel).
+  initialReason = '',
 }) {
   const [text, setText] = useState('');
   const [error, setError] = useState('');
@@ -27,7 +29,7 @@ export default function ReasonDialog({
 
   useEffect(() => {
     if (!open) return undefined;
-    setText('');
+    setText(initialReason || '');
     setError('');
     setFieldError('');
     const previous = document.activeElement;

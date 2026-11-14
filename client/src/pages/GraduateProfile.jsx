@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { Loading } from '../components/admin';
+import { BackLink, DetailSkeleton, EmptyNote } from '../components/detail';
 import ReasonDialog from '../components/ReasonDialog';
 import { GraduateImage, PostCard } from '../components/member/Posts';
 
@@ -33,14 +33,30 @@ export default function GraduateProfile() {
       .catch((e) => setError(e.message));
   }, [id]);
 
-  if (error) return <p className={`${card} mx-auto max-w-[760px] px-5 py-4 text-[14px]`}>{error}</p>;
-  if (!data) return <Loading />;
+  // Where "back" goes for each role.
+  const back = { investor: ['/app/discover', 'Browse projects'], admin: ['/app/admin/graduates', 'Graduates'], staff: ['/app/staff', 'Dashboard'] }[user.role] || ['/app', 'Activity'];
+  if (error)
+    return (
+      <div className="mx-auto max-w-[760px]">
+        <BackLink to={back[0]} label={back[1]} />
+        <EmptyNote>{error}</EmptyNote>
+      </div>
+    );
+  if (!data)
+    return (
+      <div className="mx-auto max-w-[760px]">
+        <DetailSkeleton />
+      </div>
+    );
   const g = data.graduate;
   // Investors open a venture in their workspace (with the introduction flow); others see the public page.
   const ventureLink = (p) => (investor && p.seekingInvestment ? `/app/discover/${p.id}` : `/ventures/${p.id}`);
 
   return (
     <div className="mx-auto max-w-[760px] space-y-6">
+      <div className="-mb-3">
+        <BackLink to={back[0]} label={back[1]} current={g.name} />
+      </div>
       {g.self && (
         <p className={`${card} px-5 py-3 text-[13px] text-muted`}>
           {g.shown
@@ -66,14 +82,16 @@ export default function GraduateProfile() {
       {g.bio && (
         <section className={`${card} p-6`}>
           <h2 className="!m-0 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">About</h2>
-          <p className="mt-2 whitespace-pre-line text-[15px] leading-[1.6] text-ink">{g.bio}</p>
+          <p className="mt-2 max-w-[72ch] whitespace-pre-line text-[15px] leading-7 text-ink">{g.bio}</p>
         </section>
       )}
 
       <section className={card} aria-label="Ventures">
         <h2 className="!m-0 px-6 pt-5 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">Ventures</h2>
         {data.projects.length === 0 ? (
-          <p className="px-6 pb-5 pt-2 text-[14px] text-muted">No approved and listed ventures yet.</p>
+          <div className="px-6 pb-5 pt-3">
+            <EmptyNote>No approved and listed ventures yet.</EmptyNote>
+          </div>
         ) : (
           <ul className="mt-2">
             {data.projects.map((p) => (
@@ -94,7 +112,7 @@ export default function GraduateProfile() {
                   ) : (
                     <button
                       type="button"
-                      className="h-9 shrink-0 rounded-lg border border-accent px-4 text-[13px] font-semibold text-accent transition-colors hover:bg-accent-soft"
+                      className="h-11 shrink-0 rounded-lg border border-accent px-4 lg:h-9 text-[13px] font-semibold text-accent transition-colors hover:bg-accent-soft"
                       onClick={() => setRequesting(p)}
                     >
                       Request introduction
@@ -109,7 +127,9 @@ export default function GraduateProfile() {
       <section className={card} aria-label="Posts">
         <h2 className="!m-0 px-6 pt-5 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">Recent posts</h2>
         {data.posts.length === 0 ? (
-          <p className="px-6 pb-5 pt-2 text-[14px] text-muted">No posts yet.</p>
+          <div className="px-6 pb-5 pt-3">
+            <EmptyNote>No posts yet.</EmptyNote>
+          </div>
         ) : (
           <div className="mt-1">
             {data.posts.map((p) => (

@@ -916,56 +916,52 @@ function Plans() {
         <div className="grid gap-5 md:grid-cols-3">
           {PLANS.map((p, i) => (
             <Reveal key={p.name} delay={i * 110} className="h-full">
-              <article
-                className={`flex h-full flex-col gap-6 rounded-[20px] p-8 transition-[transform,box-shadow] duration-500 hover:-translate-y-1.5 md:min-h-[440px] ${
-                  p.available ? 'border-[1.5px] border-[#2563eb] hover:shadow-[0_30px_70px_-25px_#2563eb88]' : 'border border-s-line bg-s-fill'
-                }`}
-                style={p.available ? { background: 'linear-gradient(180deg, #2563eb24 0%, #2563eb00 70%), rgba(255,255,255,0.03)' } : undefined}
-              >
-                <div className="flex items-center justify-between">
-                  <h3 className="text-[16px] font-semibold text-s-ink">{p.name}</h3>
-                  {p.available ? (
-                    <span className="rounded-full border border-[#4ade8040] bg-[#4ade801a] px-2.5 py-[3px] text-[12px] font-semibold text-s-green">
-                      Available
-                    </span>
-                  ) : (
-                    <span className="rounded-full border border-s-line bg-s-fill px-2.5 py-[3px] text-[12px] font-semibold text-s-muted">
-                      Coming soon
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <p
-                    className={p.available ? 'text-[48px] font-medium tracking-[-1.4px] text-s-ink' : 'text-[30px] font-medium tracking-[-1.4px] text-s-soft'}
-                  >
-                    {p.price}
-                  </p>
-                  <p className="text-[14px] text-s-muted">{p.note}</p>
-                </div>
-                <ul className="flex flex-col gap-3 border-t border-s-line pt-5">
-                  {p.items.map((it) => (
-                    <li key={it} className={`flex items-center gap-2.5 text-[14px] ${p.available ? 'text-s-soft' : 'text-s-muted'}`}>
-                      <Check className={`h-[15px] w-[15px] shrink-0 ${p.available ? 'text-s-accent' : 'text-s-muted'}`} aria-hidden="true" />
-                      {it}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-auto">
-                  {p.available ? (
+              {p.available ? (
+                <article
+                  className="flex h-full flex-col gap-6 rounded-[20px] border-[1.5px] border-[#2563eb] p-8 transition-[transform,box-shadow] duration-500 hover:-translate-y-1.5 hover:shadow-[0_30px_70px_-25px_#2563eb88] md:min-h-[440px]"
+                  style={{ background: 'linear-gradient(180deg, #2563eb24 0%, #2563eb00 70%), var(--s-fill)' }}
+                >
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-[16px] font-semibold text-s-ink">{p.name}</h3>
+                    <span className="rounded-full border border-[#4ade8040] bg-[#4ade801a] px-2.5 py-[3px] text-[12px] font-semibold text-s-green">Available</span>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-[48px] font-medium tracking-[-1.4px] text-s-ink">{p.price}</p>
+                    <p className="text-[14px] text-s-muted">{p.note}</p>
+                  </div>
+                  <ul className="flex flex-col gap-3 border-t border-s-line pt-5">
+                    {p.items.map((it) => (
+                      <li key={it} className="flex items-center gap-2.5 text-[14px] text-s-soft">
+                        <Check className="h-[15px] w-[15px] shrink-0 text-s-accent" aria-hidden="true" />
+                        {it}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-auto">
                     <Link to="/register?role=investor" className={`${PRIMARY} h-11 w-full text-[14px]`}>
                       Request investor access
                     </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled
-                      className="h-11 w-full cursor-not-allowed rounded-full border border-s-line bg-s-fill text-[14px] font-semibold text-s-muted"
-                    >
-                      Not yet available
-                    </button>
-                  )}
-                </div>
-              </article>
+                  </div>
+                </article>
+              ) : (
+                // A future plan: one flat card. Title, a plain "Future plan"
+                // label, the list with small grey checks, and a muted line.
+                <article className="flex h-full flex-col gap-5 rounded-[20px] border border-s-line bg-s-fill p-8 md:min-h-[440px]">
+                  <div>
+                    <h3 className="text-[16px] font-semibold text-s-ink">{p.name}</h3>
+                    <p className="mt-1 text-[14px] text-s-muted">Future plan</p>
+                  </div>
+                  <ul className="flex flex-col gap-3">
+                    {p.items.map((it) => (
+                      <li key={it} className="flex items-center gap-2.5 text-[14px] text-s-soft">
+                        <Check className="h-3.5 w-3.5 shrink-0 text-s-faint" aria-hidden="true" />
+                        {it}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-auto text-[14px] text-s-muted">Not yet available</p>
+                </article>
+              )}
             </Reveal>
           ))}
         </div>

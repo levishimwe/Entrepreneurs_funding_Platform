@@ -5,6 +5,7 @@
 // seconds.
 const { cached, change, compare, grouped, num, periodWindow, rows, series, topBars } = require('./analytics');
 const { nextStepsFor } = require('./nextSteps');
+const { hiddenArchivedIds } = require('./ownerVisibility');
 
 // Audit actions that never appear in a member's own activity.
 const HIDDEN_ACTIONS = ['auth.login', 'auth.password_reset_requested', 'document.viewed', 'project.viewed_by_investor'];
@@ -50,17 +51,20 @@ const periodOut = (w, period) => ({ key: period, unit: w.unit, from: w.from, to:
 async function buildGraduate(user, period) {
   const w = periodWindow(period);
   const uid = user.id;
+  // Archived projects that have left the owner's pages are not counted either.
+  const hidden = ids(await hiddenArchivedIds(uid));
   const [projects, applications, posts, steps] = await Promise.all([
-    rows('SELECT id, status, updated_at FROM projects WHERE owner_id = :uid ORDER BY updated_at DESC, id DESC', { uid }),
+    rows('SELECT id, status, updated_at FROM projects WHERE owner_id = :uid AND id NOT IN (:hidden) ORDER BY updated_at DESC, id DESC', { uid, hidden }),
     rows('SELECT id FROM applications WHERE applicant_id = :uid', { uid }),
     rows('SELECT id FROM graduate_posts WHERE graduate_id = :uid', { uid }),
     nextStepsFor(user),
   ]);
   const pids = ids(projects.map((p) => p.id));
-  const own = { uid, pids, aids: ids(applications.map((a) => a.id)), postIds: ids(posts.map((p) => p.id)), hidden: HIDDEN_ACTIONS };
+  const own = { uid, pids, aids: ids(applications.map((a) => a.id)), postIds: ids(posts.map((p) => p.id)), hidden: HIDDEN_ACTIONS, hiddenProjects: hidden };
   // The same scope as the account activity feed.
   const mine = `(actor_id = :uid OR (entity_type = 'user' AND entity_id = :uid) OR (entity_type = 'project' AND entity_id IN (:pids))
-    OR (entity_type = 'application' AND entity_id IN (:aids)) OR (entity_type = 'post' AND entity_id IN (:postIds))) AND action NOT IN (:hidden)`;
+    OR (entity_type = 'application' AND entity_id IN (:aids)) OR (entity_type = 'post' AND entity_id IN (:postIds))) AND action NOT IN (:hidden)
+    AND (entity_type IS NULL OR entity_type <> 'project' OR entity_id NOT IN (:hiddenProjects))`;
   const views = `action = '${VIEW_ACTION}' AND entity_type = 'project' AND entity_id IN (:pids)`;
 
   const [received, accepted, applied, viewed, [introTotals], [appTotal], [viewTotal], events, viewSeries, stages, decisions] = await Promise.all([

@@ -9,6 +9,72 @@ import { initials } from '../../components/Avatar';
 import { MemberCard, MemberColumns } from '../../layouts/MemberShell';
 import { PostCard } from '../../components/member/Posts';
 import { InvestorSummary } from '../../components/member/ActivitySummary';
+import { HistorySection } from '../../components/detail';
+
+// The investor's own events (introductions, account), newest first.
+const HISTORY_FILTERS = [
+  ['all', 'All activity', () => true],
+  ['introductions', 'Introductions', (e) => e.action.startsWith('introduction.') || e.action.startsWith('investment.')],
+  ['account', 'Account', (e) => e.action.startsWith('account.') || e.action.startsWith('auth.')],
+];
+
+function InvestorHistory() {
+  const [entries, setEntries] = useState(null);
+  const [filter, setFilter] = useState('all');
+  useEffect(() => {
+    api
+      .get('/account/activity?limit=50')
+      .then((d) => setEntries(d.entries))
+      .catch(() => setEntries([]));
+  }, []);
+  const shown = entries?.filter(HISTORY_FILTERS.find(([k]) => k === filter)[2]);
+  return (
+    <HistorySection
+      loading={!entries}
+      count={shown?.length}
+      latest={shown?.[0] ? `${shown[0].label} (${relativeTime(shown[0].at)})` : null}
+      filter={
+        <label className="flex items-center gap-2 text-[13px] text-muted">
+          Show
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="h-11 cursor-pointer rounded-lg border border-line bg-surface pl-3 pr-8 text-[14px] font-semibold text-ink outline-none focus:border-accent lg:h-10"
+          >
+            {HISTORY_FILTERS.map(([k, l]) => (
+              <option key={k} value={k}>
+                {l}
+              </option>
+            ))}
+          </select>
+        </label>
+      }
+    >
+      {!shown ? (
+        <Loading />
+      ) : shown.length === 0 ? (
+        <p className="px-5 py-10 text-center text-[14px] text-muted">Nothing here yet. Your introduction requests and account updates will appear here.</p>
+      ) : (
+        <ul>
+          {shown.map((e) => (
+            <li key={e.id} className="flex gap-3 border-t border-line px-5 py-4">
+              <div className="min-w-0 flex-1">
+                <p className="text-[14px] leading-[1.5] text-ink">
+                  <span className="font-semibold">{e.label}</span>
+                  {e.subject && <> · {e.subject}</>}
+                </p>
+                {e.reason && <p className="mt-0.5 text-[13px] text-muted">“{e.reason}”</p>}
+              </div>
+              <time className="shrink-0 text-[13px] text-muted" dateTime={e.at}>
+                {relativeTime(e.at)}
+              </time>
+            </li>
+          ))}
+        </ul>
+      )}
+    </HistorySection>
+  );
+}
 
 // Investor / sponsor Activity: a profile banner while the account is
 // incomplete, how things are going (period, KPI cards and charts with the
@@ -296,6 +362,8 @@ export default function InvestorActivity() {
           </div>
         )}
       </section>
+
+      <InvestorHistory />
     </MemberColumns>
   );
 }

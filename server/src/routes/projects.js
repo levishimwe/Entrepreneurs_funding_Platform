@@ -17,6 +17,8 @@ const { ownerProject } = require('../services/projectView');
 const { processPublicImage } = require('../services/publicImages');
 const { sendStoredFile } = require('../services/fileDelivery');
 const { enqueueDocumentVerification } = require('../workers/jobs');
+const { hiddenArchivedIds } = require('../services/ownerVisibility');
+const { Op } = require('sequelize');
 
 const router = express.Router();
 
@@ -92,6 +94,8 @@ async function loadOwnedProject(req) {
     order: [[{ model: Document, as: 'documents' }, 'id', 'ASC']],
   });
   if (!project) throw notFound('Project not found.');
+  // An archived project without investor or funding history has left the owner's pages.
+  if (project.status === 'archived' && (await hiddenArchivedIds(req.user.id)).includes(project.id)) throw notFound('Project not found.');
   return project;
 }
 
@@ -264,8 +268,9 @@ router.post('/', requireApprovedGraduate, uploadLimiter, uploadFields, async (re
 
 // --- Graduate's own projects ---
 router.get('/mine', requireRole('graduate'), async (req, res) => {
+  const hidden = await hiddenArchivedIds(req.user.id);
   const projects = await Project.findAll({
-    where: { ownerId: req.user.id },
+    where: { ownerId: req.user.id, ...(hidden.length ? { id: { [Op.notIn]: hidden } } : {}) },
     include: [{ model: Document, as: 'documents' }, APPROVED_RESULTS],
     order: [['createdAt', 'DESC']],
   });
@@ -293,7 +298,7 @@ router.get('/:id', requireRole('graduate'), async (req, res) => {
 // The owner's own background image, whatever the project's status.
 router.get('/:id/image', requireRole('graduate'), async (req, res) => {
   const project = await Project.findOne({ where: { id: req.params.id, ownerId: req.user.id }, attributes: ['id', 'imageKey'] });
-  if (!project?.imageKey) throw notFound('No background image.');
+  if (!project?.imageKey || (await hiddenArchivedIds(req.user.id)).includes(project.id)) throw notFound('No background image.');
   await sendStoredFile(res, { storageKey: project.imageKey, mimeType: 'image/jpeg', filename: 'project-image' });
 });
 

@@ -19,7 +19,7 @@ const NAV = {
   ],
   staff: [
     ['Review', [['/app/staff', 'Dashboard', true], ['/app/staff/selection', 'Applications'], ['/app/staff/results', 'Results']]],
-    ['Manage', [['/app/staff/opportunities', 'Opportunities'], ['/app/staff/new', 'Submit opportunity']]],
+    ['Manage', [['/app/staff/opportunities', 'Opportunities'], ['/app/staff/new', 'Submit opportunity'], ['/app/posts', 'Posts']]],
     ['Settings', [['/app/settings', 'Account']]],
   ],
   graduate: [

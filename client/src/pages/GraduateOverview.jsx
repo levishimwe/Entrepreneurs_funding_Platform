@@ -10,6 +10,7 @@ import { MemberAvatar, MemberCard, MemberColumns } from '../layouts/MemberShell'
 import { useMyProjects } from './graduate/MyProjects';
 import PostComposer from '../components/member/PostComposer';
 import { GraduateSummary } from '../components/member/ActivitySummary';
+import { HistorySection } from '../components/detail';
 
 // Graduate Activity: how things are going (period, KPI cards and charts),
 // needs-attention items, the post box, the graduate's own events, and on the
@@ -253,14 +254,17 @@ export default function GraduateOverview() {
 
       <PostComposer avatar={<MemberAvatar user={user} size={44} />} />
 
-      <section aria-label="Your activity">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <label className="relative">
-            <span className="sr-only">Show</span>
+      <HistorySection
+        loading={!feed}
+        count={feed?.length}
+        latest={feed?.[0] ? `${feed[0].label}${feed[0].subject ? ` · ${feed[0].subject}` : ''} (${relativeTime(feed[0].at)})` : null}
+        filter={
+          <label className="flex items-center gap-2 text-[13px] text-muted">
+            Show
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="h-10 cursor-pointer rounded-lg border border-line bg-surface pl-3 pr-8 text-[14px] font-semibold text-ink outline-none focus:border-accent"
+              className="h-11 cursor-pointer rounded-lg border border-line bg-surface pl-3 pr-8 text-[14px] font-semibold text-ink outline-none focus:border-accent lg:h-10"
             >
               {FILTERS.map(([k, l]) => (
                 <option key={k} value={k}>
@@ -269,56 +273,49 @@ export default function GraduateOverview() {
               ))}
             </select>
           </label>
-          {feed && <span className="text-[13px] text-muted">{feed.length} events</span>}
-        </div>
-        <div className="rounded-xl border border-line bg-surface">
-          {!feed ? (
-            <div className="p-5">
-              <Loading />
-            </div>
-          ) : feed.length === 0 ? (
-            <p className="px-5 py-10 text-center text-[14px] text-muted">Nothing here yet. Your project and application updates will appear here.</p>
-          ) : (
-            <ul>
-              {feed.map((e, i) => (
-                <li key={e.id} className="land-rise flex gap-3 border-t border-line px-5 py-4 first:border-0" style={{ '--d': `${Math.min(i, 8) * 40}ms` }}>
-                  {OWN.has(e.action) ? (
-                    <MemberAvatar user={user} size={36} />
-                  ) : (
-                    <span
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-subtle text-[11px] font-semibold text-muted ring-1 ring-line"
-                      aria-hidden="true"
-                    >
-                      AV
-                    </span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[14px] leading-[1.5] text-ink">
-                      <span className="font-semibold">{e.label}</span>
-                      {e.subject && (
-                        <>
-                          {' · '}
-                          {e.projectId ? (
-                            <Link to={`/app/projects/${e.projectId}`} className="text-accent hover:underline">
-                              {e.subject}
-                            </Link>
-                          ) : (
-                            e.subject
-                          )}
-                        </>
-                      )}
-                    </p>
-                    {e.reason && <p className="mt-0.5 text-[13px] text-muted">“{e.reason}”</p>}
-                  </div>
-                  <time className="shrink-0 text-[13px] text-muted" dateTime={e.at}>
-                    {relativeTime(e.at)}
-                  </time>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
+        }
+      >
+        {!feed ? (
+          <Loading />
+        ) : feed.length === 0 ? (
+          <p className="px-5 py-10 text-center text-[14px] text-muted">Nothing here yet. Your project and application updates will appear here.</p>
+        ) : (
+          <ul>
+            {feed.map((e) => (
+              <li key={e.id} className="flex gap-3 border-t border-line px-5 py-4">
+                {OWN.has(e.action) ? (
+                  <MemberAvatar user={user} size={36} />
+                ) : (
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-subtle text-[11px] font-semibold text-muted ring-1 ring-line" aria-hidden="true">
+                    AV
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] leading-[1.5] text-ink">
+                    <span className="font-semibold">{e.label}</span>
+                    {e.subject && (
+                      <>
+                        {' · '}
+                        {e.projectId ? (
+                          <Link to={`/app/projects/${e.projectId}`} className="text-accent hover:underline">
+                            {e.subject}
+                          </Link>
+                        ) : (
+                          e.subject
+                        )}
+                      </>
+                    )}
+                  </p>
+                  {e.reason && <p className="mt-0.5 text-[13px] text-muted">“{e.reason}”</p>}
+                </div>
+                <time className="shrink-0 text-[13px] text-muted" dateTime={e.at}>
+                  {relativeTime(e.at)}
+                </time>
+              </li>
+            ))}
+          </ul>
+        )}
+      </HistorySection>
 
       <ReasonDialog
         open={Boolean(declining)}

@@ -5,6 +5,7 @@ import { statusLabel, statusTone } from '../lib/status';
 import { useAuth } from '../context/AuthContext';
 import ReasonDialog from './ReasonDialog';
 import { useHostedSearch } from './shellSearch';
+import { FieldGrid } from './detail';
 
 // Building blocks of the admin and staff console. Styles: src/admin.css.
 
@@ -39,8 +40,16 @@ export function Messages({ notice, error }) {
   );
 }
 
+// Skeleton rows while a list or panel loads (never a blank area).
 export function Loading() {
-  return <p className="adm-muted p-4">Loading…</p>;
+  return (
+    <div className="space-y-3 p-4" role="status" aria-busy="true">
+      <span className="sr-only">Loading…</span>
+      {['w-2/3', 'w-full', 'w-5/6', 'w-1/2'].map((w) => (
+        <div key={w} className={`h-4 animate-pulse rounded bg-subtle motion-reduce:animate-none ${w}`} />
+      ))}
+    </div>
+  );
 }
 
 // Search box that submits on Enter (or as you type when `live`).
@@ -323,20 +332,14 @@ export function StatusPill({ status, label }) {
 // Kept for shared components that show a status inline.
 export const StatusText = StatusPill;
 
-// `compact` for narrow side columns (shorter label column, values wrap).
+// Label/value details in a card: two columns from 640px, one on phones (the
+// shared FieldGrid). Long text values take the full width. `compact` keeps one
+// column for narrow side columns.
+const isLong = (v) => typeof v === 'string' && (v.length > 80 || v.includes('\n'));
 export function KeyValue({ rows, compact = false }) {
   return (
-    <div className="adm-table-wrap">
-      <table className={`adm-table adm-kv ${compact ? 'adm-kv-compact' : ''}`}>
-        <tbody>
-          {rows.map(([k, v]) => (
-            <tr key={k}>
-              <th scope="row">{k}</th>
-              <td>{v ?? '—'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="card p-4 sm:p-5">
+      <FieldGrid columns={compact ? 1 : 2} fields={rows.map(([k, v]) => [k, isLong(v) ? <span className="whitespace-pre-line">{v}</span> : v, { wide: isLong(v) }])} />
     </div>
   );
 }

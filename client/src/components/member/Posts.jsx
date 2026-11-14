@@ -63,7 +63,7 @@ export function PostCard({ post, showAuthor = false, canReport = false, actions 
           <p className="mt-1 whitespace-pre-line break-words text-[14px] leading-[1.6] text-ink">{post.body}</p>
           {post.imageUrl && <img src={post.imageUrl} alt="" loading="lazy" className="mt-3 max-h-[420px] w-full rounded-lg border border-line object-cover" />}
           {(canReport || actions) && (
-            <div className="mt-2 flex flex-wrap items-center gap-4 text-[12px]">
+            <div className="mt-2 flex flex-wrap items-center gap-4 text-[12px] [&_button]:min-h-11 lg:[&_button]:min-h-0">
               {actions}
               {canReport &&
                 (reported ? (

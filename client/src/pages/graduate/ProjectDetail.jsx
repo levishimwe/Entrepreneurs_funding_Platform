@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { Field, formatDate } from '../../components/ui';
-import { Breadcrumb, DropZone } from '../../components/kit';
-import { AdminPage, DataTable, KeyValue, Loading, Messages, StatusPill, TableWrap } from '../../components/admin';
+import { DropZone } from '../../components/kit';
+import { Messages, StatusPill } from '../../components/admin';
+import { Avatar, DetailHeader, DetailSkeleton, FieldGrid, FileLink, FileList, InfoCard, LongText } from '../../components/detail';
 
 const KIND_LABEL = {
   rdb_certificate: 'RDB certificate',
@@ -28,20 +29,10 @@ const money = (amount, currency) => (amount === null || amount === undefined ? n
 
 function Documents({ documents }) {
   return (
-    <DataTable
-      columns={[
-        { key: 'name', label: 'File', render: (d) => <span className="break-all">{d.originalName}</span> },
-        { key: 'kind', label: 'Kind', render: (d) => KIND_LABEL[d.kind] },
-        { key: 'size', label: 'Size', num: true, render: (d) => `${(d.sizeBytes / 1024 / 1024).toFixed(1)} MB` },
-        { key: 'uploaded', label: 'Uploaded', render: (d) => formatDate(d.uploadedAt, true) },
-      ]}
-      rows={documents}
-      actions={(d) => (
-        <a href={`/api/documents/${d.id}/file`} target="_blank" rel="noreferrer" className="adm-act">
-          View
-        </a>
-      )}
+    <FileList
+      files={documents.map((d) => ({ id: d.id, name: d.originalName, mimeType: d.mimeType, sizeBytes: d.sizeBytes, label: KIND_LABEL[d.kind], date: d.uploadedAt }))}
       empty="No documents attached yet."
+      actions={(f) => <FileLink href={`/api/documents/${f.id}/file`} />}
     />
   );
 }
@@ -83,39 +74,37 @@ function ClarificationView({ project, onSaved }) {
   };
 
   return (
-    <AdminPage title={`Clarification: ${project.title}`} meta={<StatusPill status="similarity_flagged" />}>
-      <Breadcrumb items={[['My projects', '/app/projects'], [project.projectCode]]} />
+    <div className="adm">
+      <DetailHeader
+        back={{ to: '/app/projects', label: 'My projects', current: project.title }}
+        title={`Clarification: ${project.title}`}
+        avatar={<Avatar name={project.title} src={project.imageUrl} size={52} square />}
+        status={<StatusPill status="similarity_flagged" />}
+        meta="Similar to an approved project. Explain the distinction below."
+      />
       <Messages notice={notice} error={error} />
       <p className="adm-message">
         Your project is similar to an approved project. This is a review signal, not a finding of copying. Explain what makes it distinct; it cannot be approved until an
         administrator reviews your answer.
       </p>
 
-      <h2>Similar approved projects</h2>
-      <TableWrap>
-        <table className="adm-table">
-          <thead>
-            <tr>
-              <th>Project</th>
-              <th>Sector</th>
-              <th>Summary</th>
-              <th className="adm-num">Score</th>
-            </tr>
-          </thead>
-          <tbody>
-            {project.similarityMatches.map((m, i) => (
-              <tr key={i}>
-                <td className="font-medium">{m.title}</td>
-                <td>{m.sector}</td>
-                <td className="adm-muted">{m.summary || 'Not public.'}</td>
-                <td className="adm-num">{Math.round(m.score * 100)}%</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </TableWrap>
+      <InfoCard title="Similar approved projects">
+        <ul className="divide-y divide-line rounded-lg border border-line">
+          {project.similarityMatches.map((m, i) => (
+            <li key={i} className="px-3 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium text-ink">{m.title}</span>
+                <span className="text-[13px] tabular-nums text-muted">
+                  {m.sector} · {Math.round(m.score * 100)}%
+                </span>
+              </div>
+              <p className="mt-1 text-[13px] leading-[1.55] text-muted">{m.summary || 'Not public.'}</p>
+            </li>
+          ))}
+        </ul>
+      </InfoCard>
 
-      <form onSubmit={submit} className="adm-card mt-6 max-w-3xl space-y-4 p-4" noValidate>
+      <form onSubmit={submit} className="card mt-4 max-w-3xl space-y-4 p-4 sm:p-5" noValidate>
         <Field label="Clarification" htmlFor="clarification" required error={errors.clarification} help={`${text.length} / ${STATEMENT_MAX} characters. How do your model, technology, location or customers differ?`}>
           <textarea id="clarification" rows={7} className="input" maxLength={STATEMENT_MAX} value={text} onChange={(e) => setText(e.target.value)} />
         </Field>
@@ -139,9 +128,12 @@ function ClarificationView({ project, onSaved }) {
         </div>
       </form>
 
-      <h2>Supporting documents</h2>
-      <Documents documents={supporting} />
-    </AdminPage>
+      <div className="mt-4">
+        <InfoCard title="Supporting documents">
+          <Documents documents={supporting} />
+        </InfoCard>
+      </div>
+    </div>
   );
 }
 
@@ -168,7 +160,7 @@ function UploadEvidence({ project, onSaved }) {
     }
   };
   return (
-    <div className="adm-card mt-3 max-w-xl space-y-3 p-4">
+    <div className="mt-4 max-w-xl space-y-3 border-t border-line pt-4">
       <p className="font-semibold">Add a document requested by an administrator</p>
       {error && <p className="adm-bad">{error}</p>}
       <select className="input" value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Document type">
@@ -201,8 +193,15 @@ export default function ProjectDetail() {
       .catch((e) => setError(e.message));
   }, [id]);
 
-  if (error) return <AdminPage title="Project"><Messages error={error} /></AdminPage>;
-  if (!project) return <AdminPage title="Project"><Loading /></AdminPage>;
+  if (error) {
+    return (
+      <div className="adm">
+        <DetailHeader back={{ to: '/app/projects', label: 'My projects' }} title="Project" />
+        <Messages error={error} />
+      </div>
+    );
+  }
+  if (!project) return <DetailSkeleton />;
   if (project.status === 'similarity_flagged') {
     return <ClarificationView project={project} onSaved={(p) => setProject((old) => ({ ...p, similarityMatches: old.similarityMatches }))} />;
   }
@@ -217,72 +216,83 @@ export default function ProjectDetail() {
   const results = project.competitionResults || [];
 
   return (
-    <AdminPage title={project.title} meta={<StatusPill status={project.status} />}>
-      <Breadcrumb items={[['My projects', '/app/projects'], [project.projectCode]]} />
+    <div className="adm">
+      <DetailHeader
+        back={{ to: '/app/projects', label: 'My projects', current: project.title }}
+        title={project.title}
+        avatar={<Avatar name={project.title} src={project.imageUrl} size={52} square />}
+        status={<StatusPill status={project.status} />}
+        meta={STATUS_HELP[project.status]}
+        actions={
+          <>
+            {editable && (
+              <Link to={`/app/projects/${project.id}/edit`} className="adm-primary">
+                Revise
+              </Link>
+            )}
+            <button type="button" className="adm-act" onClick={copy}>
+              {copied ? 'Copied' : 'Copy code'}
+            </button>
+            {isPublic && (
+              <Link to={`/verify?code=${project.projectCode}`} className="adm-act">
+                Public verification
+              </Link>
+            )}
+          </>
+        }
+      />
       <Messages notice={location.state?.created ? `Submitted. Your verification code is ${project.projectCode}; it stays the same through revisions.` : ''} />
-
-      <div className="adm-card mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-        <span className="adm-muted">{STATUS_HELP[project.status]}</span>
-        <span className="ml-auto flex flex-wrap items-center gap-4">
-          <button type="button" className="adm-act" onClick={copy}>
-            {copied ? 'Copied' : 'Copy code'}
-          </button>
-          {isPublic && (
-            <Link to={`/verify?code=${project.projectCode}`} className="adm-act">
-              Public verification
-            </Link>
-          )}
-          {editable && (
-            <Link to={`/app/projects/${project.id}/edit`} className="adm-primary">
-              Revise
-            </Link>
-          )}
-        </span>
-      </div>
       {project.reviewNote && ['revision_required', 'rejected'].includes(project.status) && <p className="adm-message adm-message-error">Administrator note: “{project.reviewNote}”</p>}
 
-      <KeyValue
-        rows={[
-          ['Code', <span key="c" className="adm-mono">{project.projectCode}</span>],
-          ['Summary', project.summary],
-          ['Sector', project.sector + (project.suggestedSector && project.suggestedSector !== project.sector ? ` (suggested ${project.suggestedSector})` : '')],
-          ['Stage', project.stage],
-          ['Operating country', project.country],
-          ['Funding sought', project.fundingSought],
-          ...(project.type === 'company'
-            ? [
-                ['Company', project.companyName],
-                ['RDB code', project.companyNumber],
-                ['Your role', project.relationshipToCompany],
-              ]
-            : [['Type', 'Idea stage']]),
-          ['Public listing', project.publicationConsent ? 'Consented' : 'Not published'],
-          ...(project.funding ? [['Funding', [project.funding.name || (project.funding.source === 'competition' ? 'Competition' : 'Investors'), money(project.funding.amount, project.funding.currency)].filter(Boolean).join(' · ')]] : []),
-          ['Submitted', formatDate(project.submittedAt, true)],
-        ]}
-      />
-
-      <h2>Problem and solution</h2>
-      <p className="adm-card whitespace-pre-line p-4">{project.description}</p>
-
-      {results.length > 0 && (
-        <>
-          <h2>Competition results</h2>
-          <DataTable
-            columns={[
-              { key: 'opp', label: 'Opportunity', render: (r) => r.opportunity?.title },
-              { key: 'outcome', label: 'Outcome', render: (r) => `${r.outcomeLabel}${r.awardTitle ? ` · ${r.awardTitle}` : ''}` },
-              { key: 'amount', label: 'Amount', num: true, render: (r) => money(r.amount, r.currency) || '—' },
-              { key: 'date', label: 'Date', render: (r) => (r.resultDate ? formatDate(r.resultDate) : '—') },
+      <div className="space-y-4">
+        <InfoCard title="Project details">
+          <FieldGrid
+            fields={[
+              ['Summary', project.summary, { wide: true }],
+              ['Verification code', <span key="c" className="adm-mono">{project.projectCode}</span>],
+              ['Type', project.type === 'company' ? 'Registered company' : 'Idea stage'],
+              ['Sector', project.sector + (project.suggestedSector && project.suggestedSector !== project.sector ? ` (suggested ${project.suggestedSector})` : '')],
+              ['Stage', project.stage],
+              ['Operating country', project.country],
+              ['Funding sought', project.fundingSought],
+              ...(project.type === 'company'
+                ? [
+                    ['Company', project.companyName],
+                    ['RDB code', project.companyNumber],
+                    ['Your role', project.relationshipToCompany],
+                  ]
+                : []),
+              ['Public listing', project.publicationConsent ? 'Consented' : 'Not published'],
+              ...(project.funding ? [['Funding', [project.funding.name || (project.funding.source === 'competition' ? 'Competition' : 'Investors'), money(project.funding.amount, project.funding.currency)].filter(Boolean).join(' · ')]] : []),
+              ['Submitted', formatDate(project.submittedAt, true)],
             ]}
-            rows={results}
           />
-        </>
-      )}
+        </InfoCard>
 
-      <h2>Private documents</h2>
-      <Documents documents={project.documents} />
-      {!['rejected', 'archived'].includes(project.status) && <UploadEvidence project={project} onSaved={setProject} />}
-    </AdminPage>
+        <InfoCard title="Problem and solution">
+          <LongText>{project.description}</LongText>
+        </InfoCard>
+
+        {results.length > 0 && (
+          <InfoCard title="Competition results">
+            <ul className="divide-y divide-line rounded-lg border border-line">
+              {results.map((r) => (
+                <li key={r.id} className="px-3 py-2.5 text-[14px]">
+                  <span className="block font-medium text-ink">{r.opportunity?.title}</span>
+                  <span className="text-[13px] text-muted">
+                    {[`${r.outcomeLabel}${r.awardTitle ? ` · ${r.awardTitle}` : ''}`, money(r.amount, r.currency), r.resultDate ? formatDate(r.resultDate) : null].filter(Boolean).join(' · ')}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </InfoCard>
+        )}
+
+        <InfoCard title="Private documents" meta="Only you and administrators can open these">
+          <Documents documents={project.documents} />
+          {!['rejected', 'archived'].includes(project.status) && <UploadEvidence project={project} onSaved={setProject} />}
+        </InfoCard>
+      </div>
+    </div>
   );
 }

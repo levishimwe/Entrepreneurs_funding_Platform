@@ -39,6 +39,7 @@ import StaffOpportunities, { StaffOpportunityForm, StaffSelectionHome } from './
 import StaffSelection from './pages/staff/StaffSelection';
 import StaffResults from './pages/staff/StaffResults';
 import StaffDashboard from './pages/staff/StaffDashboard';
+import Posts from './pages/Posts';
 
 // /graduates/:id is the shareable address; the page lives in the signed-in app.
 function GraduateRedirect() {
@@ -137,6 +138,9 @@ export default function App() {
               <Route path="results" element={<StaffResults />} />
               <Route path=":id" element={<StaffSelection />} />
               <Route path=":id/edit" element={<StaffOpportunityForm />} />
+            </Route>
+            <Route element={<RequireAuth roles={['graduate', 'investor', 'staff', 'admin']} />}>
+              <Route path="posts" element={<Posts />} />
             </Route>
             <Route path="graduates/:id" element={<GraduateProfile />} />
             <Route path="go/:target" element={<GoTo />} />

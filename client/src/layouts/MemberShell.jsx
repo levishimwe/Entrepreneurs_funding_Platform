@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronRight, CircleHelp, FileText, Handshake, House, Mail, Menu, PenLine, Search, Settings, Trophy, User, Medal, X } from 'lucide-react';
+import { ChevronRight, CircleHelp, FileText, Handshake, House, Mail, Menu, MessageSquare, PenLine, Search, Settings, Trophy, User, Medal, X } from 'lucide-react';
 import { useAuth, homePathFor } from '../context/AuthContext';
 import { initials } from '../components/Avatar';
 import Logo from '../components/site/Logo';
@@ -20,12 +20,14 @@ const NAV = {
     ['/app/opportunities', 'Opportunities', Trophy, (l) => l.pathname === '/app/opportunities' && !l.search.includes('view=applied')],
     ['/app/opportunities?view=applied', 'Results', Medal, (l) => l.pathname === '/app/opportunities' && l.search.includes('view=applied')],
     ['/app/introductions', 'Introductions', Handshake],
+    ['/app/posts', 'Posts', MessageSquare],
     ['/app/contact', 'Help', CircleHelp],
   ],
   investor: [
     ['/app/activity', 'Activity', House],
     ['/app/discover', 'Ventures', Search],
     ['/app/introductions', 'Introductions', Handshake],
+    ['/app/posts', 'Posts', MessageSquare],
     ['/app/settings', 'Profile', User, (l) => l.pathname === '/app/settings'],
     ['/app/contact', 'Help', CircleHelp],
   ],

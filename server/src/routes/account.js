@@ -14,6 +14,7 @@ const storage = require('../services/storage');
 const audit = require('../services/audit');
 const { nextStepsFor } = require('../services/nextSteps');
 const { HIDDEN_ACTIONS } = require('../services/memberSummary');
+const { hiddenArchivedIds } = require('../services/ownerVisibility');
 const { checkPassword, MAX_LENGTH } = require('../services/passwordPolicy');
 const { enqueueEmail } = require('../services/mailer');
 
@@ -159,8 +160,9 @@ const HIDDEN = HIDDEN_ACTIONS;
 // Recent activity on the user's own account, projects and applications.
 router.get('/activity', async (req, res) => {
   const { limit } = z.object({ limit: z.coerce.number().int().min(1).max(50).default(6) }).parse(req.query);
+  const hidden = await hiddenArchivedIds(req.user.id);
   const [projects, applications, posts] = await Promise.all([
-    Project.findAll({ where: { ownerId: req.user.id }, attributes: ['id', 'title'] }),
+    Project.findAll({ where: { ownerId: req.user.id, ...(hidden.length ? { id: { [Op.notIn]: hidden } } : {}) }, attributes: ['id', 'title'] }),
     Application.findAll({ where: { applicantId: req.user.id }, attributes: ['id'] }),
     GraduatePost.findAll({ where: { graduateId: req.user.id }, attributes: ['id'] }),
   ]);
@@ -170,7 +172,15 @@ router.get('/activity', async (req, res) => {
   if (applications.length) or.push({ entityType: 'application', entityId: applications.map((a) => a.id) });
   if (posts.length) or.push({ entityType: 'post', entityId: posts.map((p) => p.id) });
   const rows = await AuditLog.findAll({
-    where: { [Op.or]: or, action: { [Op.notIn]: HIDDEN } },
+    where: {
+      [Op.and]: [
+        { [Op.or]: or },
+        // Not events about an archived project that has left the owner's pages
+        // (rows without an entity type are kept).
+        ...(hidden.length ? [{ [Op.or]: [{ entityType: null }, { entityType: { [Op.ne]: 'project' } }, { entityId: { [Op.notIn]: hidden } }] }] : []),
+      ],
+      action: { [Op.notIn]: HIDDEN },
+    },
     order: [['id', 'DESC']],
     limit,
   });

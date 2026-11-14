@@ -5,7 +5,8 @@ import { Field, formatDate } from '../../components/ui';
 import ReasonDialog from '../../components/ReasonDialog';
 import DocumentViewer from '../../components/DocumentViewer';
 import { useAuth } from '../../context/AuthContext';
-import { AdminPage, DataTable, KeyValue, ListLayout, Loading, Messages, Pill, SidePanel, StatusSelect } from '../../components/admin';
+import { AdminPage, DataTable, ListLayout, Loading, Messages, Pill, SidePanel, StatusSelect } from '../../components/admin';
+import { Avatar, DecisionPanel, EmptyNote, FieldGrid, InfoCard } from '../../components/detail';
 
 const STATUSES = [
   ['pending', 'Pending Admin Approval'],
@@ -21,6 +22,7 @@ const FUNDABLE = ['approved', 'investor_limit_reached']; // or Fully Funded with
 function ResultPanel({ result, onClose, onChanged }) {
   const { user } = useAuth();
   const [dialog, setDialog] = useState(null); // 'approve' | 'reject' | 'fund'
+  const [reason, setReason] = useState('');
   const [fund, setFund] = useState({ name: result.awardTitle || result.opportunity?.title || '' });
   const own = result.submittedBy?.id === user.id;
   // Only an approved Won result with a prize amount funds the project.
@@ -29,59 +31,84 @@ function ResultPanel({ result, onClose, onChanged }) {
 
   return (
     <SidePanel title={`${result.outcomeLabel}${result.awardTitle ? ` · ${result.awardTitle}` : ''}`} onClose={onClose}>
-      <KeyValue
-        rows={[
-          ['Status', <ResultPill key="s" status={result.status} />],
-          ['Opportunity', `${result.opportunity?.title} (${result.opportunity?.type})`],
-          [
-            'Project',
-            <Link key="p" className="adm-a" to={`/app/admin/projects/${result.project?.id}`}>
-              {result.project?.title} · {result.project?.projectCode}
-            </Link>,
-          ],
-          ['Graduate', `${result.graduate?.name} · ${result.graduate?.email}`],
-          ['Outcome', result.outcomeLabel],
-          ['Award or prize', result.awardTitle],
-          ['Amount', money(result.amount, result.currency)],
-          ['Date', result.resultDate ? formatDate(result.resultDate) : null],
-          ['Notes', result.notes],
-          ['Submitted by', `${result.submittedBy?.name} · ${formatDate(result.createdAt, true)}`],
-          ...(result.decidedAt ? [['Decided by', `${result.decidedBy?.name} · ${formatDate(result.decidedAt, true)}`]] : []),
-          ...(result.decisionReason ? [['Reason', result.decisionReason]] : []),
-          ['Project status', result.project?.status === 'funded' ? `Fully Funded${result.project.fundingSource === 'competition' ? ' (competition)' : ''}` : result.project?.status?.replace(/_/g, ' ')],
-        ]}
-      />
+      <div className="space-y-4">
+        <header className="card flex items-start gap-4 p-4 sm:p-5">
+          <Avatar name={result.graduate?.name} size={52} />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[17px] font-semibold text-ink [overflow-wrap:anywhere]">{result.opportunity?.title}</p>
+              <ResultPill status={result.status} />
+            </div>
+            <p className="mt-1 text-[13px] text-muted">
+              {[result.outcomeLabel, result.awardTitle, money(result.amount, result.currency) !== '—' ? money(result.amount, result.currency) : null].filter(Boolean).join(' · ')}
+            </p>
+          </div>
+        </header>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {result.status === 'pending' &&
-          (own ? (
-            <p className="adm-hint">You submitted this result, so another administrator must decide it.</p>
+        <InfoCard title="Result">
+          <FieldGrid
+            fields={[
+              ['Opportunity', `${result.opportunity?.title} (${result.opportunity?.type})`, { wide: true }],
+              [
+                'Project',
+                <Link key="p" className="adm-a" to={`/app/admin/projects/${result.project?.id}`}>
+                  {result.project?.title} · {result.project?.projectCode}
+                </Link>,
+              ],
+              ['Project status', result.project?.status === 'funded' ? `Fully Funded${result.project.fundingSource === 'competition' ? ' (competition)' : ''}` : result.project?.status?.replace(/_/g, ' ')],
+              ['Graduate', result.graduate?.name],
+              ['Graduate email', result.graduate?.email],
+              ['Outcome', result.outcomeLabel],
+              ['Award or prize', result.awardTitle],
+              ['Amount', result.amount === null || result.amount === undefined ? null : money(result.amount, result.currency)],
+              ['Date', result.resultDate ? formatDate(result.resultDate) : null],
+              ['Notes', result.notes, { wide: true }],
+              ['Submitted by', `${result.submittedBy?.name} · ${formatDate(result.createdAt, true)}`],
+              ...(result.decidedAt ? [['Decided by', `${result.decidedBy?.name} · ${formatDate(result.decidedAt, true)}`]] : []),
+              ...(result.decisionReason ? [['Reason', result.decisionReason, { wide: true }]] : []),
+            ]}
+          />
+        </InfoCard>
+
+        <DecisionPanel status={<ResultPill status={result.status} />}>
+          {result.status === 'pending' && !own && (
+            <label className="block text-[13px] font-medium text-ink">
+              Reason or note
+              <textarea className="adm-field mt-1" rows={3} maxLength={1000} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Required to reject; emailed to the graduate." />
+            </label>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {result.status === 'pending' &&
+              (own ? (
+                <p className="adm-hint !mb-0">You submitted this result, so another administrator must decide it.</p>
+              ) : (
+                <>
+                  <button type="button" className="adm-primary" onClick={() => setDialog('approve')}>
+                    Approve
+                  </button>
+                  <button type="button" className="adm-secondary" onClick={() => setDialog('reject')}>
+                    Reject
+                  </button>
+                </>
+              ))}
+            {canFund && (
+              <button type="button" className="adm-primary" onClick={() => setDialog('fund')}>
+                Mark project Fully Funded
+              </button>
+            )}
+            {result.status === 'approved' && !wonWithAmount && <p className="adm-hint !mb-0">Only a Won result with a prize amount can mark the project Fully Funded.</p>}
+            {result.status !== 'pending' && !canFund && wonWithAmount && <p className="adm-hint !mb-0">No decision is needed.</p>}
+          </div>
+        </DecisionPanel>
+
+        <InfoCard title="Proof">
+          {result.proof ? (
+            <DocumentViewer src={`/api/admin/results/${result.id}/proof`} mimeType={result.proof.mimeType} name={result.proof.name} height="h-[28rem]" />
           ) : (
-            <>
-              <button type="button" className="adm-primary" onClick={() => setDialog('approve')}>
-                Approve
-              </button>
-              <button type="button" className="adm-secondary" onClick={() => setDialog('reject')}>
-                Reject
-              </button>
-            </>
-          ))}
-        {canFund && (
-          <button type="button" className="adm-primary" onClick={() => setDialog('fund')}>
-            Mark project Fully Funded
-          </button>
-        )}
-        {result.status === 'approved' && !wonWithAmount && <p className="adm-hint">Only a Won result with a prize amount can mark the project Fully Funded.</p>}
+            <EmptyNote>No proof file was attached.</EmptyNote>
+          )}
+        </InfoCard>
       </div>
-
-      <h2 className="mt-6">Proof</h2>
-      {result.proof ? (
-        <div className="mt-2">
-          <DocumentViewer src={`/api/admin/results/${result.id}/proof`} mimeType={result.proof.mimeType} name={result.proof.name} height="h-[28rem]" />
-        </div>
-      ) : (
-        <p className="adm-muted mt-1">No proof file was attached.</p>
-      )}
 
       <ReasonDialog
         open={dialog === 'approve' || dialog === 'reject'}
@@ -91,6 +118,7 @@ function ResultPanel({ result, onClose, onChanged }) {
         title={dialog === 'reject' ? 'Reject this result?' : 'Approve this result?'}
         description={dialog === 'reject' ? 'The graduate is emailed with your reason.' : 'It will show on the graduate’s profile and project, and the graduate is emailed.'}
         confirmLabel={dialog === 'reject' ? 'Reject' : 'Approve'}
+        initialReason={reason}
         onClose={() => setDialog(null)}
         onConfirm={async (reason) => {
           const res = await api.post(`/admin/results/${result.id}/${dialog}`, reason ? { reason } : {});
