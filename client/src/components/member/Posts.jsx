@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
+import { useAuth } from '../../context/AuthContext';
 import { relativeTime } from '../kit';
 import { initials } from '../Avatar';
 import ReasonDialog from '../ReasonDialog';
@@ -35,6 +36,39 @@ export function GraduateImage({ graduate, size = 40, rounded = 'rounded-full' })
   );
 }
 
+// Where "View project" goes for each role. Staff have no internal project
+// page, so they get the public page only when the project is public.
+function projectLink(role, project) {
+  if (role === 'investor') return `/app/discover/${project.id}`;
+  if (role === 'admin') return `/app/admin/projects/${project.id}`;
+  if (role === 'graduate') return `/app/projects/${project.id}`;
+  return project.publicPage ? `/ventures/${project.id}` : null;
+}
+
+/** A graduate's "seeking an investor" card: no project code, no contact details. */
+function SeekingCard({ project }) {
+  const { user } = useAuth();
+  const to = projectLink(user?.role, project);
+  return (
+    <div className="mt-3 rounded-lg border border-line p-4">
+      <p className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted">Seeking an investor</p>
+      <p className="mt-1 break-words text-[15px] font-semibold text-ink">{project.title}</p>
+      <p className="mt-0.5 text-[13px] text-muted">{[project.sector, project.stage].filter(Boolean).join(' · ')}</p>
+      {project.fundingSought && (
+        <p className="mt-2 text-[13px] text-ink">
+          <span className="text-muted">Funding sought: </span>
+          {project.fundingSought}
+        </p>
+      )}
+      {to && (
+        <Link to={to} className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-line px-4 text-[13px] font-semibold text-ink hover:bg-subtle lg:min-h-9">
+          View project
+        </Link>
+      )}
+    </div>
+  );
+}
+
 export function PostCard({ post, showAuthor = false, canReport = false, actions = null }) {
   const [reporting, setReporting] = useState(false);
   const [reported, setReported] = useState(false);
@@ -61,6 +95,7 @@ export function PostCard({ post, showAuthor = false, canReport = false, actions 
             </span>
           </div>
           <p className="mt-1 whitespace-pre-line break-words text-[14px] leading-[1.6] text-ink">{post.body}</p>
+          {post.kind === 'seeking_investor' && post.project && <SeekingCard project={post.project} />}
           {post.imageUrl && <img src={post.imageUrl} alt="" loading="lazy" className="mt-3 max-h-[420px] w-full rounded-lg border border-line object-cover" />}
           {(canReport || actions) && (
             <div className="mt-2 flex flex-wrap items-center gap-4 text-[12px] [&_button]:min-h-11 lg:[&_button]:min-h-0">

@@ -158,6 +158,7 @@ const FOOTER_COLS = [
     [
       ['/ventures', 'Browse ventures'],
       ['/opportunities', 'Opportunities'],
+      ['/announcements', 'Announcements'],
       ['/verify', 'Verify a project'],
     ],
   ],

@@ -14,12 +14,12 @@ import Logo from '../components/site/Logo';
 const NAV = {
   admin: [
     ['Review', [['/app/admin/projects', 'Projects'], ['/app/admin/graduates', 'Graduates'], ['/app/admin/investors', 'Investors'], ['/app/admin/results', 'Competition results'], ['/app/admin/requests', 'Requests'], ['/app/admin/testimonials', 'Testimonies'], ['/app/admin/posts', 'Posts']]],
-    ['Manage', [['/app/admin', 'Dashboard', true], ['/app/admin/introductions', 'Introductions & funding'], ['/app/admin/opportunities', 'Opportunities'], ['/app/admin/outbox', 'Email outbox']]],
+    ['Manage', [['/app/admin', 'Dashboard', true], ['/app/admin/introductions', 'Introductions & funding'], ['/app/admin/opportunities', 'Opportunities'], ['/app/manage/funding-calls', 'Funding calls'], ['/app/manage/announcements', 'Announcements'], ['/app/manage/messages', 'Send message'], ['/app/posts', 'Posts feed'], ['/app/admin/outbox', 'Email outbox']]],
     ['Settings', [['/app/admin/config', 'Rules & thresholds'], ['/app/settings', 'Account']]],
   ],
   staff: [
     ['Review', [['/app/staff', 'Dashboard', true], ['/app/staff/selection', 'Applications'], ['/app/staff/results', 'Results']]],
-    ['Manage', [['/app/staff/opportunities', 'Opportunities'], ['/app/staff/new', 'Submit opportunity'], ['/app/posts', 'Posts']]],
+    ['Manage', [['/app/staff/opportunities', 'Opportunities'], ['/app/staff/new', 'Submit opportunity'], ['/app/posts', 'Posts'], ['/app/manage/funding-calls', 'Funding calls'], ['/app/manage/announcements', 'Announcements'], ['/app/manage/messages', 'Send message']]],
     ['Settings', [['/app/settings', 'Account']]],
   ],
   graduate: [

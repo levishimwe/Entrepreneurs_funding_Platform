@@ -119,6 +119,9 @@ const env = {
     secure: process.env.SMTP_SECURE === 'true',
     user: isTest ? '' : process.env.SMTP_USER || '',
     pass: process.env.SMTP_PASS || '',
+    // Emails the provider accepts per day (Brevo's free plan: about 300; check
+    // your plan). Bulk messages only use what is left and wait for the next day.
+    dailyLimit: Math.max(1, Math.floor(Number(process.env.BREVO_DAILY_LIMIT) || 300)),
     from:
       process.env.MAIL_FROM ||
       (process.env.SMTP_USER ? `"ALU Ventures" <${process.env.SMTP_USER}>` : 'ALU Ventures <no-reply@aluventures.local>'),

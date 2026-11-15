@@ -78,7 +78,11 @@ const escapeHtml = (s) =>
 
 // Plain, accessible HTML wrapper so every email looks consistent.
 function renderHtml(subject, paragraphs, cta) {
-  const body = paragraphs.map((p) => `<p style="margin:0 0 12px">${escapeHtml(p)}</p>`).join('');
+  return wrapHtml(subject, paragraphs.map((p) => `<p style="margin:0 0 12px">${escapeHtml(p)}</p>`).join(''), cta);
+}
+
+// `body` is HTML the caller has already escaped.
+function wrapHtml(subject, body, cta) {
   const button = cta
     ? `<p style="margin:20px 0"><a href="${escapeHtml(cta.url)}" style="background:#1f883d;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;font-weight:600">${escapeHtml(cta.label)}</a></p>`
     : '';
@@ -127,7 +131,26 @@ async function enqueueEmail({
   return notification;
 }
 
+// Takes a pending row for this sender before sending it, so two outbox runs
+// (the timer, a request kick, another instance) never send the same email.
+async function claim(notification) {
+  const [count] = await Notification.update(
+    { nextAttemptAt: new Date(Date.now() + 10 * 60000) },
+    {
+      where: {
+        id: notification.id,
+        status: 'pending',
+        archivedAt: null,
+        attempts: notification.attempts,
+        [Op.or]: [{ nextAttemptAt: null }, { nextAttemptAt: { [Op.lte]: new Date(Date.now() + 5000) } }],
+      },
+    }
+  );
+  return count === 1;
+}
+
 async function deliver(notification) {
+  if (!(await claim(notification))) return false;
   try {
     const sender = await getSender();
     const { previewUrl } = await sender.send({
@@ -145,6 +168,7 @@ async function deliver(notification) {
       lastError: null,
       nextAttemptAt: null,
     });
+    return true;
   } catch (err) {
     const attempts = notification.attempts + 1;
     const failed = attempts >= MAX_ATTEMPTS;
@@ -156,19 +180,48 @@ async function deliver(notification) {
       // Exponential backoff: 1, 2, 4, 8 minutes.
       nextAttemptAt: failed ? null : new Date(Date.now() + 60000 * 2 ** (attempts - 1)),
     });
+    return false;
   }
 }
 
-// Called periodically by the worker; sends everything that is due.
-async function processOutbox() {
+// The provider's daily allowance is counted per UTC day.
+const startOfDay = (now = new Date()) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+const startOfNextDay = (now = new Date()) => new Date(startOfDay(now).getTime() + 864e5);
+const sentToday = (now = new Date()) => Notification.count({ where: { status: 'sent', sentAt: { [Op.gte]: startOfDay(now) } } });
+
+// Sends everything that is due (the worker timer and request kicks call this).
+// Bulk emails only go out while today's count is under the daily limit; the
+// rest wait for the next day. Account emails (codes, decisions) always go.
+let running = null;
+function processOutbox() {
+  if (!running) running = runOutbox().finally(() => (running = null));
+  return running;
+}
+async function runOutbox() {
   const due = await Notification.findAll({
     // Archived emails are never sent.
     where: { status: 'pending', archivedAt: null, nextAttemptAt: { [Op.lte]: new Date() } },
     order: [['id', 'ASC']],
     limit: 20,
   });
-  for (const notification of due) await deliver(notification);
+  let sent = due.some((n) => n.batchId) ? await sentToday() : 0;
+  for (const notification of due) {
+    if (notification.batchId && sent >= env.mail.dailyLimit) {
+      await Notification.update({ nextAttemptAt: startOfNextDay() }, { where: { id: notification.id, status: 'pending' } });
+      continue;
+    }
+    if (await deliver(notification)) sent += 1;
+  }
   return due.length;
+}
+
+// Request kick: Render's free plan sleeps, so the timer alone may miss the
+// next day; any request runs the outbox, at most once a minute.
+let lastKick = 0;
+function kickOutbox() {
+  if (Date.now() - lastKick < 60000) return;
+  lastKick = Date.now();
+  processOutbox().catch(() => {});
 }
 
 // Administrative follow-up for failed deliveries.
@@ -178,4 +231,4 @@ async function retryNotification(notification) {
   return notification.reload();
 }
 
-module.exports = { enqueueEmail, processOutbox, retryNotification, renderHtml };
+module.exports = { enqueueEmail, processOutbox, kickOutbox, retryNotification, renderHtml, wrapHtml, escapeHtml, sentToday, startOfDay, startOfNextDay };

@@ -96,7 +96,16 @@ export default function StaffOpportunities() {
       ),
     },
     { key: 'status', label: 'Status', render: (o) => <StatusPill status={o.status} label={STATUS_LABEL[o.status]} /> },
-    { key: 'stage', label: 'Stage', render: (o) => (o.stage ? <StatusPill status={o.stage} /> : '—') },
+    {
+      key: 'stage',
+      label: 'Stage',
+      render: (o) => (
+        <>
+          {o.stage ? <StatusPill status={o.stage} /> : '—'}
+          {o.readyForSelection && <div className="adm-muted text-[12px]">Ready for selection</div>}
+        </>
+      ),
+    },
   ];
   const actions = (o) => (
     <>

@@ -761,6 +761,7 @@ router.post('/opportunities/:id/:action', async (req, res) => {
   }
   await opportunity.update({ status: rule.to, ...(rule.to === 'published' ? { publishedAt: new Date() } : {}) });
   await audit.record({ actorId: req.user.id, action: `opportunity.${req.params.action === 'publish' ? 'published' : req.params.action === 'close' ? 'closed' : 'archived'}`, entityType: 'opportunity', entityId: opportunity.id, reason });
+  if (rule.to === 'published') await require('./fundingCalls').recordPublished(opportunity, req.user.id);
   res.json({ opportunity: serializeOpportunity(opportunity) });
 });
 

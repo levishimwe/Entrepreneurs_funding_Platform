@@ -19,12 +19,22 @@ export default function PostComposer({ avatar }) {
   const [editing, setEditing] = useState(null); // { id, body }
   const [deleting, setDeleting] = useState(null);
   const [now, setNow] = useState(() => Date.now());
+  const [kind, setKind] = useState('update');
+  const [projectId, setProjectId] = useState('');
+  const [projects, setProjects] = useState(null);
 
   const load = useCallback(() => {
     api
       .get('/posts/mine')
       .then(setState)
       .catch((e) => setError(e.message));
+  }, []);
+  useEffect(() => {
+    // Only Approved projects (open to investors) can be posted as seeking an investor.
+    api
+      .get('/projects/mine')
+      .then((d) => setProjects(d.projects.filter((p) => p.status === 'approved')))
+      .catch(() => setProjects([]));
   }, []);
   useEffect(() => {
     load();
@@ -40,13 +50,19 @@ export default function PostComposer({ avatar }) {
     try {
       const data = new FormData();
       data.append('body', body);
+      if (kind === 'seeking_investor') {
+        data.append('kind', 'seeking_investor');
+        data.append('projectId', projectId);
+      }
       if (image) data.append('image', image);
       await api.upload('/posts', data);
       setBody('');
       setImage(null);
+      setKind('update');
+      setProjectId('');
       load();
     } catch (err) {
-      setError(err.fields?.body || err.message);
+      setError(err.fields?.body || err.fields?.projectId || err.message);
     } finally {
       setBusy(false);
     }
@@ -91,8 +107,41 @@ export default function PostComposer({ avatar }) {
         ) : (
           <form onSubmit={submit} noValidate>
             <div className="flex gap-4">
-              {avatar}
+              <span className="hidden sm:block">{avatar}</span>
               <div className="min-w-0 flex-1">
+                <fieldset className="mb-3">
+                  <legend className="sr-only">Type of post</legend>
+                  <div className="inline-flex rounded-lg border border-line p-0.5 text-[13px]">
+                    {[
+                      ['update', 'Update'],
+                      ['seeking_investor', 'Seeking an investor'],
+                    ].map(([k, l]) => (
+                      <label key={k} className={`flex min-h-11 cursor-pointer items-center rounded-md px-3 lg:min-h-9 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent ${kind === k ? 'bg-subtle font-semibold text-ink' : 'text-muted'}`}>
+                        <input type="radio" name="post-kind" value={k} checked={kind === k} onChange={() => setKind(k)} className="sr-only" />
+                        {l}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                {kind === 'seeking_investor' &&
+                  (projects && projects.length === 0 ? (
+                    <p className="mb-3 text-[13px] text-muted">You need a project approved by an administrator before you can post that you are seeking an investor.</p>
+                  ) : (
+                    <div className="mb-3">
+                      <label htmlFor="post-project" className="label">
+                        Project
+                      </label>
+                      <select id="post-project" className="input" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+                        <option value="">Choose an approved project</option>
+                        {(projects || []).map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.title}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="help">The card shows the project title, sector, stage and funding sought, with a link to the project. Investors request an introduction from there.</p>
+                    </div>
+                  ))}
                 <label htmlFor="post-body" className="sr-only">
                   Write a post
                 </label>
@@ -141,7 +190,7 @@ export default function PostComposer({ avatar }) {
                   <button
                     type="submit"
                     className="h-9 rounded-lg bg-accent px-5 text-[14px] font-semibold text-white transition-colors hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={busy || !body.trim() || atLimit}
+                    disabled={busy || !body.trim() || atLimit || (kind === 'seeking_investor' && !projectId)}
                   >
                     {busy ? 'Posting…' : 'Post'}
                   </button>

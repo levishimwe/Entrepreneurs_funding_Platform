@@ -53,6 +53,8 @@ app.get('/api/health', async (req, res) => {
 });
 
 app.use('/api', loadUser);
+// Sends queued emails held for the next day even if the worker timer slept.
+if (!env.isTest) app.use('/api', (req, res, next) => (require('./services/mailer').kickOutbox(), next()));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/public', require('./routes/public'));
 app.use('/api/projects', require('./routes/projects'));
@@ -68,6 +70,9 @@ app.use('/api/graduates', require('./routes/graduates'));
 app.use('/api/posts', require('./routes/posts'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/staff', require('./routes/staff'));
+app.use('/api/messages', require('./routes/messages'));
+app.use('/api/funding-calls', require('./routes/fundingCalls'));
+app.use('/api/announcements', require('./routes/announcements'));
 
 app.use('/api', notFoundHandler);
 app.use(errorHandler);

@@ -102,3 +102,34 @@ test('a schema that is still behind after migrating stops the boot and names the
   await expect(prepareDatabase(db, { migrator: noop, ...quiet })).rejects.toThrow(/missing .*notifications\.archived_at/);
   expect(REQUIRED_COLUMNS.length).toBeGreaterThan(0);
 });
+
+test('migration 010 only adds: existing rows keep every value, new columns are NULL, and running it twice is harmless', async () => {
+  await freshDatabase();
+  await createMigrator(db, { logger: null }).up({ to: '20261030-009-project-image.js' });
+  await db.query("INSERT INTO users (email, password_hash, full_name, role, status, created_at, updated_at) VALUES ('live@example.com', 'x', 'Live User', 'graduate', 'active', NOW(), NOW())");
+  const [[{ id: userId }]] = await db.query("SELECT id FROM users WHERE email = 'live@example.com'");
+  await db.query(`INSERT INTO graduate_posts (graduate_id, body, created_at, updated_at) VALUES (${userId}, 'Live post', NOW(), NOW())`);
+  await db.query("INSERT INTO notifications (event_key, to_email, subject, body_text, status, created_at, updated_at) VALUES ('live-email', 'live@example.com', 'Hello', 'Body', 'sent', NOW(), NOW())");
+  await db.query(`INSERT INTO opportunities (created_by, title, type, description, criteria, deadline, status, created_at, updated_at) VALUES (${userId}, 'Live challenge', 'competition', 'Text', '{"projectTypes":["company"]}', NOW(), 'published', NOW(), NOW())`);
+  const snapshot = async () => ({
+    post: (await db.query("SELECT * FROM graduate_posts WHERE body = 'Live post'"))[0][0],
+    email: (await db.query("SELECT * FROM notifications WHERE event_key = 'live-email'"))[0][0],
+    opp: (await db.query("SELECT * FROM opportunities WHERE title = 'Live challenge'"))[0][0],
+  });
+  const before = await snapshot();
+
+  await prepareDatabase(db, { migrator: createMigrator(db, { logger: null }), ...quiet });
+  expect(await missingColumns(db)).toEqual([]);
+  const after = await snapshot();
+  expect(after.post).toEqual({ ...before.post, kind: null, project_id: null });
+  expect(after.email).toEqual({ ...before.email, batch_id: null });
+  expect(after.opp).toEqual({ ...before.opp, capacity: null });
+
+  // Running the migration body again (a half-applied re-run) changes nothing.
+  const migration = require('../src/migrations/20261115-010-messages-calls-announcements-capacity');
+  await migration.up({ context: db.getQueryInterface() });
+  expect(await snapshot()).toEqual(after);
+  for (const table of ['bulk_messages', 'funding_calls', 'announcements']) {
+    expect((await columns(table)).length).toBeGreaterThan(0);
+  }
+});

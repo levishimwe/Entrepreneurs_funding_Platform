@@ -5,7 +5,7 @@
 const express = require('express');
 const { Op } = require('sequelize');
 const { z } = require('zod');
-const { User, GraduateProfile, GraduatePost, PostReport } = require('../models');
+const { User, GraduateProfile, GraduatePost, PostReport, Project } = require('../models');
 const { requireAuth, requireRole, isApprovedGraduate, isApprovedInvestor } = require('../middleware/auth');
 const { HttpError, badRequest, forbidden, notFound } = require('../middleware/errors');
 const { upload } = require('../middleware/upload');
@@ -37,19 +37,28 @@ const canReadFeed = (u) => isApprovedInvestor(u) || isActiveStaffOrAdmin(u);
 const FEED_PAGE = 10;
 
 async function ownPost(req) {
-  const post = await GraduatePost.findOne({ where: { id: req.params.id, graduateId: req.user.id } });
+  const post = await GraduatePost.findOne({ where: { id: req.params.id, graduateId: req.user.id }, include: [{ model: Project, as: 'project', required: false }] });
   if (!post) throw notFound('Post not found.');
   return post;
 }
 
 // The posts feed: newest first, ten per page, never removed posts, and only
 // from approved graduates who consented to be shown to investors and sponsors.
+// Seeking-investor cards show only while their project is Approved (open to
+// investors); the sector filter shows only those cards.
 router.get('/', async (req, res) => {
   if (!canReadFeed(req.user)) throw forbidden('The posts feed is for approved investors and sponsors and ALU staff.');
-  const { page } = z.object({ page: z.coerce.number().int().min(1).max(1000).default(1) }).parse(req.query);
+  const { page, sector } = z
+    .object({ page: z.coerce.number().int().min(1).max(1000).default(1), sector: z.string().trim().max(80).optional().default('') })
+    .parse(req.query);
+  const where = sector
+    ? { removedAt: null, kind: 'seeking_investor', '$project.status$': 'approved', '$project.sector$': sector }
+    : { removedAt: null, [Op.or]: [{ kind: null }, { kind: 'update' }, { '$project.status$': 'approved' }] };
   const { rows, count } = await GraduatePost.findAndCountAll({
-    where: { removedAt: null },
+    where,
+    subQuery: false,
     include: [
+      { model: Project, as: 'project', required: false, attributes: ['id', 'title', 'sector', 'stage', 'fundingSought', 'status', 'publicationConsent'] },
       {
         model: User,
         as: 'graduate',
@@ -86,7 +95,7 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/mine', requireRole('graduate'), async (req, res) => {
-  const posts = await GraduatePost.findAll({ where: { graduateId: req.user.id }, order: [['createdAt', 'DESC']], limit: 50 });
+  const posts = await GraduatePost.findAll({ where: { graduateId: req.user.id }, include: [{ model: Project, as: 'project', required: false }], order: [['createdAt', 'DESC']], limit: 50 });
   const since = new Date(Date.now() - 864e5);
   res.json({
     posts: posts.map(ownView),
@@ -107,18 +116,33 @@ router.post('/', requireRole('graduate'), uploadLimiter, upload.single('image'),
     throw forbidden('Allow investors and sponsors to see your profile (Settings → Profile) before posting.');
   }
   const body = checkPostBody(req.body?.body);
+  // A seeking-investor post is for one of the poster's own Approved projects.
+  const { kind, projectId } = z
+    .object({
+      kind: z.enum(['update', 'seeking_investor']).optional().default('update'),
+      projectId: z.union([z.literal(''), z.coerce.number().int().positive()]).optional(),
+    })
+    .parse(req.body || {});
+  let project = null;
+  if (kind === 'seeking_investor') {
+    if (!projectId) throw badRequest('Choose the project you are seeking an investor for.', { fields: { projectId: 'Choose a project.' } });
+    project = await Project.findOne({ where: { id: projectId, ownerId: req.user.id } });
+    if (!project) throw notFound('Project not found.');
+    if (project.status !== 'approved') throw badRequest('Only an approved project that is open to investors can be posted.', { fields: { projectId: 'Choose an approved project.' } });
+  }
   const recent = await GraduatePost.count({ where: { graduateId: req.user.id, createdAt: { [Op.gte]: new Date(Date.now() - 864e5) } } });
   if (recent >= POSTS_PER_DAY) throw new HttpError(429, `You can post up to ${POSTS_PER_DAY} times a day. Try again tomorrow.`);
   const image = await processPublicImage(req.file, 'The image');
   const imageKey = image ? await storage.put(image.buffer, { prefix: 'post-images', mimeType: image.mimeType }) : null;
   let post;
   try {
-    post = await GraduatePost.create({ graduateId: req.user.id, body, imageKey });
+    post = await GraduatePost.create({ graduateId: req.user.id, body, imageKey, kind: project ? 'seeking_investor' : null, projectId: project?.id || null });
+    post.project = project;
   } catch (err) {
     if (imageKey) await storage.remove(imageKey).catch(() => {});
     throw err;
   }
-  await audit.record({ actorId: req.user.id, action: 'post.created', entityType: 'post', entityId: post.id, metadata: { image: Boolean(imageKey) } });
+  await audit.record({ actorId: req.user.id, action: 'post.created', entityType: 'post', entityId: post.id, metadata: { image: Boolean(imageKey), kind: project ? 'seeking_investor' : 'update', projectId: project?.id || null } });
   res.status(201).json({ post: ownView(post) });
 });
 

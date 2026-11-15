@@ -229,6 +229,8 @@ const Opportunity = sequelize.define(
     // Link only: applicants apply on the organiser's site; no internal form.
     linkOnly: { type: DataTypes.BOOLEAN, defaultValue: false, field: 'link_only' },
     externalUrl: { type: DataTypes.STRING(500), field: 'external_url' },
+    // Number of places for automatic selection; NULL = no limit.
+    capacity: { type: DataTypes.INTEGER.UNSIGNED },
   },
   { tableName: 'opportunities' }
 );
@@ -274,6 +276,8 @@ const Notification = sequelize.define(
     readAt: { type: DataTypes.DATE, field: 'read_at' },
     // Archived emails are hidden from the active outbox and never sent.
     archivedAt: { type: DataTypes.DATE, field: 'archived_at' },
+    // Set for emails of a bulk message (services/bulkMail.js); these respect the daily limit.
+    batchId: { ...REF, field: 'batch_id' },
   },
   { tableName: 'notifications' }
 );
@@ -340,6 +344,9 @@ const GraduatePost = sequelize.define(
     removedAt: { type: DataTypes.DATE, field: 'removed_at' },
     removedBy: { ...REF, field: 'removed_by' },
     removedReason: { type: DataTypes.TEXT, field: 'removed_reason' },
+    // NULL = a plain update; 'seeking_investor' = a card for one of the owner's approved projects.
+    kind: { type: DataTypes.ENUM('update', 'seeking_investor') },
+    projectId: { ...REF, field: 'project_id' },
   },
   { tableName: 'graduate_posts' }
 );
@@ -384,6 +391,58 @@ const CompetitionResult = sequelize.define(
     decisionReason: { type: DataTypes.TEXT, field: 'decision_reason' },
   },
   { tableName: 'competition_results' }
+);
+
+// A bulk email sent by staff or an administrator: one notification per recipient.
+const BulkMessage = sequelize.define(
+  'BulkMessage',
+  {
+    id: ID,
+    senderId: { ...REF, field: 'sender_id' },
+    subject: { type: DataTypes.STRING(200), allowNull: false },
+    body: { type: DataTypes.TEXT, allowNull: false },
+    audience: { type: DataTypes.ENUM('graduates', 'investors', 'selected'), allowNull: false },
+    recipientCount: { type: DataTypes.INTEGER.UNSIGNED, defaultValue: 0, field: 'recipient_count' },
+  },
+  { tableName: 'bulk_messages' }
+);
+
+// An investor's offer to fund a sector, reviewed by staff; an accepted call
+// may become a competition (opportunityId).
+const FundingCall = sequelize.define(
+  'FundingCall',
+  {
+    id: ID,
+    investorId: { ...REF, allowNull: false, field: 'investor_id' },
+    sector: { type: DataTypes.STRING(80), allowNull: false },
+    amount: { type: DataTypes.DECIMAL(14, 2), allowNull: false },
+    currency: { type: DataTypes.STRING(3), allowNull: false },
+    deadline: DataTypes.DATEONLY,
+    message: { type: DataTypes.TEXT, allowNull: false },
+    status: { type: DataTypes.ENUM('pending', 'accepted', 'rejected'), defaultValue: 'pending' },
+    decidedBy: { ...REF, field: 'decided_by' },
+    decidedAt: { type: DataTypes.DATE, field: 'decided_at' },
+    decisionReason: { type: DataTypes.TEXT, field: 'decision_reason' },
+    opportunityId: { ...REF, field: 'opportunity_id' },
+  },
+  { tableName: 'funding_calls' }
+);
+
+// A staff announcement: public ones are shown on the home page, private ones
+// are emailed to a chosen audience (messageId).
+const Announcement = sequelize.define(
+  'Announcement',
+  {
+    id: ID,
+    authorId: { ...REF, field: 'author_id' },
+    title: { type: DataTypes.STRING(200), allowNull: false },
+    body: { type: DataTypes.TEXT, allowNull: false },
+    visibility: { type: DataTypes.ENUM('public', 'private'), allowNull: false },
+    status: { type: DataTypes.ENUM('published', 'unpublished', 'removed'), defaultValue: 'published' },
+    messageId: { ...REF, field: 'message_id' },
+    publishedAt: { type: DataTypes.DATE, field: 'published_at' },
+  },
+  { tableName: 'announcements' }
 );
 
 const AuditLog = sequelize.define(
@@ -483,6 +542,16 @@ User.hasMany(GraduatePost, { foreignKey: 'graduateId', as: 'posts' });
 GraduatePost.hasMany(PostReport, { foreignKey: 'postId', as: 'reports' });
 PostReport.belongsTo(GraduatePost, { foreignKey: 'postId', as: 'post' });
 PostReport.belongsTo(User, { foreignKey: 'reporterId', as: 'reporter' });
+GraduatePost.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+BulkMessage.belongsTo(User, { foreignKey: 'senderId', as: 'sender' });
+BulkMessage.hasMany(Notification, { foreignKey: 'batchId', as: 'notifications' });
+Notification.belongsTo(BulkMessage, { foreignKey: 'batchId', as: 'batch' });
+Notification.belongsTo(User, { foreignKey: 'recipientId', as: 'recipient' });
+FundingCall.belongsTo(User, { foreignKey: 'investorId', as: 'investor' });
+FundingCall.belongsTo(User, { foreignKey: 'decidedBy', as: 'decider' });
+FundingCall.belongsTo(Opportunity, { foreignKey: 'opportunityId', as: 'opportunity' });
+Announcement.belongsTo(User, { foreignKey: 'authorId', as: 'author' });
+Announcement.belongsTo(BulkMessage, { foreignKey: 'messageId', as: 'message' });
 
 module.exports = {
   sequelize,
@@ -503,6 +572,9 @@ module.exports = {
   Testimonial,
   GraduatePost,
   PostReport,
+  BulkMessage,
+  FundingCall,
+  Announcement,
   AuthToken,
   SectorKeyword,
   Setting,

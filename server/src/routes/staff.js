@@ -4,18 +4,22 @@
 const express = require('express');
 const { Op } = require('sequelize');
 const { z } = require('zod');
-const env = require('../config/env');
 const { sequelize, User, GraduateProfile, Opportunity, Application, Project, AuditLog, CompetitionResult } = require('../models');
 const { requireRole } = require('../middleware/auth');
 const { badRequest, forbidden, notFound } = require('../middleware/errors');
 const { opportunitySchema, serializeOpportunity, checkEligibility, stageOf, canComplete } = require('../services/opportunities');
-const { enqueueEmail } = require('../services/mailer');
 const audit = require('../services/audit');
 const storage = require('../services/storage');
 const { upload, validateDocument } = require('../middleware/upload');
 const { uploadLimiter } = require('../middleware/rateLimits');
 const { serializeResult, RESULT_TYPES } = require('../services/results');
 const { staffDashboard, periodSchema } = require('../services/analytics');
+const { previewSelection, confirmSelection, queueDecisionEmail, OPEN } = require('../services/selection');
+
+// Applications have closed and some still wait for a decision: shown to staff
+// as "Ready for selection". The deadline itself never sends anything.
+const readyForSelection = (o, open, now = new Date()) =>
+  !o.linkOnly && ['published', 'closed'].includes(o.status) && !o.completedAt && (o.status === 'closed' || new Date(o.deadline) <= now) && open > 0;
 
 const router = express.Router();
 router.use(requireRole('staff'));
@@ -38,7 +42,13 @@ router.get('/opportunities', async (req, res) => {
     opportunities: rows.map((o) => {
       const tally = { submitted: 0, shortlisted: 0, selected: 0, not_selected: 0 };
       o.applications.forEach((a) => (tally[a.status] += 1));
-      return serializeOpportunity(o, { applicationCount: o.applications.length, tally, stage: stageOf(o, tally.selected), mine: o.createdBy === req.user.id });
+      return serializeOpportunity(o, {
+        applicationCount: o.applications.length,
+        tally,
+        stage: stageOf(o, tally.selected),
+        mine: o.createdBy === req.user.id,
+        readyForSelection: readyForSelection(o, tally.submitted + tally.shortlisted),
+      });
     }),
   });
 });
@@ -78,7 +88,10 @@ router.get('/opportunities/:id', async (req, res) => {
     order: [['submittedAt', 'ASC']],
   });
   res.json({
-    opportunity: serializeOpportunity(opportunity, { stage: stageOf(opportunity, applications.filter((a) => a.status === 'selected').length) }),
+    opportunity: serializeOpportunity(opportunity, {
+      stage: stageOf(opportunity, applications.filter((a) => a.status === 'selected').length),
+      readyForSelection: readyForSelection(opportunity, applications.filter((a) => OPEN.includes(a.status)).length),
+    }),
     resultsEnabled: RESULT_TYPES.includes(opportunity.type),
     applications: applications.map((a) => ({
       id: a.id,
@@ -109,25 +122,6 @@ router.get('/opportunities/:id', async (req, res) => {
     })),
   });
 });
-
-const DECISION_EMAIL = {
-  shortlisted: (o, a) => ({
-    subject: `Shortlisted: ${o.title}`,
-    paragraphs: [`Good news — your project "${a.project.title}" has been shortlisted for ${o.title}.`, `Note from the ALU team: ${a.decisionNote}`, 'We will contact you with the next steps.'],
-  }),
-  selected: (o, a) => ({
-    subject: `Selected: ${o.title}`,
-    paragraphs: [
-      `Congratulations — your project "${a.project.title}" has been selected for ${o.title}.`,
-      `Note from the ALU team: ${a.decisionNote}`,
-      o.applicationInstructions ? `Next steps: ${o.applicationInstructions}` : 'The ALU team will contact you with the next steps.',
-    ],
-  }),
-  not_selected: (o, a) => ({
-    subject: `Update on your application: ${o.title}`,
-    paragraphs: [`Thank you for applying to ${o.title} with "${a.project.title}". Your application was not selected this time.`, `Feedback: ${a.decisionNote}`],
-  }),
-};
 
 // FR09: shortlist / selected / not selected, always with a reason. The
 // notification is queued only after the decision is recorded.
@@ -171,17 +165,76 @@ router.post('/applications/:id/decision', async (req, res) => {
   });
 
   if (!data.notify) return res.json({ ok: true, status: data.decision, notified: false });
-  const mail = DECISION_EMAIL[data.decision](application.opportunity, application);
-  await enqueueEmail({
-    eventKey: `application-${data.decision}:${application.id}:${application.applicant.id}`,
-    to: application.applicant.email,
-    recipientId: application.applicant.id,
-    applicationId: application.id,
-    subject: mail.subject,
-    paragraphs: [`Hello ${application.applicant.fullName},`, ...mail.paragraphs],
-    cta: { label: 'View your applications', url: `${env.clientUrl}/app/opportunities` },
-  });
+  await queueDecisionEmail(application.opportunity, application, data.decision);
   res.json({ ok: true, status: data.decision, notified: true });
+});
+
+// ---- Automatic selection (services/selection.js) ---------------------------------
+async function selectionOpportunity(id) {
+  const opportunity = await Opportunity.findByPk(id);
+  if (!opportunity) throw notFound('Opportunity not found.');
+  if (opportunity.linkOnly) throw badRequest('Applicants apply on the organiser’s site, so there is no selection here.');
+  if (!['published', 'closed'].includes(opportunity.status)) throw badRequest('Selection is for published or closed opportunities.');
+  return opportunity;
+}
+
+// Preview: what a run would do. Changes nothing and emails nobody.
+router.get('/opportunities/:id/selection', async (req, res) => {
+  const opportunity = await selectionOpportunity(req.params.id);
+  res.json({ ...(await previewSelection(opportunity)), canConfirm: opportunity.status === 'closed' || new Date(opportunity.deadline) <= new Date() });
+});
+
+// Confirm: applies the proposal to undecided applications, queues one email
+// per application and decision, and logs everything. Safe to repeat.
+router.post('/opportunities/:id/selection/confirm', async (req, res) => {
+  const opportunity = await selectionOpportunity(req.params.id);
+  if (opportunity.status !== 'closed' && new Date(opportunity.deadline) > new Date()) throw badRequest('Applications are still open. Confirm the selection after the deadline.');
+  const { choices } = z
+    .object({ choices: z.record(z.string(), z.enum(['selected', 'over_capacity'])).optional().default({}) })
+    .parse(req.body || {});
+  const { applied, preview } = await confirmSelection(opportunity, req.user, { choices });
+  res.json({ applied: applied.length, selected: applied.filter((a) => a.result === 'selected').length, notSelected: applied.filter((a) => a.result === 'not_selected').length, preview });
+});
+
+// Override: staff change any result afterwards, always with a reason. The
+// applicant gets one corrected email per change; it is logged.
+router.post('/applications/:id/override', async (req, res) => {
+  const data = z
+    .object({
+      decision: z.enum(['selected', 'not_selected'], { message: 'Choose the new result.' }),
+      reason: z.string().trim().min(5, 'Give the reason for the change (at least 5 characters).').max(2000),
+    })
+    .parse(req.body || {});
+  const application = await Application.findByPk(req.params.id, {
+    include: [
+      { model: Opportunity, as: 'opportunity' },
+      { model: Project, as: 'project' },
+      { model: User, as: 'applicant', attributes: ['id', 'fullName', 'email'] },
+    ],
+  });
+  if (!application) throw notFound('Application not found.');
+  if (application.opportunity.linkOnly || !['published', 'closed'].includes(application.opportunity.status)) throw badRequest('Results can only be changed on published or closed opportunities.');
+  if (application.status === data.decision) throw badRequest(`This application is already ${data.decision.replace('_', ' ')}.`);
+  const from = application.status;
+  const entry = await sequelize.transaction(async (transaction) => {
+    await application.update({ status: data.decision, decisionNote: data.reason, decidedBy: req.user.id, decidedAt: new Date() }, { transaction });
+    return audit.record(
+      {
+        actorId: req.user.id,
+        action: 'application.overridden',
+        entityType: 'application',
+        entityId: application.id,
+        reason: data.reason,
+        metadata: { from, to: data.decision, opportunityId: application.opportunityId, projectId: application.projectId, notified: true },
+      },
+      { transaction }
+    );
+  });
+  // A result the applicant was already told about gets a correction; an
+  // undecided one gets the ordinary decision email.
+  const wasDecided = ['selected', 'not_selected'].includes(from);
+  await queueDecisionEmail(application.opportunity, application, data.decision, wasDecided ? { eventKey: `application-override:${application.id}:${entry.id}`, correction: true } : {});
+  res.json({ ok: true, status: data.decision, from });
 });
 
 // Competition results: after a participant is selected for a hackathon or

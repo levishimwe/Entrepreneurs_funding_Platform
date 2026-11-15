@@ -6,6 +6,46 @@ import { CriteriaSummary } from '../../components/OpportunityForm';
 import AuditStrip from '../../components/AuditStrip';
 import { AdminPage, DataTable, KeyValue, ListLayout, Loading, Messages, SearchInput, SidePanel, StatusPill, StatusSelect, StatusText } from '../../components/admin';
 import { ref } from './StaffOpportunities';
+import SelectionPreview from './SelectionPreview';
+
+// Change a recorded result: always with a reason; the applicant gets one
+// corrected email and the change is logged.
+function OverrideForm({ application, onSaved }) {
+  const to = application.status === 'selected' ? 'not_selected' : 'selected';
+  const [reason, setReason] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const save = async (e) => {
+    e.preventDefault();
+    if (reason.trim().length < MIN_REASON) return setError(`Give the reason for the change (at least ${MIN_REASON} characters).`);
+    setBusy(true);
+    setError('');
+    try {
+      await api.post(`/staff/applications/${application.id}/override`, { decision: to, reason: reason.trim() });
+      onSaved(`Changed to ${STATUS_LABEL[to]}: ${application.applicant.name}. The applicant gets a corrected email.`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form onSubmit={save} className="mt-4">
+      <h2>Change result</h2>
+      <p className="adm-hint">Changes this result to {STATUS_LABEL[to]}. The reason is shared with the applicant in a corrected email and recorded in the history.</p>
+      <label htmlFor="override-reason" className="block font-semibold">
+        Reason (required)
+      </label>
+      <textarea id="override-reason" rows={3} className="adm-field mt-1" value={reason} onChange={(e) => setReason(e.target.value)} />
+      {error && <p className="adm-hint adm-bad">{error}</p>}
+      <p className="mt-3">
+        <button type="submit" className="adm-btn" disabled={busy}>
+          {busy ? 'Saving…' : `Change to ${STATUS_LABEL[to]}`}
+        </button>
+      </p>
+    </form>
+  );
+}
 
 const NEXT = { submitted: ['shortlisted', 'selected', 'not_selected'], shortlisted: ['selected', 'not_selected'] };
 const DECISIONS = {
@@ -86,6 +126,7 @@ function ApplicationPanel({ application, resultsEnabled, onSaved, onClose }) {
               ['Reason', application.decisionNote],
             ]}
           />
+          {['selected', 'not_selected'].includes(application.status) && !application.result && <OverrideForm application={application} onSaved={onSaved} />}
         </>
       ) : (
         <form onSubmit={save}>
@@ -190,6 +231,11 @@ export default function StaffSelection() {
         <CriteriaSummary criteria={opportunity.criteria} />
       </div>
       <Messages notice={notice} error={error} />
+      {!opportunity.linkOnly && applications.length > 0 && (
+        <div className="mb-4">
+          <SelectionPreview opportunity={opportunity} onConfirmed={load} />
+        </div>
+      )}
       <ListLayout
         toolbar={
           <>

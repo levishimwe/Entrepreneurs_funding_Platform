@@ -31,9 +31,26 @@ function graduateSummary(u) {
   return { id: u.id, name: u.fullName, imageUrl: imageUrlOf(u) };
 }
 
+// A seeking-investor card names the project by title, sector and stage only:
+// never its code or the founder's contact details.
+function projectCard(project) {
+  if (!project) return null;
+  return {
+    id: project.id,
+    title: project.title,
+    sector: project.sector,
+    stage: project.stage,
+    fundingSought: project.fundingSought || null,
+    status: project.status,
+    publicPage: project.status === 'approved' && Boolean(project.publicationConsent),
+  };
+}
+
 function serializePost(p, { graduate } = {}) {
   return {
     id: p.id,
+    kind: p.kind || 'update',
+    project: p.kind === 'seeking_investor' ? projectCard(p.project) : null,
     body: p.body,
     imageUrl: p.imageKey ? `/api/posts/${p.id}/image` : null,
     createdAt: p.createdAt,
@@ -61,4 +78,4 @@ function checkPostBody(raw) {
   return body;
 }
 
-module.exports = { LIVE, POST_MAX, POSTS_PER_DAY, EDIT_MINUTES, canViewGraduate, isShownGraduate, imageUrlOf, graduateSummary, serializePost, checkPostBody };
+module.exports = { projectCard, LIVE, POST_MAX, POSTS_PER_DAY, EDIT_MINUTES, canViewGraduate, isShownGraduate, imageUrlOf, graduateSummary, serializePost, checkPostBody };

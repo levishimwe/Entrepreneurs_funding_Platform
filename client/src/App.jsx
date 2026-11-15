@@ -40,6 +40,10 @@ import StaffSelection from './pages/staff/StaffSelection';
 import StaffResults from './pages/staff/StaffResults';
 import StaffDashboard from './pages/staff/StaffDashboard';
 import Posts from './pages/Posts';
+import SendMessage from './pages/manage/SendMessage';
+import FundingCallsReview from './pages/manage/FundingCallsReview';
+import ManageAnnouncements from './pages/manage/Announcements';
+import { PublicAnnouncements } from './components/site/Announcements';
 
 // /graduates/:id is the shareable address; the page lives in the signed-in app.
 function GraduateRedirect() {
@@ -84,6 +88,7 @@ export default function App() {
             <Route path="opportunities" element={<PublicOpportunities />} />
             <Route path="opportunities/:id" element={<PublicOpportunity />} />
             <Route path="about" element={<About />} />
+            <Route path="announcements" element={<PublicAnnouncements />} />
             <Route path="graduates/:id" element={<GraduateRedirect />} />
             <Route path="*" element={<NotFound />} />
           </Route>
@@ -110,6 +115,7 @@ export default function App() {
               <Route path="discover" element={<Discover />} />
               <Route path="discover/:code" element={<InvestorProject />} />
               <Route path="billing" element={<Billing />} />
+              <Route path="funding-calls" element={<Navigate to="/app/posts?tab=calls" replace />} />
             </Route>
             <Route element={<RequireAuth roles={['graduate', 'investor']} />}>
               <Route path="introductions" element={<Introductions />} />
@@ -141,6 +147,11 @@ export default function App() {
             </Route>
             <Route element={<RequireAuth roles={['graduate', 'investor', 'staff', 'admin']} />}>
               <Route path="posts" element={<Posts />} />
+            </Route>
+            <Route path="manage" element={<RequireAuth roles={['staff', 'admin']} />}>
+              <Route path="messages" element={<SendMessage />} />
+              <Route path="funding-calls" element={<FundingCallsReview />} />
+              <Route path="announcements" element={<ManageAnnouncements />} />
             </Route>
             <Route path="graduates/:id" element={<GraduateProfile />} />
             <Route path="go/:target" element={<GoTo />} />

@@ -15,6 +15,7 @@ const EMPTY = {
   description: '',
   applicationInstructions: '',
   prize: '',
+  capacity: '',
   linkOnly: false,
   externalUrl: '',
   deadline: '',
@@ -57,6 +58,7 @@ export default function OpportunityForm({ initial, submitLabel, onSubmit, onCanc
       organiser: initial.organiser || '',
       applicationInstructions: initial.applicationInstructions || '',
       prize: initial.prize || '',
+      capacity: initial.capacity ? String(initial.capacity) : '',
       linkOnly: Boolean(initial.linkOnly),
       externalUrl: initial.externalUrl || '',
       deadline: toLocalInput(initial.deadline),
@@ -84,6 +86,7 @@ export default function OpportunityForm({ initial, submitLabel, onSubmit, onCanc
       await onSubmit({
         ...v,
         deadline: v.deadline ? new Date(v.deadline).toISOString() : '',
+        capacity: v.linkOnly || !v.capacity ? null : Number(v.capacity),
         endsAt: v.endsAt ? new Date(v.endsAt).toISOString() : '',
         criteria: {
           ...v.criteria,
@@ -155,6 +158,11 @@ export default function OpportunityForm({ initial, submitLabel, onSubmit, onCanc
       <Field label="Prize or amount (optional)" htmlFor="o-prize" error={errors.prize}>
         <input id="o-prize" className="input sm:max-w-sm" value={v.prize} onChange={set('prize')} />
       </Field>
+      {!link && (
+        <Field label="Number of places (optional)" htmlFor="o-capacity" error={errors.capacity} help="Used by automatic selection. Leave blank for no limit.">
+          <input id="o-capacity" type="number" min="1" step="1" inputMode="numeric" className="input sm:max-w-[12rem]" value={v.capacity} onChange={set('capacity')} />
+        </Field>
+      )}
       {!link && (
         <Field
           label="Application instructions"

@@ -26,6 +26,11 @@ const opportunitySchema = z
     description: z.string().trim().max(6000).optional().or(z.null()).transform((v) => v || ''),
     applicationInstructions: z.string().trim().max(4000).optional().or(z.literal('')).transform((v) => v || null),
     prize: z.string().trim().max(150).optional().or(z.literal('')).transform((v) => v || null),
+    // Number of places for automatic selection; blank = no limit.
+    capacity: z
+      .union([z.literal(''), z.null(), z.coerce.number({ message: 'Use a whole number.' }).int('Use a whole number.').min(1, 'At least 1 place, or leave it blank.').max(100000)])
+      .optional()
+      .transform((v) => (v === '' || v === undefined ? null : v)),
     deadline: z.coerce.date({ message: 'Choose a valid deadline.' }),
     // When the event itself ends (optional). Completed is possible after it.
     endsAt: z
@@ -45,6 +50,8 @@ const opportunitySchema = z
   })
   .superRefine((d, ctx) => {
     if (d.linkOnly) {
+      // Applicants apply elsewhere: no applications here, so no places to fill.
+      d.capacity = null;
       if (!d.organiser) ctx.addIssue({ code: 'custom', path: ['organiser'], message: 'Name the organiser.' });
       if (!d.externalUrl) ctx.addIssue({ code: 'custom', path: ['externalUrl'], message: 'Add the link to the official site.' });
       else if (!isHttpsUrl(d.externalUrl)) ctx.addIssue({ code: 'custom', path: ['externalUrl'], message: 'Use a full https:// link to the official site.' });
@@ -119,6 +126,7 @@ function serializeOpportunity(o, extra = {}) {
     description: o.description,
     applicationInstructions: o.applicationInstructions,
     prize: o.prize,
+    capacity: o.capacity ?? null,
     criteria: o.criteria || {},
     linkOnly: Boolean(o.linkOnly),
     externalUrl: o.linkOnly ? o.externalUrl : null,

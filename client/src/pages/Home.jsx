@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { HomeAnnouncements } from '../components/site/Announcements';
 import {
   ArrowRight,
   BadgeCheck,
@@ -901,9 +902,9 @@ const PLANS = [
     name: 'Syndicate Pro',
     price: 'Future plan',
     note: 'No payments are taken today.',
-    items: ['Saved searches and alerts', 'Early access to showcases', 'Advanced filters'],
+    items: ['Saved searches and alerts', 'Early access to showcases', 'Advanced filters', 'Online Investments'],
   },
-  { name: 'Institutional', price: 'Future plan', note: 'No payments are taken today.', items: ['Team seats', 'Dedicated liaison', 'Portfolio exports'] },
+  { name: 'Institutional', price: 'Future plan', note: 'No payments are taken today.', items: ['Team seats', 'Dedicated liaison', 'Portfolio exports', 'Online Investments'] },
 ];
 
 function Plans() {
@@ -1292,6 +1293,7 @@ export default function Home() {
         <WhyAluVentures />
         <ForInvestors />
         <Opportunities />
+        <HomeAnnouncements />
         <Introductions />
         <TwoWays />
         <Mission />
