@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { Field, formatDate } from '../../components/ui';
 import ReasonDialog from '../../components/ReasonDialog';
-import { AdminPage, DataTable, Loading, Messages, Pill, SidePanel } from '../../components/admin';
+import { useAuth } from '../../context/AuthContext';
+import { AdminPage, DataTable, DeleteDialog, Loading, Messages, Pill, SidePanel, StatusSelect } from '../../components/admin';
 import { InfoCard } from '../../components/detail';
 import { BATCH_TONE, FormatHelp, FormattedText, MessageComposer, QuotaNote, useQuota } from '../../components/messaging';
 
@@ -83,15 +84,18 @@ export default function Announcements() {
   const [visibility, setVisibility] = useState('public');
   const [editing, setEditing] = useState(null);
   const [removing, setRemoving] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+  const [view, setView] = useState('current');
   const [busy, setBusy] = useState(false);
   const [quota, loadQuota] = useQuota();
+  const { user } = useAuth();
 
   const load = useCallback(() => {
     api
-      .get('/announcements')
+      .get(view === 'removed' ? '/announcements?status=removed' : '/announcements')
       .then((d) => setList(d.announcements))
       .catch((e) => setError(e.message));
-  }, []);
+  }, [view]);
   useEffect(() => {
     document.title = 'Announcements · ALU Ventures';
     load();
@@ -160,7 +164,21 @@ export default function Announcements() {
           )}
         </InfoCard>
         <section aria-label="Your announcements" className="min-w-0">
-          <h2 className="mb-3 text-[15px] font-semibold text-ink">Announcements</h2>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="!m-0 text-[15px] font-semibold text-ink">Announcements</h2>
+            <StatusSelect
+              value={view}
+              label="Show"
+              options={[
+                ['current', 'Current', null],
+                ['removed', 'Removed', null],
+              ]}
+              onChange={(v) => {
+                setList(null);
+                setView(v);
+              }}
+            />
+          </div>
           {!list ? (
             <Loading />
           ) : (
@@ -186,7 +204,14 @@ export default function Announcements() {
                 { key: 'date', label: 'Date', render: (a) => formatDate(a.publishedAt, true) },
               ]}
               actions={(a) =>
-                a.status === 'removed' ? null : (
+                a.status === 'removed' ? (
+                  // Removed is an announcement's archived state; administrators only.
+                  user?.role === 'admin' && (
+                    <button type="button" className="adm-act adm-act-danger" onClick={() => setDeleting(a)}>
+                      Delete permanently
+                    </button>
+                  )
+                ) : (
                   <span className="flex flex-wrap gap-1">
                     {a.visibility === 'public' && (
                       <>
@@ -240,6 +265,17 @@ export default function Announcements() {
         onConfirm={async () => {
           await api.post(`/announcements/${removing.id}/remove`);
           setNotice('Removed.');
+          load();
+        }}
+      />
+      <DeleteDialog
+        open={Boolean(deleting)}
+        title={deleting ? `Delete “${deleting.title}” permanently?` : ''}
+        planUrl={deleting ? `/admin/announcements/${deleting.id}/delete-plan` : ''}
+        deleteUrl={deleting ? `/admin/announcements/${deleting.id}` : ''}
+        onClose={() => setDeleting(null)}
+        onDeleted={(removed) => {
+          setNotice(`Deleted: ${removed.join(', ')}.`);
           load();
         }}
       />

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { formatDate } from '../../components/ui';
-import { AdminPage, DataTable, ListLayout, Loading, Messages, SidePanel, StatusSelect } from '../../components/admin';
+import { useAuth } from '../../context/AuthContext';
+import { AdminPage, DataTable, DeleteDialog, ListLayout, Loading, Messages, SidePanel, StatusSelect } from '../../components/admin';
 import { DecisionPanel, EmptyNote, FieldGrid, HistorySection, InfoCard, LongText } from '../../components/detail';
 import OpportunityForm from '../../components/OpportunityForm';
 import { CallStatus, money } from '../investor/FundingCalls';
@@ -33,7 +34,8 @@ const prefill = (c) => ({
   criteria: { sectors: [c.sector], projectTypes: [], stages: [], minCohortYear: '', maxCohortYear: '', notes: '' },
 });
 
-function CallPanel({ id, onClose, onChanged }) {
+function CallPanel({ id, onClose, onChanged, canDelete }) {
+  const [deleting, setDeleting] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -164,8 +166,27 @@ function CallPanel({ id, onClose, onChanged }) {
               </ul>
             )}
           </HistorySection>
+          {/* Rejected is a funding call's archived state; administrators only. */}
+          {canDelete && c.status === 'rejected' && (
+            <div>
+              <button type="button" className="adm-act adm-act-danger" onClick={() => setDeleting(true)}>
+                Delete permanently
+              </button>
+            </div>
+          )}
         </div>
       )}
+      <DeleteDialog
+        open={deleting}
+        title={c ? `Delete the ${c.sector} funding call from ${c.investor?.organisation || c.investor?.name || 'this investor'} permanently?` : ''}
+        planUrl={`/admin/funding-calls/${id}/delete-plan`}
+        deleteUrl={`/admin/funding-calls/${id}`}
+        onClose={() => setDeleting(false)}
+        onDeleted={() => {
+          onChanged('Funding call deleted.');
+          onClose();
+        }}
+      />
     </SidePanel>
   );
 }
@@ -177,6 +198,8 @@ export default function FundingCallsReview() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [viewing, setViewing] = useState(null);
+  const [notice, setNotice] = useState('');
+  const { user } = useAuth();
   const load = useCallback(() => {
     api
       .get(`/funding-calls/review${view === 'all' ? '' : `?status=${view}`}`)
@@ -193,7 +216,7 @@ export default function FundingCallsReview() {
 
   return (
     <AdminPage title="Funding calls" meta={data ? `${data.calls.length} shown` : null}>
-      <Messages error={error} />
+      <Messages notice={notice} error={error} />
       <ListLayout toolbar={<StatusSelect value={view} options={options} onChange={setView} label="Show" />} filters={[{ title: 'Status', value: view, onChange: setView, options }]}>
         {!data ? (
           <Loading />
@@ -216,7 +239,17 @@ export default function FundingCallsReview() {
           />
         )}
       </ListLayout>
-      {viewing && <CallPanel id={viewing} onClose={() => setViewing(null)} onChanged={load} />}
+      {viewing && (
+        <CallPanel
+          id={viewing}
+          canDelete={user?.role === 'admin' && view === 'rejected'}
+          onClose={() => setViewing(null)}
+          onChanged={(message) => {
+            if (typeof message === 'string') setNotice(message);
+            load();
+          }}
+        />
+      )}
     </AdminPage>
   );
 }

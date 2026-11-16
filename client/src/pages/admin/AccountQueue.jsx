@@ -18,7 +18,8 @@ const COPY = {
   investor: { title: 'Investors', endpoint: 'investors', noun: 'investor' },
 };
 
-const wasRejected = (row) => row.status === 'rejected' || (row.status === 'archived' && row.statusBeforeArchive === 'rejected');
+// Permanent delete is offered only for archived or rejected accounts (the server checks again).
+const deletable = (row) => ['archived', 'rejected'].includes(row.status);
 
 // Approval queue and records for graduate (FR02) or investor/sponsor (FR03) accounts.
 export default function AccountQueue({ role }) {
@@ -86,9 +87,15 @@ export default function AccountQueue({ role }) {
         </>
       )}
       {row.status === 'archived' ? (
-        <button type="button" className="adm-act" onClick={() => setDialog({ row, decision: 'unarchive' })}>
-          Unarchive
-        </button>
+        row.emailReleased ? (
+          <span className="adm-muted ml-2 inline-block text-[12px]" title="This email address was registered again by a new account, so the old account cannot be unarchived. It stays archived with its history.">
+            Email reused, cannot unarchive
+          </span>
+        ) : (
+          <button type="button" className="adm-act" onClick={() => setDialog({ row, decision: 'unarchive' })}>
+            Unarchive
+          </button>
+        )
       ) : (
         row.status !== 'pending_review' && (
           <button type="button" className="adm-act adm-act-danger" onClick={() => setDialog({ row, decision: 'archive' })}>
@@ -96,9 +103,9 @@ export default function AccountQueue({ role }) {
           </button>
         )
       )}
-      {wasRejected(row) && (
+      {deletable(row) && (
         <button type="button" className="adm-act adm-act-danger" onClick={() => setDeleting(row)}>
-          Delete
+          Delete permanently
         </button>
       )}
     </>
@@ -263,7 +270,7 @@ export default function AccountQueue({ role }) {
       />
       <DeleteDialog
         open={Boolean(deleting)}
-        title={deleting ? `Delete ${deleting.fullName}?` : ''}
+        title={deleting ? `Delete ${deleting.fullName} permanently?` : ''}
         planUrl={deleting ? `/admin/${copy.endpoint}/${deleting.id}/delete-plan` : ''}
         deleteUrl={deleting ? `/admin/${copy.endpoint}/${deleting.id}` : ''}
         onClose={() => setDeleting(null)}

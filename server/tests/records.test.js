@@ -49,6 +49,7 @@ async function project(client, overrides = {}) {
   return Project.findByPk(res.body.project.id);
 }
 
+const CONFIRM = { confirm: 'DELETE', reason: 'Requested by the administrator in a test.' };
 const lastAudit = (action, entityId) => AuditLog.findOne({ where: { action, ...(entityId ? { entityId } : {}) }, order: [['id', 'DESC']] });
 
 describe('only administrators can archive or delete', () => {
@@ -102,8 +103,8 @@ describe('accounts', () => {
     const { user } = await pendingGraduate();
     const plan = (await admin.get(`/api/admin/graduates/${user.id}/delete-plan`)).body.plan;
     expect(plan.allowed).toBe(false);
-    expect(plan.blockers.join(' ')).toMatch(/Only rejected accounts/);
-    const res = await admin.delete(`/api/admin/graduates/${user.id}`);
+    expect(plan.blockers.join(' ')).toMatch(/Only archived or rejected accounts/);
+    const res = await admin.delete(`/api/admin/graduates/${user.id}`).send(CONFIRM);
     expect(res.status).toBe(409);
     expect(res.body.details.blockers.length).toBeGreaterThan(0);
     expect(await User.count({ where: { id: user.id } })).toBe(1);
@@ -121,7 +122,7 @@ describe('accounts', () => {
     expect(plan.removes.reviews).toBeGreaterThanOrEqual(1);
     expect(plan.removes.emails).toBeGreaterThanOrEqual(1);
 
-    const res = await admin.delete(`/api/admin/graduates/${user.id}`);
+    const res = await admin.delete(`/api/admin/graduates/${user.id}`).send(CONFIRM);
     expect(res.status).toBe(200);
     expect(await User.count({ where: { id: user.id } })).toBe(0);
     expect(await Document.count({ where: { id: doc.id } })).toBe(0);
@@ -143,15 +144,15 @@ describe('accounts', () => {
     await user.update({ status: 'rejected' });
     let plan = (await admin.get(`/api/admin/graduates/${user.id}/delete-plan`)).body.plan;
     expect(plan.allowed).toBe(false);
-    expect(plan.blockers.join(' ')).toMatch(/not rejected/);
+    expect(plan.blockers.join(' ')).toMatch(/not archived or rejected/);
 
     const { user: investor } = await investorClient();
     await Introduction.create({ projectId: p.id, investorId: investor.id });
     await investor.update({ status: 'rejected' });
     plan = (await admin.get(`/api/admin/investors/${investor.id}/delete-plan`)).body.plan;
     expect(plan.allowed).toBe(false);
-    expect(plan.blockers.join(' ')).toMatch(/introductions or investments/);
-    expect((await admin.delete(`/api/admin/investors/${investor.id}`)).status).toBe(409);
+    expect(plan.blockers.join(' ')).toMatch(/introductions on record/);
+    expect((await admin.delete(`/api/admin/investors/${investor.id}`).send(CONFIRM)).status).toBe(409);
 
     // Archive is always possible instead.
     expect((await admin.post(`/api/admin/investors/${investor.id}/archive`).send({})).status).toBe(200);
@@ -165,7 +166,7 @@ describe('projects', () => {
     await p.update({ status: 'approved', approvedAt: new Date() });
     const plan = (await admin.get(`/api/admin/projects/${p.id}/delete-plan`)).body.plan;
     expect(plan.allowed).toBe(false);
-    expect((await admin.delete(`/api/admin/projects/${p.id}`)).status).toBe(409);
+    expect((await admin.delete(`/api/admin/projects/${p.id}`).send(CONFIRM)).status).toBe(409);
 
     const { client: investor } = await investorClient();
     // Investor discovery identifies projects by id (never by code).
@@ -183,7 +184,7 @@ describe('projects', () => {
     await admin.post(`/api/admin/projects/${p.id}/reject`).send({ reason: 'Outside the programme scope.' });
     const plan = (await admin.get(`/api/admin/projects/${p.id}/delete-plan`)).body.plan;
     expect(plan).toMatchObject({ allowed: true, removes: { project: 1 } });
-    expect((await admin.delete(`/api/admin/projects/${p.id}`)).status).toBe(200);
+    expect((await admin.delete(`/api/admin/projects/${p.id}`).send(CONFIRM)).status).toBe(200);
     expect(await Project.count({ where: { id: p.id } })).toBe(0);
     expect((await lastAudit('project.deleted', p.id)).actorId).not.toBeNull();
   });
@@ -194,7 +195,7 @@ describe('projects', () => {
     const { user: investor } = await investorClient();
     await Introduction.create({ projectId: p.id, investorId: investor.id });
     await p.update({ status: 'rejected' });
-    const res = await admin.delete(`/api/admin/projects/${p.id}`);
+    const res = await admin.delete(`/api/admin/projects/${p.id}`).send(CONFIRM);
     expect(res.status).toBe(409);
     expect(res.body.error).toMatch(/introductions/);
   });
@@ -212,7 +213,7 @@ describe('opportunities', () => {
 
   test('archive keeps the previous status; unarchive restores it; a live opportunity cannot be deleted', async () => {
     const { id } = (await admin.post('/api/admin/opportunities').send(opp(30))).body.opportunity;
-    expect((await admin.delete(`/api/admin/opportunities/${id}`)).status).toBe(409);
+    expect((await admin.delete(`/api/admin/opportunities/${id}`).send(CONFIRM)).status).toBe(409);
     await admin.post(`/api/admin/opportunities/${id}/archive`).send({});
     expect(await Opportunity.findByPk(id)).toMatchObject({ status: 'archived', statusBeforeArchive: 'published' });
     const listed = (await admin.get('/api/admin/opportunities')).body.opportunities.map((o) => o.id);
@@ -230,7 +231,7 @@ describe('opportunities', () => {
     await admin.post(`/api/admin/opportunities/${id}/close`).send({});
     const plan = (await admin.get(`/api/admin/opportunities/${id}/delete-plan`)).body.plan;
     expect(plan).toMatchObject({ allowed: true, removes: { opportunity: 1, applications: 1 } });
-    expect((await admin.delete(`/api/admin/opportunities/${id}`)).status).toBe(200);
+    expect((await admin.delete(`/api/admin/opportunities/${id}`).send(CONFIRM)).status).toBe(200);
     expect(await Opportunity.count({ where: { id } })).toBe(0);
     expect(await Application.count({ where: { opportunityId: id } })).toBe(0);
   });

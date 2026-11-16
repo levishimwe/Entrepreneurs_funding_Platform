@@ -192,8 +192,8 @@ describe('project verification queue', () => {
     const admin = await loginAs('admin');
     const { client } = await approvedGraduate();
     const project = await submitCompany(client);
-    // Delete exists only for rejected projects (tests/records.test.js).
-    expect((await admin.delete(`/api/admin/projects/${project.id}`)).status).toBe(409);
+    // Permanent delete exists only for archived or rejected projects (tests/deletes.test.js).
+    expect((await admin.delete(`/api/admin/projects/${project.id}`).send({ confirm: 'DELETE', reason: 'Not allowed for active items.' })).status).toBe(409);
     expect((await admin.post(`/api/admin/projects/${project.id}/close_discovery`).send({})).status).toBe(404);
     expect(await Project.findByPk(project.id)).not.toBeNull();
   });

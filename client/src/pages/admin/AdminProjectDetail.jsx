@@ -117,7 +117,7 @@ export default function AdminProjectDetail() {
   const actions = availableActions(project);
   const suspiciousApproval = dialog?.key === 'approve' && latestRdb?.flag === 'suspicious';
   const fundedHint = actions.some(([k, , d]) => k === 'mark_funded' && d);
-  const deletable = project.status === 'rejected' || (project.status === 'archived' && project.statusBeforeArchive === 'rejected');
+  const deletable = ['archived', 'rejected'].includes(project.status);
 
   const actionButtons = (
     <>
@@ -136,7 +136,7 @@ export default function AdminProjectDetail() {
       ))}
       {deletable && (
         <button type="button" className="adm-act adm-act-danger" onClick={() => setDeleting(true)}>
-          Delete
+          Delete permanently
         </button>
       )}
     </>
@@ -415,11 +415,11 @@ export default function AdminProjectDetail() {
       />
       <DeleteDialog
         open={deleting}
-        title={`Delete ${project.title}?`}
+        title={`Delete ${project.title} permanently?`}
         planUrl={`/admin/projects/${project.id}/delete-plan`}
         deleteUrl={`/admin/projects/${project.id}`}
         onClose={() => setDeleting(false)}
-        onDeleted={() => navigate('/app/admin/projects?status=rejected')}
+        onDeleted={() => navigate(`/app/admin/projects?status=${project.status}`)}
       />
     </div>
   );

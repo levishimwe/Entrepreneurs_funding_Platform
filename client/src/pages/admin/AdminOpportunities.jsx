@@ -109,9 +109,9 @@ export default function AdminOpportunities() {
             {a.label}
           </button>
         ))}
-      {ended(o) && (
+      {(o.status === 'archived' || ended(o)) && (
         <button type="button" className="adm-act adm-act-danger" onClick={() => setDeleting(o)}>
-          Delete
+          Delete permanently
         </button>
       )}
     </>
@@ -153,7 +153,7 @@ export default function AdminOpportunities() {
       />
       <DeleteDialog
         open={Boolean(deleting)}
-        title={deleting ? `Delete ${deleting.title}?` : ''}
+        title={deleting ? `Delete ${deleting.title} permanently?` : ''}
         planUrl={deleting ? `/admin/opportunities/${deleting.id}/delete-plan` : ''}
         deleteUrl={deleting ? `/admin/opportunities/${deleting.id}` : ''}
         onClose={() => setDeleting(null)}

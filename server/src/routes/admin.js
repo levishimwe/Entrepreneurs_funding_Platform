@@ -148,6 +148,7 @@ router.get('/graduates', async (req, res) => {
       hasPhoto: Boolean(u.photoKey),
       status: u.status,
       statusBeforeArchive: u.statusBeforeArchive,
+      emailReleased: records.isReleasedEmail(u.email),
       registeredAt: u.createdAt,
       cohortYear: u.graduateProfile?.cohortYear,
       program: u.graduateProfile?.program,
@@ -172,6 +173,7 @@ router.get('/investors', async (req, res) => {
       hasPhoto: Boolean(u.photoKey),
       status: u.status,
       statusBeforeArchive: u.statusBeforeArchive,
+      emailReleased: records.isReleasedEmail(u.email),
       registeredAt: u.createdAt,
       investorType: u.investorProfile?.investorType,
       organisation: u.investorProfile?.organisation,
@@ -271,7 +273,8 @@ for (const [path, role] of [
     res.json({ plan: await records.accountDeletePlan(await findAccount(role, req.params.id)) });
   });
   router.delete(`/${path}/:id`, async (req, res) => {
-    res.json({ ok: true, removed: (await records.deleteAccount(await findAccount(role, req.params.id), req.user.id)).removes });
+    const { reason } = records.parseConfirmation(req.body);
+    res.json({ ok: true, removed: (await records.deleteAccount(await findAccount(role, req.params.id), req.user.id, reason)).removes });
   });
 }
 
@@ -619,7 +622,8 @@ router.get('/projects/:id/delete-plan', async (req, res) => {
 router.delete('/projects/:id', async (req, res) => {
   const project = await Project.findByPk(req.params.id);
   if (!project) throw notFound('Project not found.');
-  res.json({ ok: true, removed: (await records.deleteProject(project, req.user.id)).removes });
+  const { reason } = records.parseConfirmation(req.body);
+  res.json({ ok: true, removed: (await records.deleteProject(project, req.user.id, reason)).removes });
 });
 
 // ---------------------------------------------------------------------------
@@ -738,7 +742,8 @@ router.get('/opportunities/:id/delete-plan', async (req, res) => {
 router.delete('/opportunities/:id', async (req, res) => {
   const opportunity = await Opportunity.findByPk(req.params.id);
   if (!opportunity) throw notFound('Opportunity not found.');
-  res.json({ ok: true, removed: (await records.deleteOpportunity(opportunity, req.user.id)).removes });
+  const { reason } = records.parseConfirmation(req.body);
+  res.json({ ok: true, removed: (await records.deleteOpportunity(opportunity, req.user.id, reason)).removes });
 });
 router.post('/opportunities/:id/:action', async (req, res) => {
   const rule = OPP_ACTIONS[req.params.action];
@@ -890,5 +895,6 @@ require('./adminRequests')(router);
 require('./adminResults')(router);
 require('./adminHome')(router);
 require('./adminPosts')(router);
+require('./adminDeletes')(router);
 
 module.exports = router;

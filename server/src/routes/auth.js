@@ -18,6 +18,7 @@ const { issueCode, verifyCode } = require('../services/otp');
 const { enqueueEmail } = require('../services/mailer');
 const storage = require('../services/storage');
 const audit = require('../services/audit');
+const records = require('../services/records');
 const { describeDbError } = require('../db/errors');
 const { checkPassword, clientPolicy, MAX_LENGTH } = require('../services/passwordPolicy');
 
@@ -182,7 +183,9 @@ async function ensureEmailAvailable(address) {
     throw conflict('An account with this email already exists. Sign in or reset your password.');
   }
   const existing = await User.findOne({ where: { email: address } });
-  if (existing) {
+  // An archived account's address can be registered again as a new account;
+  // the old row is renamed inside the registration transaction.
+  if (existing && existing.status !== 'archived') {
     throw conflict(
       existing.status === 'pending_email'
         ? 'This email is registered but not yet verified. Sign in to receive a new verification code.'
@@ -226,6 +229,7 @@ router.post('/register/graduate', uploadLimiter, graduateUpload, async (req, res
     if (photoKey) stored.push(photoKey);
 
     await sequelize.transaction(async (transaction) => {
+      const released = await records.releaseArchivedEmail(data.email, { transaction });
       user = await User.create(
         {
           email: data.email,
@@ -246,6 +250,7 @@ router.post('/register/graduate', uploadLimiter, graduateUpload, async (req, res
         { actorId: user.id, action: 'account.registered', entityType: 'user', entityId: user.id, metadata: { role: 'graduate', photo: Boolean(photoKey) } },
         { transaction }
       );
+      await records.recordEmailReleased(released, user, { transaction });
     });
   } catch (err) {
     await Promise.all(stored.map((key) => storage.remove(key).catch(() => {})));
@@ -264,6 +269,7 @@ router.post('/register/investor', uploadLimiter, upload.single('profilePhoto'), 
   let user;
   try {
     await sequelize.transaction(async (transaction) => {
+      const released = await records.releaseArchivedEmail(data.email, { transaction });
       user = await User.create(
         {
           email: data.email,
@@ -291,6 +297,7 @@ router.post('/register/investor', uploadLimiter, upload.single('profilePhoto'), 
         { actorId: user.id, action: 'account.registered', entityType: 'user', entityId: user.id, metadata: { role: 'investor', photo: Boolean(photoKey) } },
         { transaction }
       );
+      await records.recordEmailReleased(released, user, { transaction });
     });
   } catch (err) {
     if (photoKey) await storage.remove(photoKey).catch(() => {});

@@ -437,6 +437,13 @@ const REMOVES = {
   applications: 'application',
   requests: 'help request',
   testimonies: 'testimonial',
+  testimony: 'testimonial',
+  posts: 'post',
+  post: 'post',
+  reports: 'post report',
+  fundingCalls: 'funding call',
+  fundingCall: 'funding call',
+  announcement: 'announcement',
 };
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
@@ -447,10 +454,12 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 export function DeleteDialog({ open, title, planUrl, deleteUrl, onClose, onDeleted }) {
   const [plan, setPlan] = useState(null);
   const [error, setError] = useState('');
+  const [typed, setTyped] = useState('');
   useEffect(() => {
     if (!open) return;
     setPlan(null);
     setError('');
+    setTyped('');
     api
       .get(planUrl)
       .then((d) => setPlan(d.plan))
@@ -466,13 +475,15 @@ export function DeleteDialog({ open, title, planUrl, deleteUrl, onClose, onDelet
     <ReasonDialog
       open={open}
       title={title}
-      reason="none"
+      reason={plan?.allowed ? 'required' : 'none'}
+      reasonLabel="Reason for deleting"
+      reasonHelp="Kept in the audit log with your name. Do not include personal details."
       tone="danger"
       confirmLabel="Delete permanently"
-      confirmDisabled={!plan?.allowed}
+      confirmDisabled={!plan?.allowed || typed !== 'DELETE'}
       onClose={onClose}
-      onConfirm={async () => {
-        await api.delete(deleteUrl);
+      onConfirm={async (reason) => {
+        await api.delete(deleteUrl, { confirm: 'DELETE', reason });
         onDeleted?.(removes);
       }}
     >
@@ -488,10 +499,19 @@ export function DeleteDialog({ open, title, planUrl, deleteUrl, onClose, onDelet
           </ul>
         </div>
       )}
+      {plan && !plan.allowed && <p className="adm-muted">It stays archived with its history.</p>}
       {plan?.allowed && (
-        <p>
-          This permanently removes {removes.join(', ')}. It cannot be undone. An audit entry records who deleted it, without personal details.
-        </p>
+        <>
+          <p>
+            This permanently removes {removes.join(', ')}. <strong>It cannot be undone.</strong> An audit entry records who deleted it and why, without personal details.
+          </p>
+          <div>
+            <label htmlFor="delete-confirm" className="label">
+              Type DELETE to confirm
+            </label>
+            <input id="delete-confirm" className="input" autoComplete="off" spellCheck={false} value={typed} onChange={(e) => setTyped(e.target.value)} />
+          </div>
+        </>
       )}
     </ReasonDialog>
   );

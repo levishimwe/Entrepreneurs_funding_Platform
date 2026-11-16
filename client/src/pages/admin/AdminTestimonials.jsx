@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { formatDate } from '../../components/ui';
 import ReasonDialog from '../../components/ReasonDialog';
-import { AdminPage, DataTable, ListLayout, Loading, Messages, Pill, StatusSelect } from '../../components/admin';
+import { AdminPage, DataTable, DeleteDialog, ListLayout, Loading, Messages, Pill, StatusSelect } from '../../components/admin';
 
 const STATUSES = [
   ['pending', 'Pending'],
@@ -21,6 +21,7 @@ export default function AdminTestimonials() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [dialog, setDialog] = useState(null); // { t, decision }
+  const [deleting, setDeleting] = useState(null);
 
   const load = useCallback(() => {
     api
@@ -73,6 +74,12 @@ export default function AdminTestimonials() {
                     {t.status === 'approved' ? 'Unpublish' : 'Reject'}
                   </button>
                 )}
+                {/* Rejected is a testimony's archived state: only there can it be deleted. */}
+                {t.status === 'rejected' && status === 'rejected' && (
+                  <button type="button" className="adm-act adm-act-danger" onClick={() => setDeleting(t)}>
+                    Delete permanently
+                  </button>
+                )}
               </>
             )}
             empty="No testimonies in this view."
@@ -90,6 +97,17 @@ export default function AdminTestimonials() {
         onConfirm={async (reason) => {
           await api.post(`/admin/testimonials/${dialog.t.id}/${dialog.decision}`, reason ? { reason } : {});
           setNotice(dialog.decision === 'reject' ? 'Testimony rejected.' : 'Testimony approved. It now shows on the home page.');
+          load();
+        }}
+      />
+      <DeleteDialog
+        open={Boolean(deleting)}
+        title={deleting ? `Delete the testimony from ${deleting.author?.name || 'this member'} permanently?` : ''}
+        planUrl={deleting ? `/admin/testimonials/${deleting.id}/delete-plan` : ''}
+        deleteUrl={deleting ? `/admin/testimonials/${deleting.id}` : ''}
+        onClose={() => setDeleting(null)}
+        onDeleted={(removed) => {
+          setNotice(`Deleted: ${removed.join(', ')}.`);
           load();
         }}
       />

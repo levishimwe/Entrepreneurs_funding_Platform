@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { formatDate } from '../../components/ui';
 import ReasonDialog from '../../components/ReasonDialog';
-import { AdminPage, DataTable, ListLayout, Loading, Messages, Pill, StatusSelect } from '../../components/admin';
+import { AdminPage, DataTable, DeleteDialog, ListLayout, Loading, Messages, Pill, StatusSelect } from '../../components/admin';
 
 const VIEWS = [
   ['reported', 'Reported'],
@@ -20,6 +20,7 @@ export default function AdminPosts() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [removing, setRemoving] = useState(null);
+  const [deleting, setDeleting] = useState(null);
 
   const load = useCallback(() => {
     api
@@ -102,7 +103,14 @@ export default function AdminPosts() {
             ]}
             rows={data.posts}
             actions={(p) =>
-              p.removed ? null : (
+              p.removed ? (
+                // Only in the Removed view: permanent delete (admin only on the server too).
+                view === 'removed' && (
+                  <button type="button" className="adm-act adm-act-danger" onClick={() => setDeleting(p)}>
+                    Delete permanently
+                  </button>
+                )
+              ) : (
                 <>
                   {p.openReports.length > 0 && (
                     <button type="button" className="adm-act" onClick={() => dismiss(p)}>
@@ -130,6 +138,17 @@ export default function AdminPosts() {
         onConfirm={async (reason) => {
           await api.post(`/admin/posts/${removing.id}/remove`, { reason });
           setNotice('Post removed.');
+          load();
+        }}
+      />
+      <DeleteDialog
+        open={Boolean(deleting)}
+        title={deleting ? `Delete this post by ${deleting.graduate.name} permanently?` : ''}
+        planUrl={deleting ? `/admin/posts/${deleting.id}/delete-plan` : ''}
+        deleteUrl={deleting ? `/admin/posts/${deleting.id}` : ''}
+        onClose={() => setDeleting(null)}
+        onDeleted={(removed) => {
+          setNotice(`Deleted: ${removed.join(', ')}.`);
           load();
         }}
       />

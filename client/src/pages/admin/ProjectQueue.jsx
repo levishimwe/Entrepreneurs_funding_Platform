@@ -20,7 +20,8 @@ const STATUSES = [
 const PAGE_SIZE = 25;
 // Row shortcuts; every action is also on the project's page.
 const ROW_ACTIONS = ['approve', 'reject', 'archive', 'restore'];
-const wasRejected = (p) => p.status === 'rejected' || (p.status === 'archived' && p.statusBeforeArchive === 'rejected');
+// Permanent delete is offered only for archived or rejected projects (the server checks again).
+const deletable = (p) => ['archived', 'rejected'].includes(p.status);
 
 function rdbCheck(p) {
   if (p.type === 'idea') return <span className="adm-muted">Idea stage</span>;
@@ -131,9 +132,9 @@ export default function ProjectQueue() {
             {a.label}
           </button>
         ))}
-      {wasRejected(p) && (
+      {deletable(p) && (
         <button type="button" className="adm-act adm-act-danger" onClick={() => setDeleting(p)}>
-          Delete
+          Delete permanently
         </button>
       )}
     </>
@@ -199,7 +200,7 @@ export default function ProjectQueue() {
       />
       <DeleteDialog
         open={Boolean(deleting)}
-        title={deleting ? `Delete ${deleting.title}?` : ''}
+        title={deleting ? `Delete ${deleting.title} permanently?` : ''}
         planUrl={deleting ? `/admin/projects/${deleting.id}/delete-plan` : ''}
         deleteUrl={deleting ? `/admin/projects/${deleting.id}` : ''}
         onClose={() => setDeleting(null)}
