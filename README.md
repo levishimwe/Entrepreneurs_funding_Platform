@@ -6,11 +6,11 @@ A verified marketplace where African Leadership University (ALU) graduates prese
 
 | What | Link |
 | --- | --- |
-| **Primary (custom subdomain, frontend)** | https://alufunders.nithaco.com |
-| Frontend (Vercel) | https://entrepreneurs-funding-platform.vercel.app/ |
-| Backend API (Render) | https://entrepreneurs-funding-platform.onrender.com |
-| Demo video (investor, graduate, admin and staff, plus code walkthrough) | https://drive.google.com/file/d/1sDYBfHdVy1MF71rKqMzOZRft8H5-Lmce/view?usp=sharing |
-| Technical report | https://docs.google.com/document/d/1rp_EXeHdt4lc8B0tE0u_9g4WQb94YBUi/edit?usp=sharing&ouid=105025197920576163349&rtpof=true&sd=true |
+| **Primary (custom subdomain, frontend)** | [Live application](https://alufunders.nithaco.com) |
+| Frontend (Vercel) | [Frontend (Vercel)](https://entrepreneurs-funding-platform.vercel.app/) |
+| Backend API (Render) | [Backend API (Render)](https://entrepreneurs-funding-platform.onrender.com) |
+| Demo video (investor, graduate, admin and staff, plus code walkthrough) | [Demo Video](https://drive.google.com/file/d/1sDYBfHdVy1MF71rKqMzOZRft8H5-Lmce/view?usp=sharing) |
+| Technical report | [Technical Report](https://docs.google.com/document/d/1rp_EXeHdt4lc8B0tE0u_9g4WQb94YBUi/edit?usp=sharing&ouid=105025197920576163349&rtpof=true&sd=true) |
 
 The code walkthrough shows inheritance in `server/src/middleware/errors.js` (`HttpError extends Error`) and encapsulation in `server/src/models/index.js`.
 
