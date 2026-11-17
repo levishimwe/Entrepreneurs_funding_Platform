@@ -9,8 +9,10 @@ A verified marketplace where African Leadership University (ALU) graduates prese
 | **Primary (custom subdomain, frontend)** | https://alufunders.nithaco.com |
 | Frontend (Vercel) | https://entrepreneurs-funding-platform.vercel.app/ |
 | Backend API (Render) | https://entrepreneurs-funding-platform.onrender.com |
-| Walkthrough video | ADD_VIDEO_LINK_HERE |
-| Technical report (PDF) | ADD_REPORT_LINK_HERE |
+| Demo video (investor, graduate, admin and staff, plus code walkthrough) | https://drive.google.com/file/d/1sDYBfHdVy1MF71rKqMzOZRft8H5-Lmce/view?usp=sharing |
+| Technical report | https://docs.google.com/document/d/1rp_EXeHdt4lc8B0tE0u_9g4WQb94YBUi/edit?usp=sharing&ouid=105025197920576163349&rtpof=true&sd=true |
+
+The code walkthrough shows inheritance in `server/src/middleware/errors.js` (`HttpError extends Error`) and encapsulation in `server/src/models/index.js`.
 
 > **Note:** the API runs on Render's free tier. After a period of inactivity it sleeps, and the first request can take about **30–60 seconds** while it wakes up. Reload the page if the first sign-in or list takes a while. The API health check is at `https://entrepreneurs-funding-platform.onrender.com/api/health`.
 
@@ -48,16 +50,18 @@ ALU Ventures is a web platform that:
 - **lists approved ventures** publicly (only with the founder's consent) and for approved investors, with filters;
 - **connects investors and founders through consent**: an investor requests an introduction, and contact details are shared only after the graduate accepts;
 - **runs opportunities**: staff propose hackathons, grants and competitions, the administrator publishes them, graduates apply with an approved project, staff record selection decisions and results, and the administrator approves the results;
+- **selects applicants automatically, with staff confirmation**: the system previews who meets an opportunity's criteria, and nothing is applied or emailed until staff confirm;
+- **reaches people in bulk and in public**: staff send bulk emails within the provider's daily limit, graduates post seeking-investor needs, investors post funding calls, and staff publish public or private announcements;
 - **keeps an audit trail** of every decision, with actor, time and reason.
 
 ### Roles
 
 | Role | How the account is created | What they do |
 | --- | --- | --- |
-| **Graduate** | Self-registration with an `@alumni.alustudent.com` or `@alumni.alueducation.com` email and an email code; the administrator approves the account before projects can be submitted | Submit and revise ventures, answer similarity clarifications, accept or decline introductions, apply to opportunities, publish a public profile and short posts, contact the administrator |
-| **Investor / Sponsor** | Self-registration with organisation, website and interests; approved by the administrator | Browse and filter approved ventures, request introductions, confirm meetings and investments, view graduate profiles and posts, report a post |
-| **Administrator** | Provisioned by the seed script from environment variables (never self-assigned) | Approve accounts and projects, review document checks and similarity flags, publish opportunities, approve competition results, record investments, moderate testimonies and posts, manage the email outbox, rules and records, and view dashboards |
-| **Staff** | Provisioned by the seed script (two staff accounts) | Propose opportunities, review applicants and record shortlist / selected / not-selected decisions, mark events completed, record results, and view the staff dashboard |
+| **Graduate** | Self-registration with an `@alumni.alustudent.com` or `@alumni.alueducation.com` email and an email code; the administrator approves the account before projects can be submitted | Submit and revise ventures, answer similarity clarifications, accept or decline introductions, apply to opportunities, publish a public profile and short posts, post a need for investors, contact the administrator |
+| **Investor / Sponsor** | Self-registration with organisation, website and interests; approved by the administrator | Browse and filter approved ventures, request introductions, confirm meetings and investments, view graduate profiles and posts, report a post, post funding calls |
+| **Administrator** | Provisioned by the seed script from environment variables (never self-assigned) | Approve accounts and projects, review document checks and similarity flags, publish opportunities, approve competition results, record investments, moderate testimonies and posts, manage the email outbox, rules and records, permanently delete archived records safely, and view dashboards |
+| **Staff** | Provisioned by the seed script (two staff accounts) | Propose opportunities, review applicants and record shortlist / selected / not-selected decisions, mark events completed, record results, review funding calls, publish announcements, send bulk messages, run the automatic selection preview and confirm it, and view the staff dashboard |
 
 ### Main features
 
@@ -73,7 +77,11 @@ ALU Ventures is a web platform that:
 - **One-time codes (OTP)**: six-digit codes for email verification at registration and for password reset. Sign-in itself uses email and password.
 - **Strong passwords**: every new or changed password needs 8+ characters with an uppercase letter, a lowercase letter, a number and a special character, and must not contain the user's name or email name or be a common password. One rule set on the server (`server/src/services/passwordPolicy.js`), sent to the forms for a live checklist. Existing passwords keep working.
 - **Project background image**: an optional JPG, PNG or WebP image (3 MB max) per project, checked by content, stripped of EXIF and resized to 1600px wide. It is shown on the venture page and cards only while the project is approved and public; the administrator can remove it with a reason.
-- **Records management**: archive and restore accounts, projects and opportunities. Permanent delete only for rejected records, ended opportunities and emails.
+- **Automatic selection with staff confirmation**: staff set eligibility (sector, project type, stage, graduating cohort) and an optional number of places. The system previews who is selected: the earliest applications fill the places, and extra eligible applicants are flagged "over capacity" for a staff decision (never rejected automatically). Nothing is applied or emailed until staff press Confirm; confirming twice changes nothing; a manual override needs a reason.
+- **Bulk messages with a daily limit**: staff and the administrator pick an audience (all graduates, all investors and sponsors, or chosen people). Each recipient gets one email row in the outbox. `BREVO_DAILY_LIMIT` (default 300, the Brevo free plan) caps emails per day; extra emails wait for the next UTC day instead of failing.
+- **Seeking-investor posts, funding calls and announcements**: graduates post a need for investors (shown as cards to investors and staff); investors post funding calls that staff review, and an accepted call prefills a competition for the administrator to publish; announcements are public (shown on the home page) or private (sent by email).
+- **Redesigned review and view pages**: shared detail components (`client/src/components/detail.jsx`), a collapsible "History activity", themed dropdowns, and "Online Investments" shown inside the future-plan cards only.
+- **Records management**: archive and restore accounts, projects and opportunities; remove posts and announcements with a reason. The administrator can permanently delete archived or rejected graduate and investor accounts, archived or rejected projects, archived or ended opportunities, removed posts, removed announcements, rejected testimonies, and rejected funding calls that did not become a competition. A permanent delete happens only when nothing depends on the item (otherwise a clear 409 message lists what blocks it), and needs the confirmation word "DELETE" and a reason of at least 5 characters. Emails and resolved contact requests can also be deleted. An archived account's email can register again as a new account (the old row's email is renamed).
 - **Appearance**: light, dark or system theme per account.
 - **Investor "Billing & plans"**: a "Coming soon" placeholder only; the platform takes no payments.
 
@@ -87,26 +95,32 @@ Status is based on what the code and the automated tests actually do. FR/NFR num
 
 | Planned Feature | Intended Purpose | Current Status | Evidence |
 | --- | --- | --- | --- |
-| FR01 Free platform access, billing placeholder | No role is charged; premium plans shown only as "Coming soon" | **Completed** | `client/src/pages/investor/Billing.jsx` · screenshot `docs/screenshots/investor-billing.png` |
-| FR02 Graduate registration (alumni domain, OTP, admin approval) | Only real ALU graduates get graduate status | **Partial**: the OTP is sent by email only; SMS delivery was not built because no SMS gateway was set up for the pilot. On the supervisor's advice the degree-certificate upload and its automated check were removed: only `@alumni.alustudent.com` and `@alumni.alueducation.com` addresses are accepted (exact domain match, checked on the server), and the administrator approves each graduate after the OTP. Certificates uploaded earlier are kept but no longer used | `server/src/routes/auth.js`, `server/src/services/otp.js`, `server/tests/auth.test.js`, `server/tests/uploads.test.js` · `docs/screenshots/register-graduate.png` |
+| FR01 Free platform access, billing placeholder | No role is charged; premium plans shown only as "Coming soon" | **Completed** | `client/src/pages/investor/Billing.jsx` |
+| FR02 Graduate registration (alumni domain, OTP, admin approval) | Only real ALU graduates get graduate status | **Partial**: the OTP is sent by email only; SMS delivery was not built because no SMS gateway was set up for the pilot. On the supervisor's advice the degree-certificate upload and its automated check were removed: only `@alumni.alustudent.com` and `@alumni.alueducation.com` addresses are accepted (exact domain match, checked on the server), and the administrator approves each graduate after the OTP. Certificates uploaded earlier are kept but no longer used | `server/src/routes/auth.js`, `server/src/services/otp.js`, `server/tests/auth.test.js`, `server/tests/uploads.test.js` |
 | FR03 Investor registration and controlled staff provisioning | Vetted investors; no self-assigned privileged roles | **Completed** | `server/src/routes/auth.js` (`/register/investor`), `server/scripts/seed.js`, `server/tests/seed.test.js`, `server/tests/access.test.js` |
-| FR04 Project submission and revision | Idea or company ventures with evidence; changes trigger renewed review | **Completed** | `server/src/routes/projects.js`, `client/src/pages/graduate/ProjectForm.jsx`, `server/tests/projects.test.js` · `docs/screenshots/project-form.png` |
-| FR05 OCR-assisted RDB certificate review | Flag registration certificates as Likely Valid / Suspicious for the admin | **Completed**, extended: Gemini can be the primary reader, and Tesseract always runs as the fallback | `server/src/services/verification/documentVerifier.js`, `server/tests/verification.test.js`, `server/tests/gemini.test.js` · `docs/screenshots/admin-document-checks.png` |
-| FR06 Discovery, publication and Verify a Project | Public catalogue of consented approved projects; investor filters | **Completed** (filters: sector, stage, type and country) | `server/src/routes/public.js`, `server/src/routes/investor.js`, `server/tests/publicCodes.test.js`, `server/tests/investor.test.js` · `docs/screenshots/browse-ventures.png` |
-| FR07 Investor introductions | Contact details shared only after the graduate accepts | **Completed** | `server/src/routes/introductions.js`, `server/src/services/introductions.js`, `server/tests/investor.test.js` · `docs/screenshots/introductions.png` |
-| FR08 Opportunity administration and applications | Staff propose, admin publishes, server-checked eligibility, one application per project | **Completed**, extended with link-only opportunities | `server/src/routes/staff.js`, `server/src/routes/opportunities.js`, `server/src/services/opportunities.js`, `server/tests/opportunities.test.js` |
-| FR09 Institutional selection | Staff, not the admin, record decisions with reasons | **Completed** | `server/src/routes/staff.js` (`/applications/:id/decision`), `client/src/pages/staff/StaffSelection.jsx`, `server/tests/opportunities.test.js` |
+| FR04 Project submission and revision | Idea or company ventures with evidence; changes trigger renewed review | **Completed** | `server/src/routes/projects.js`, `client/src/pages/graduate/ProjectForm.jsx`, `server/tests/projects.test.js` |
+| FR05 OCR-assisted RDB certificate review | Flag registration certificates as Likely Valid / Suspicious for the admin | **Completed**, extended: Gemini can be the primary reader, and Tesseract always runs as the fallback | `server/src/services/verification/documentVerifier.js`, `server/tests/verification.test.js`, `server/tests/gemini.test.js` |
+| FR06 Discovery, publication and Verify a Project | Public catalogue of consented approved projects; investor filters | **Completed** (filters: sector, stage, type and country) | `server/src/routes/public.js`, `server/src/routes/investor.js`, `server/tests/publicCodes.test.js`, `server/tests/investor.test.js` |
+| FR07 Investor introductions | Contact details shared only after the graduate accepts | **Completed** | `server/src/routes/introductions.js`, `server/src/services/introductions.js`, `server/tests/investor.test.js` |
+| FR08 Opportunity administration and applications | Staff propose, admin publishes, server-checked eligibility, one application per project | **Completed**, extended with link-only opportunities and an optional number of places; staff can now select by automatic preview and confirm, not only one by one | `server/src/routes/staff.js`, `server/src/routes/opportunities.js`, `server/src/services/opportunities.js`, `server/tests/opportunities.test.js` |
+| FR09 Institutional selection | Staff, not the admin, record decisions with reasons | **Completed**, extended: staff decide one by one or run an automatic preview and confirm it; a manual override needs a reason | `server/src/routes/staff.js` (`/applications/:id/decision`), `client/src/pages/staff/StaffSelection.jsx`, `server/src/services/selection.js`, `server/tests/opportunities.test.js`, `server/tests/selection.test.js` |
+| Automatic selection with staff confirmation | Preview who meets the criteria; apply and email only after staff confirm | **Completed**, added after the proposal | `server/src/services/selection.js`, `server/tests/selection.test.js` |
+| Bulk messages with daily limit | Email all graduates, all investors or chosen people within the provider's daily limit | **Completed**, added after the proposal | `server/src/services/bulkMail.js`, `server/src/routes/messages.js`, `server/tests/bulkMail.test.js` |
+| Seeking-investor posts, funding calls, announcements | Graduates post needs, investors post funding calls, staff publish announcements | **Completed**, added after the proposal | `server/src/routes/posts.js`, `server/src/routes/fundingCalls.js`, `server/src/routes/announcements.js`, `server/tests/phase2.test.js`, `server/tests/postsFeed.test.js` |
+| Archive, safe permanent delete, re-registration | Keep history; delete only when nothing depends on the item; let an archived email register again | **Completed**, added after the proposal | `server/src/services/records.js`, `server/src/routes/adminDeletes.js`, `server/tests/deletes.test.js`, `server/tests/reregister.test.js`, `server/tests/archivedProjects.test.js` |
+| Redesigned detail pages and History activity | One consistent layout for review and view pages | **Completed**, added after the proposal | `client/src/components/detail.jsx` |
+| Online investment by card | Pay an investment through the platform | **Not implemented**: investments are recorded after both sides confirm, but no payment is taken; Billing is a "Coming soon" placeholder | `client/src/pages/investor/Billing.jsx` |
 | Competition results (added after the proposal) | Record outcomes after an event; admin approval; funding by competition | **Completed** | `server/src/routes/adminResults.js`, `server/src/services/results.js`, `server/tests/results.test.js` |
 | FR10 Monitoring and audit, persistent email outbox | Timestamped actions with actor and reason; visible email failures; archive, not delete | **Completed** | `server/src/services/audit.js`, `server/src/services/mailer.js`, `server/src/services/records.js`, `server/tests/records.test.js`, `server/tests/admin.test.js` |
-| FR11 Administrator dashboard | Queues, totals and platform analytics | **Completed** | `server/src/services/dashboard.js`, `server/src/services/analytics.js`, `client/src/pages/admin/AdminDashboard.jsx`, `server/tests/dashboards.test.js` · `docs/screenshots/admin-dashboard.png` |
-| Staff dashboard (added) | Applications and opportunities at a glance | **Completed** | `client/src/pages/staff/StaffDashboard.jsx`, `server/tests/dashboards.test.js` · `docs/screenshots/staff-dashboard.png` |
+| FR11 Administrator dashboard | Queues, totals and platform analytics | **Completed** | `server/src/services/dashboard.js`, `server/src/services/analytics.js`, `client/src/pages/admin/AdminDashboard.jsx`, `server/tests/dashboards.test.js` |
+| Staff dashboard (added) | Applications and opportunities at a glance | **Completed** | `client/src/pages/staff/StaffDashboard.jsx`, `server/tests/dashboards.test.js` |
 | FR12 Password recovery | Forgot password with a single-use, expiring code; sessions invalidated | **Partial**: the code is sent by email only (no phone delivery); expiry, five attempts, single use and session invalidation are complete | `server/src/routes/auth.js` (`/forgot-password`, `/reset-password`), `server/src/services/otp.js`, `server/tests/auth.test.js` |
 | FR13 Investment lifecycle and two-investor limit | Record outcomes only after both sides confirm; close discovery fairly | **Completed** | `server/src/services/funding.js`, `server/tests/investor.test.js` |
-| FR14 Project verification code | Unique `ALU-YYYY-XXXXX` code; public exact-code lookup; codes never listed publicly | **Completed** | `server/src/services/categorization.js`, `server/src/routes/public.js` (`/verify/:code`), `server/tests/publicCodes.test.js` · `docs/screenshots/verify-project.png` |
+| FR14 Project verification code | Unique `ALU-YYYY-XXXXX` code; public exact-code lookup; codes never listed publicly | **Completed** | `server/src/services/categorization.js`, `server/src/routes/public.js` (`/verify/:code`), `server/tests/publicCodes.test.js` |
 | FR15 Rule-based sector suggestion | Suggest a sector from an admin-maintained keyword map | **Completed** | `server/src/services/categorization.js` (`suggestSector`), `client/src/pages/admin/PlatformAdmin.jsx` (`RulesConfig`), `server/tests/projects.test.js` |
 | FR16 Similarity detection and clarification | Flag near-duplicates of approved projects; graduate clarifies; optional RRA evidence | **Completed** | `server/src/services/categorization.js` (`findSimilarProjects`), `server/src/routes/projects.js` (`/:id/clarification`, `/:id/documents`), `server/tests/projects.test.js` |
 | Contact / requests (added) | Users reach the administrator and get replies | **Completed** | `server/src/routes/support.js`, `server/src/routes/adminRequests.js`, `server/tests/support.test.js` |
-| Success stories and testimonies (added) | Show funded projects and approved testimonies on the home page | **Completed** | `server/src/routes/public.js`, `server/src/routes/testimonials.js`, `server/src/routes/adminHome.js`, `server/tests/home.test.js` · `docs/screenshots/home.png` |
+| Success stories and testimonies (added) | Show funded projects and approved testimonies on the home page | **Completed** | `server/src/routes/public.js`, `server/src/routes/testimonials.js`, `server/src/routes/adminHome.js`, `server/tests/home.test.js` |
 | Graduate public profile and posts (added) | Consent-based founder profile and short updates for investors | **Completed** | `server/src/routes/graduates.js`, `server/src/routes/posts.js`, `server/tests/graduateProfiles.test.js` |
 | Project background image (added) | Make venture pages and cards recognisable | **Completed** | `server/src/routes/projects.js`, `server/src/services/publicImages.js`, `server/src/services/projectView.js`, `server/tests/projectImage.test.js` |
 | Strong password rule and change password (added) | Stronger account security | **Completed** | `server/src/services/passwordPolicy.js`, `server/src/routes/account.js` (`/password`), `client/src/lib/passwordRules.js`, `server/tests/passwordPolicy.test.js` |
@@ -118,8 +132,6 @@ Status is based on what the code and the automated tests actually do. FR/NFR num
 | NFR03 Document protection | Type, size and page limits; private storage; authorised access | **Completed**: encryption at rest is provided by the storage provider (Cloudflare R2), not by the application | `server/src/middleware/upload.js`, `server/src/services/storage/`, `server/src/services/fileDelivery.js`, `server/tests/uploads.test.js` |
 | NFR04 Usability and access | Responsive layouts, labelled controls, keyboard use, ALU logo | **Partial**: responsive and accessible layouts are done; there is no service worker, so the caching rules do not apply | `client/src/layouts/`, `client/src/components/charts.jsx` |
 | NFR05 Reliability and maintainability | Migrations, tests, logging, environment secrets, backups | **Partial**: migrations, schema check at boot, automated tests, safe error logging and environment secrets are done; an availability report and a backup-restore exercise are not in the repository (the managed database provides backups) | `server/src/db/migrations.js`, `server/tests/migrations.test.js`, `server/tests/resilience.test.js` |
-
-Screenshot paths are listed in [docs/screenshots/README.md](docs/screenshots/README.md); the images are added by the author.
 
 ---
 
@@ -368,6 +380,7 @@ All variables belong to `server/.env` (locally) or the Render service (productio
 | `S3_FORCE_PATH_STYLE` | Path-style URLs (`true`/`false`) | Optional (default `false`) |
 | `EMAIL_DRIVER` | `smtp`, `brevo` or `resend` | Optional (default `smtp`) |
 | `EMAIL_API_KEY` | Brevo or Resend API key | Required for `brevo` / `resend` |
+| `BREVO_DAILY_LIMIT` | Daily email limit; emails over it wait for the next day (matches the Brevo free plan) | Optional (default `300`) |
 | `MAIL_FROM` | Sender, e.g. `"ALU Ventures" <sender@example.org>` (must be verified with the provider) | Optional |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` | SMTP settings for the `smtp` driver | Required for `smtp` to deliver mail |
 | `GEMINI_API_KEY` | Google Gemini key for document reading | Optional (without it, Tesseract only) |
@@ -416,19 +429,18 @@ All variables belong to `server/.env` (locally) or the Render service (productio
 │   │   ├── app.js                Express app: security middleware, CSRF header check, routers, errors
 │   │   ├── config/               env.js (all settings) and database.js (Sequelize over verified TLS)
 │   │   ├── db/                   Migration runner, schema check, idempotent schema helpers, safe DB error text
-│   │   ├── migrations/           Versioned, additive migrations (001–008)
+│   │   ├── migrations/           Versioned, additive migrations (001–010)
 │   │   ├── models/               Sequelize models and associations (index.js)
 │   │   ├── middleware/           auth (session, roles), errors, rate limits, upload validation
 │   │   ├── routes/               One router per area (auth, projects, investor, admin, staff, …)
-│   │   ├── services/             Business logic: verification, storage, mail, funding, analytics, …
+│   │   ├── services/             Business logic: verification, storage, mail, funding, analytics, selection.js, bulkMail.js, records.js, …
 │   │   └── workers/              jobs.js: background document checks and email outbox loop
 │   └── tests/                    Jest + Supertest suites, global setup and helpers
 └── docs/
     ├── proposal.md               Capstone proposal (requirements FR01–FR16, NFR01–NFR05)
     ├── LevisIshimwe_CapstoneProposal_Updated.docx   Proposal document
     ├── ALU_Capstone_Diagrams_Updated.drawio          Architecture, ERD, use-case and sequence diagrams
-    ├── design/                   Design reference screenshots
-    └── screenshots/              Screenshots referenced in the scope table (README lists them)
+    └── design/                   Design reference images
 ```
 
 ---
@@ -488,7 +500,7 @@ npm test -- tests/auth.test.js             # one suite
 
 ### Results
 
-Latest full run: **25 test suites, 310 tests, all passing** (`cd server && npm test`).
+Latest results: **32 test suites, 377 tests, all passing** (`cd server && npm test`). One full run took about 80 minutes because the test database is remote. In one full run two suites failed only because the remote connection dropped, and both passed when re-run alone with no code change.
 
 ### Strategies
 
@@ -498,12 +510,12 @@ Latest full run: **25 test suites, 310 tests, all passing** (`cd server && npm t
 | Integration (Supertest) | Real HTTP requests through Express to the test database: registration, OTP, uploads, projects, introductions, funding, opportunities, results, records | `tests/auth.test.js`, `tests/projects.test.js`, `tests/investor.test.js`, `tests/results.test.js` |
 | Functional / role-based | Every admin and staff route refuses other roles; each role sees only its own data; no codes, emails or phones leak | `tests/access.test.js`, `tests/publicCodes.test.js`, `tests/memberSummary.test.js`, `tests/graduateProfiles.test.js` |
 | Deployment and resilience | CA certificate loading, S3 driver, HTTPS email providers, cookie flags, health check, migrations on a fresh and an old schema, clean errors when the database fails | `tests/deploy.test.js`, `tests/migrations.test.js`, `tests/resilience.test.js` |
-| Usability / responsive checks | Automated Playwright walkthroughs in Chrome at 1440 × 900 and 390 × 844 (no sideways scrolling, menus, dark mode, charts, tooltips), plus manual review | Run during development; screenshots in `docs/screenshots/` |
+| Usability / responsive checks | Automated Playwright walkthroughs in Chrome at 1440 × 900 and 390 × 844 (no sideways scrolling, menus, dark mode, charts, tooltips), plus manual review | Run during development |
 | Compatibility | Chrome desktop and a phone viewport; light and dark themes | Manual and automated walkthroughs |
 
 ### Known limitations
 
-- The tests use a remote Aiven database, so each query crosses the internet. A full run takes about an hour, and a suite occasionally fails with `Exceeded timeout` or `ETIMEDOUT`. Rerunning that suite normally passes.
+- The tests use a remote Aiven database, so each query crosses the internet. A full run takes about 80 minutes, and a suite occasionally fails with `Exceeded timeout` or `ETIMEDOUT`. Rerunning that suite normally passes.
 - Gemini, email delivery and S3 are faked in tests; no real external call is made.
 - Browser checks were automated with Playwright during development but are not part of `npm test`.
 - Only Chrome was tested; Firefox and Safari were not.
@@ -544,6 +556,8 @@ No passwords are published in this repository. To try the administrator, staff, 
 - Staff see aggregated data across all opportunities, not only the ones they proposed.
 - EXIF orientation is not applied when public images are resized.
 - Gemini's free tier may let Google use submitted files to improve its products; use `VERIFIER=ocr` where that is not acceptable.
+- Online card investment is not implemented; investments are recorded only.
+- The client has no automated tests, and there is no CI workflow.
 
 ### Future work
 
@@ -551,7 +565,10 @@ No passwords are published in this repository. To try the administrator, staff, 
 - SMS delivery of codes, and two-factor sign-in.
 - Load testing, performance budgets and an availability report.
 - A backup-restore exercise documented for the pilot.
-- Payments for premium investor plans, if ALU decides to offer them.
+- Online investment and payments for premium investor plans, if ALU decides to offer them.
+- Online investment by card.
+- A GitHub Actions workflow that runs the tests.
+- A local test database, so the test suite runs faster.
 
 ### Author and supervisor
 
