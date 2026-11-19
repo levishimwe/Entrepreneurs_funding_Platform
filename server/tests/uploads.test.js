@@ -30,7 +30,8 @@ function registerGraduateWith(client, { photo, phone = '', email = alumniEmail()
     .field('password', TEST_PASSWORD)
     .field('phone', phone)
     .field('cohortYear', '2024')
-    .field('program', 'BSc Software Engineering');
+    .field('program', 'BSc Software Engineering')
+    .field('acceptTerms', 'true');
   if (photo) req = req.attach('profilePhoto', photo.buffer, photo.name);
   return req.then((res) => ({ res, email }));
 }
@@ -97,6 +98,7 @@ describe('profile photo and phone at registration', () => {
       .field('organisation', 'Kigali Angels')
       .field('investorType', 'investor')
       .field('sectors', JSON.stringify(['Agriculture', 'Fintech']))
+      .field('acceptTerms', 'true')
       .attach('profilePhoto', pngPhoto(), 'grace.png');
     expect(res.status).toBe(201);
     const user = await User.findOne({ where: { email }, include: ['investorProfile'] });

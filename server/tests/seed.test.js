@@ -107,7 +107,8 @@ describe('privileged addresses are reserved', () => {
         .field('email', reserved.toUpperCase())
         .field('password', TEST_PASSWORD)
         .field('cohortYear', '2024')
-        .field('program', 'BSc Software Engineering');
+        .field('program', 'BSc Software Engineering')
+        .field('acceptTerms', 'true');
       expect(res.status).toBe(409);
       // Same wording as any taken address: nothing reveals it is privileged.
       expect(res.body.error).toBe('An account with this email already exists. Sign in or reset your password.');
@@ -120,7 +121,7 @@ describe('privileged addresses are reserved', () => {
   test('the seeded admin address itself is refused at registration', async () => {
     const res = await agent()
       .post('/api/auth/register/investor')
-      .send({ fullName: 'Not Admin', email: ORIGINAL, password: TEST_PASSWORD, organisation: 'Kigali Angels', sectors: ['Agriculture'] });
+      .send({ fullName: 'Not Admin', email: ORIGINAL, password: TEST_PASSWORD, organisation: 'Kigali Angels', sectors: ['Agriculture'], acceptTerms: true });
     expect(res.status).toBe(409);
   });
 });

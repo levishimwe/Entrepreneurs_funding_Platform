@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { Field, formatDate } from '../components/ui';
 import Avatar from '../components/Avatar';
 import { AdminPage, KeyValue, Messages } from '../components/admin';
+import { PRIVACY_EMAIL } from '../lib/policies';
 
 const ROLE = { graduate: 'Graduate founder', investor: 'Investor / sponsor', admin: 'Administrator', staff: 'ALU staff' };
 const THEMES = [
@@ -384,6 +385,37 @@ function Profile() {
           {busy ? 'Saving…' : 'Save'}
         </button>
       </form>
+
+      <h2>Your data</h2>
+      <div className="adm-card max-w-xl space-y-2 p-4 text-[13px] leading-[1.6]">
+        <p>
+          What we collect, who can see it and how long it is kept are explained in the{' '}
+          <Link to="/privacy" className="adm-a">
+            Privacy Policy
+          </Link>{' '}
+          and the{' '}
+          <Link to="/terms" className="adm-a">
+            Terms of Use
+          </Link>
+          .
+        </p>
+        <p className="adm-muted">
+          To have your data corrected or your account deleted,{' '}
+          {canContact && (
+            <>
+              <Link to="/app/contact?category=account" className="adm-a">
+                send a request through Contact
+              </Link>{' '}
+              or{' '}
+            </>
+          )}
+          write to{' '}
+          <a href={`mailto:${PRIVACY_EMAIL}`} className="adm-a break-all">
+            {PRIVACY_EMAIL}
+          </a>
+          . An administrator handles each request.
+        </p>
+      </div>
     </>
   );
 }

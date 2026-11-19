@@ -95,7 +95,7 @@ describe('re-registering an archived account email', () => {
   test('archived investor email can be registered again as an investor', async () => {
     const inv = await investorClient();
     expect((await admin.post(`/api/admin/investors/${inv.user.id}/archive`)).status).toBe(200);
-    const res = await agent().post('/api/auth/register/investor').send({ fullName: 'Another Investor', email: inv.email, password: TEST_PASSWORD, organisation: 'Kigali Angels', sectors: ['Agriculture'] });
+    const res = await agent().post('/api/auth/register/investor').send({ fullName: 'Another Investor', email: inv.email, password: TEST_PASSWORD, organisation: 'Kigali Angels', sectors: ['Agriculture'], acceptTerms: true });
     expect(res.status).toBe(201);
     expect((await User.findOne({ where: { email: inv.email } })).id).not.toBe(inv.user.id);
   });

@@ -20,6 +20,7 @@ const LIVE = ['approved', 'funded', 'investor_limit_reached'];
 // Events the graduate did themselves; the rest come from the platform.
 const OWN = new Set([
   'account.registered',
+  'account.policies_accepted',
   'account.email_verified',
   'project.submitted',
   'project.revised',

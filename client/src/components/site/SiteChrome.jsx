@@ -175,6 +175,8 @@ const FOOTER_COLS = [
     [
       ['/about', 'About the platform'],
       ['/app/contact', 'Contact the team'],
+      ['/privacy', 'Privacy Policy'],
+      ['/terms', 'Terms of Use'],
     ],
   ],
 ];

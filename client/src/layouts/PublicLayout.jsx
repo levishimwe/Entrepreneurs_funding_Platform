@@ -5,7 +5,7 @@ import { useSiteTheme } from '../lib/siteTheme';
 // Pages drawn edge to edge on the public site design (they set their own
 // backgrounds). Every other public page sits on the console canvas inside the
 // same top bar and footer. All of them follow the visitor's light/dark choice.
-const FULL_BLEED = ['/signin', '/register', '/ventures', '/opportunities', '/about'];
+const FULL_BLEED = ['/signin', '/register', '/ventures', '/opportunities', '/about', '/privacy', '/terms'];
 const fullBleed = (pathname) => FULL_BLEED.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 export default function PublicLayout() {

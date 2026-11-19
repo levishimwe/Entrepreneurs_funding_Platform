@@ -99,7 +99,7 @@ describe('graduate registration (FR02)', () => {
     const email = `investor${id}@gmail.com`;
     const res = await agent()
       .post('/api/auth/register/investor')
-      .send({ fullName: 'Grace Mutoni', email, password: TEST_PASSWORD, organisation: 'Kigali Angels', sectors: ['Agriculture'] });
+      .send({ fullName: 'Grace Mutoni', email, password: TEST_PASSWORD, organisation: 'Kigali Angels', sectors: ['Agriculture'], acceptTerms: true });
     expect(res.status).toBe(201);
     // These users, their sign-in records and the investor, removed by id.
     await removeRowsSince(marks);
@@ -123,7 +123,8 @@ describe('graduate registration (FR02)', () => {
       .field('password', TEST_PASSWORD)
       .field('phone', '0781234567')
       .field('cohortYear', '2023')
-      .field('program', 'BSc Software Engineering');
+      .field('program', 'BSc Software Engineering')
+      .field('acceptTerms', 'true');
     expect(res.status).toBe(201);
     const user = await User.findOne({ where: { email }, include: [{ model: GraduateProfile, as: 'graduateProfile' }] });
     expect(user).toMatchObject({ fullName: 'Amina Uwase', phone: '+250781234567', role: 'graduate', status: 'pending_email' });
@@ -140,6 +141,7 @@ describe('graduate registration (FR02)', () => {
       .field('password', TEST_PASSWORD)
       .field('cohortYear', '2024')
       .field('program', 'BSc Software Engineering')
+      .field('acceptTerms', 'true')
       .attach('degreeCertificate', sample('degree-amina-uwase.pdf'), 'degree.pdf');
     expect(res.status).toBe(201);
     const user = await User.findOne({ where: { email } });
@@ -218,6 +220,7 @@ describe('investor registration (FR03)', () => {
       organisation: 'Kigali Angels',
       website: 'https://kigaliangels.example',
       sectors: ['Agriculture'],
+      acceptTerms: true,
       role: 'admin',
     });
     expect(res.status).toBe(201);

@@ -21,6 +21,7 @@ const audit = require('../services/audit');
 const records = require('../services/records');
 const { describeDbError } = require('../db/errors');
 const { checkPassword, clientPolicy, MAX_LENGTH } = require('../services/passwordPolicy');
+const { POLICY_VERSION } = require('../config/policies');
 
 const router = express.Router();
 
@@ -35,6 +36,10 @@ const email = z
 // and email, so it runs in `strongPassword` below once the form is parsed.
 const password = z.string().max(MAX_LENGTH, `Password must be at most ${MAX_LENGTH} characters.`);
 const fullName = z.string().trim().min(3, 'Enter your full name.').max(150);
+// Required at registration: the Privacy Policy and Terms of Use checkbox.
+// Multipart forms send it as the text "true"; anything else is refused.
+const ACCEPT_MESSAGE = 'Please read and agree to the Privacy Policy and Terms of Use.';
+const acceptTerms = z.preprocess((v) => v === true || v === 'true', z.literal(true, { message: ACCEPT_MESSAGE }));
 
 // Exactly one of the configured domains after the last "@" (see
 // config/alumniDomains.js); look-alike domains do not match.
@@ -87,6 +92,7 @@ const graduateSchema = strongPassword(
     phone,
     cohortYear: z.coerce.number().int().min(2015, 'Enter a valid graduation year.').max(new Date().getFullYear() + 1),
     program: z.string().trim().min(2, 'Enter your degree programme.').max(150),
+    acceptTerms,
   })
 );
 
@@ -106,9 +112,25 @@ const investorSchema = strongPassword(z.object({
     .or(z.literal('')),
   sectors: listField(z.array(z.string().trim().max(80)).max(15).default([])),
   bio: z.string().trim().max(2000).optional().or(z.literal('')),
+  acceptTerms,
 }));
 
 // --- Helpers ---
+// The registration checkbox, kept in the audit log with the policy version
+// and time (no personal data beyond the new account's own id).
+function recordPolicyAcceptance(user, { transaction }) {
+  return audit.record(
+    {
+      actorId: user.id,
+      action: 'account.policies_accepted',
+      entityType: 'user',
+      entityId: user.id,
+      metadata: { privacyPolicyVersion: POLICY_VERSION, termsVersion: POLICY_VERSION, acceptedAt: new Date().toISOString() },
+    },
+    { transaction }
+  );
+}
+
 function serializeUser(user) {
   const graduate = user.graduateProfile;
   const investor = user.investorProfile;
@@ -250,6 +272,7 @@ router.post('/register/graduate', uploadLimiter, graduateUpload, async (req, res
         { actorId: user.id, action: 'account.registered', entityType: 'user', entityId: user.id, metadata: { role: 'graduate', photo: Boolean(photoKey) } },
         { transaction }
       );
+      await recordPolicyAcceptance(user, { transaction });
       await records.recordEmailReleased(released, user, { transaction });
     });
   } catch (err) {
@@ -297,6 +320,7 @@ router.post('/register/investor', uploadLimiter, upload.single('profilePhoto'), 
         { actorId: user.id, action: 'account.registered', entityType: 'user', entityId: user.id, metadata: { role: 'investor', photo: Boolean(photoKey) } },
         { transaction }
       );
+      await recordPolicyAcceptance(user, { transaction });
       await records.recordEmailReleased(released, user, { transaction });
     });
   } catch (err) {

@@ -89,7 +89,7 @@ describe('the rule applies wherever a password is created or changed', () => {
     expect(named.res.body.fields.password).toBe(PERSONAL_MESSAGE);
 
     const email = `investor${unique()}@example.com`;
-    const inv = await agent().post('/api/auth/register/investor').send({ fullName: 'Grace Mutoni', email, password: 'Password1!', organisation: 'Kigali Angels' });
+    const inv = await agent().post('/api/auth/register/investor').send({ fullName: 'Grace Mutoni', email, password: 'Password1!', organisation: 'Kigali Angels', acceptTerms: true });
     expect(inv.status).toBe(400);
     expect(inv.body.fields.password).toBe(COMMON_MESSAGE);
   });

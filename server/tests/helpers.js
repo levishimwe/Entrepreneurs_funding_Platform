@@ -43,7 +43,8 @@ async function registerGraduate(client, { fullName = 'Amina Uwase', email, passw
     .field('email', address)
     .field('password', password)
     .field('cohortYear', '2024')
-    .field('program', 'BSc Software Engineering');
+    .field('program', 'BSc Software Engineering')
+    .field('acceptTerms', 'true');
   return { res, email: address };
 }
 
@@ -86,6 +87,7 @@ async function investorClient({ approved = true } = {}) {
     password: TEST_PASSWORD,
     organisation: 'Kigali Angels',
     sectors: ['Agriculture'],
+    acceptTerms: true,
   });
   await verifyEmail(client, email);
   const user = await User.findOne({ where: { email } });

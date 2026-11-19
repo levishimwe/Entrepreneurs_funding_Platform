@@ -13,6 +13,7 @@ import ProjectForm from './pages/graduate/ProjectForm';
 import ProjectDetail from './pages/graduate/ProjectDetail';
 import { PublicOpportunities, PublicOpportunity, PublicProject, Ventures, VerifyProject } from './pages/public';
 import About from './pages/About';
+import { Privacy, Terms } from './pages/Legal';
 import Opportunities from './pages/graduate/Opportunities';
 import Settings from './pages/Settings';
 import Contact from './pages/Contact';
@@ -88,6 +89,8 @@ export default function App() {
             <Route path="opportunities" element={<PublicOpportunities />} />
             <Route path="opportunities/:id" element={<PublicOpportunity />} />
             <Route path="about" element={<About />} />
+            <Route path="privacy" element={<Privacy />} />
+            <Route path="terms" element={<Terms />} />
             <Route path="announcements" element={<PublicAnnouncements />} />
             <Route path="graduates/:id" element={<GraduateRedirect />} />
             <Route path="*" element={<NotFound />} />

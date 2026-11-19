@@ -844,6 +844,74 @@ function TwoWays() {
   );
 }
 
+// ---- Your data, plainly ------------------------------------------------------------------------
+// Short form of the Privacy Policy (pages/Legal.jsx); every line matches what the code does.
+
+const DATA_COLLECTED = [
+  'Your name, email and password (the password only as a one-way hash)',
+  'An optional phone number and profile photo',
+  'Graduates: graduation year, programme, projects and the documents you upload',
+  'Investors and sponsors: organisation, website and sectors of interest',
+  'The emails we send you and a record of decisions on your account',
+];
+
+const DATA_NEVER = [
+  'Payment or card details',
+  'Your GPS or precise location',
+  'Advertising or analytics trackers',
+  'Third-party cookies',
+  'National ID, date of birth or gender',
+  'IP addresses in our database',
+];
+
+function DataColumn({ title, items, delay }) {
+  return (
+    <Reveal delay={delay} className={`${CARD} h-full p-7`}>
+      <h3 className="text-[19px] font-medium tracking-[-0.3px] text-s-ink">{title}</h3>
+      <ul className="mt-5 flex flex-col gap-3">
+        {items.map((t) => (
+          <li key={t} className="flex gap-3 text-[15px] leading-[1.55] text-s-soft">
+            <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-s-faint" aria-hidden="true" />
+            {t}
+          </li>
+        ))}
+      </ul>
+    </Reveal>
+  );
+}
+
+function YourData() {
+  return (
+    <section id="your-data" className="scroll-mt-20 bg-s-bg px-4 py-20 sm:px-8 lg:px-16 lg:py-[120px]" aria-labelledby="your-data-title">
+      <div className="mx-auto flex max-w-[1120px] flex-col gap-12">
+        <Reveal className="flex flex-col items-center gap-4 text-center">
+          <p className={EYEBROW}>Privacy</p>
+          <h2 id="your-data-title" className={H2}>
+            Your data, plainly
+          </h2>
+        </Reveal>
+        <div className="grid gap-5 md:grid-cols-2">
+          <DataColumn title="What we collect" items={DATA_COLLECTED} delay={0} />
+          <DataColumn title="What we never collect" items={DATA_NEVER} delay={110} />
+        </div>
+        <Reveal className="flex flex-col items-center gap-4 text-center">
+          <p className="max-w-[680px] text-[16px] leading-[1.6] text-s-soft">
+            Contact details are shared only after a graduate accepts an introduction, and a project is public only with its founder&apos;s consent.
+          </p>
+          <p className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-[15px]">
+            <Link to="/privacy" className="inline-flex min-h-11 items-center font-semibold text-s-link hover:underline">
+              Read the Privacy Policy
+            </Link>
+            <Link to="/terms" className="inline-flex min-h-11 items-center font-semibold text-s-link hover:underline">
+              Terms of Use
+            </Link>
+          </p>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
 // ---- Mission ----------------------------------------------------------------------------------
 
 function Mission() {
@@ -1296,6 +1364,7 @@ export default function Home() {
         <HomeAnnouncements />
         <Introductions />
         <TwoWays />
+        <YourData />
         <Mission />
         {showPlans && <Plans />}
         <BuiltBy />

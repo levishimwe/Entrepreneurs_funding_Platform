@@ -58,6 +58,7 @@ function AuthCard({ title, subtitle, children, footer, wide = false }) {
           {children}
         </div>
         {footer && <div className="adm-muted mt-4 text-center">{footer}</div>}
+        <PolicyLinks className="mt-4" />
       </div>
     </div>
   );
@@ -85,6 +86,60 @@ const inputTone = (error) => (error ? 'border-[#dc2626] dark:border-[#f87171]' :
 const SUBMIT =
   'inline-flex h-11 w-full items-center justify-center rounded-md bg-[#2563eb] text-[14px] font-semibold text-white transition-colors hover:bg-[#1d4ed8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb] disabled:cursor-not-allowed disabled:opacity-60';
 const LINK = 'font-semibold text-s-link hover:underline';
+
+// Links to the Privacy Policy and Terms of Use under every sign-in, register,
+// code and password screen.
+function PolicyLinks({ className = '' }) {
+  return (
+    <p className={`flex flex-wrap justify-center gap-x-4 text-[12px] text-s-muted ${className}`}>
+      <Link to="/privacy" className="inline-flex min-h-11 items-center hover:text-s-ink hover:underline lg:min-h-0">
+        Privacy Policy
+      </Link>
+      <Link to="/terms" className="inline-flex min-h-11 items-center hover:text-s-ink hover:underline lg:min-h-0">
+        Terms of Use
+      </Link>
+    </p>
+  );
+}
+
+// Required at registration; the server refuses the form without it. The
+// links open in a new tab so the form keeps what was typed.
+function PolicyConsent({ f, prefix }) {
+  const id = `${prefix}-accept`;
+  const error = f.errors.acceptTerms;
+  return (
+    <div>
+      <label htmlFor={id} className="flex cursor-pointer items-start gap-3 text-[13px] leading-[1.55] text-s-ink">
+        <input
+          id={id}
+          type="checkbox"
+          checked={f.values.acceptTerms}
+          onChange={f.set('acceptTerms')}
+          required
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-[#2563eb]"
+        />
+        <span>
+          I have read and agree to the{' '}
+          <Link to="/privacy" target="_blank" rel="noopener" className={LINK}>
+            Privacy Policy
+          </Link>{' '}
+          and{' '}
+          <Link to="/terms" target="_blank" rel="noopener" className={LINK}>
+            Terms of Use
+          </Link>
+          .
+        </span>
+      </label>
+      {error && (
+        <p id={`${id}-error`} className="mt-1.5 text-[12px] text-[#b91c1c] dark:text-[#f87171]">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function FormAlert({ tone = 'error', children }) {
   if (!children) return null;
@@ -375,6 +430,7 @@ export function SignIn() {
         <p className="mt-6 text-[13px] leading-[1.55] text-s-muted">
           Haven&apos;t verified your email yet? Sign in as usual and we&apos;ll send you a new 6-digit code.
         </p>
+        <PolicyLinks className="mt-4 !justify-start" />
       </div>
     </SplitPage>
   );
@@ -463,7 +519,7 @@ function PhoneAndPhoto({ f, prefix }) {
 // ---------------------------------------------------------------------------
 function GraduateForm({ next }) {
   const navigate = useNavigate();
-  const f = useFormState({ fullName: '', email: '', password: '', phone: '', cohortYear: '', program: '', photo: null });
+  const f = useFormState({ fullName: '', email: '', password: '', phone: '', cohortYear: '', program: '', photo: null, acceptTerms: false });
   const [helpOpen, setHelpOpen] = useState(false);
   const policy = usePolicy();
   // The allowed domains and the hint come from the server (ALUMNI_EMAIL_DOMAINS).
@@ -479,6 +535,7 @@ function GraduateForm({ next }) {
       // Optional fields go only when filled in.
       if (f.values.phone.trim()) data.append('phone', f.values.phone.trim());
       if (f.values.photo) data.append('profilePhoto', f.values.photo);
+      data.append('acceptTerms', String(f.values.acceptTerms));
       const res = await api.upload('/auth/register/graduate', data);
       navigate(withNext(`/verify-email?email=${encodeURIComponent(res.email)}`, next));
     });
@@ -565,8 +622,9 @@ function GraduateForm({ next }) {
 
       <PhoneAndPhoto f={f} prefix="g" />
 
-      <div className="border-t border-s-line pt-6">
-        <button type="submit" className={SUBMIT} disabled={f.busy}>
+      <div className="space-y-4 border-t border-s-line pt-6">
+        <PolicyConsent f={f} prefix="g" />
+        <button type="submit" className={SUBMIT} disabled={f.busy || !f.values.acceptTerms}>
           {f.busy ? 'Creating account…' : 'Create graduate account'}
         </button>
         <p className="mt-3 text-center text-[12px] text-s-muted">
@@ -589,6 +647,7 @@ function InvestorForm({ next }) {
     sectors: [],
     bio: '',
     phone: '',
+    acceptTerms: false,
   });
   const toggleSector = (s) => f.setValues((v) => ({ ...v, sectors: v.sectors.includes(s) ? v.sectors.filter((x) => x !== s) : [...v.sectors, s] }));
   const policy = usePolicy();
@@ -724,8 +783,9 @@ function InvestorForm({ next }) {
 
       <PhoneAndPhoto f={f} prefix="i" />
 
-      <div className="border-t border-s-line pt-6">
-        <button type="submit" className={SUBMIT} disabled={f.busy}>
+      <div className="space-y-4 border-t border-s-line pt-6">
+        <PolicyConsent f={f} prefix="i" />
+        <button type="submit" className={SUBMIT} disabled={f.busy || !f.values.acceptTerms}>
           {f.busy ? 'Creating account…' : 'Request investor access'}
         </button>
         <p className="mt-3 text-center text-[12px] text-s-muted">Next, we&apos;ll email you a 6-digit code to verify your address.</p>
@@ -869,6 +929,7 @@ export function Register() {
             Sign in
           </Link>
         </p>
+        <PolicyLinks className="mt-2" />
       </div>
     </SplitPage>
   );

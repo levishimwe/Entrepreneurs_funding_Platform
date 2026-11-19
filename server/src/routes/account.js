@@ -120,6 +120,7 @@ router.patch('/preferences', async (req, res) => {
 
 const LABEL = {
   'account.registered': 'Registered on ALU Ventures',
+  'account.policies_accepted': 'Agreed to the Privacy Policy and Terms of Use',
   'account.email_verified': 'Confirmed alumni email',
   'account.approved': 'Account approved by an administrator',
   'account.rejected': 'Registration not approved',
